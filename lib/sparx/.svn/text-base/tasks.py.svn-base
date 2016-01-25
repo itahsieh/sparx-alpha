@@ -1,0 +1,987 @@
+##
+## This module handles most things related to sparx tasks
+##
+# SOP for adding new tasks:
+# 1) Make a copy of 'class Task_Template' and the corresponding 'install_task()' call in this file.
+# 2) Change the names 'Task_Template' and 'task_template' to 'Task_Something' and 'task_something'
+#    where 'Something' and 'something' is the name of your task.
+# 3) Add the proper keywords to self.keys.
+# 4) Modify the 'self.configure' and 'self.main' methods to your liking.
+#    self.configure() is run during self.__init__(). When the task is called,
+#    the execution order is: slef._proc_inps() -> self.main() -> self.cfunc()
+# 5) Point self.cfunc to a proper C function if needed.
+# 6) All done!
+
+# Some necessary imports
+from math import sqrt
+from sparx.utils import MESG as Mesg, MPI_SIZE, MPI_RANK
+from sparx.inputs import Key, Type, INP_DICT
+from sparx import _sparx
+from sparx import physics as phys
+import numpy as np
+
+Unit = phys.Units
+Cnst = phys.Const
+
+##
+## Global task dictionary
+##
+TASK_DICT = {}
+
+##
+## Task class
+##
+class Task(object):
+	##
+	## Object constructor
+	##
+	def __init__(self, name, desc="", expl="", cfunc=None, keys=[], parallel=False):
+		# Name
+		self.name = str(name)
+
+		# Configuration overridden by child
+		if hasattr(self, "configure"):
+			self.configure()
+
+		# Description
+		if not hasattr(self, "desc"):
+			self.desc = str(desc)
+
+		# Explanation
+		if not hasattr(self, "expl"):
+			self.expl = str(expl)
+
+		# C function to call
+		if not hasattr(self, "cfunc"):
+			self.cfunc = cfunc
+
+		# Keywords for this task
+		if not hasattr(self, "keys"):
+			assert type(keys) is list
+			self.keys = keys
+
+		# Store keys in dictionary for easy lookup
+		self.keydict = {}
+		for key in self.keys:
+			self.keydict[key.name] = key
+
+		# Is this a parallelized task?
+		if not hasattr(self, "parallel"):
+			self.parallel = parallel
+
+		# Generate docstring
+		dochead = "Name:\n"+\
+		"  %s\n"%self.name+\
+		"\n"+\
+		"Description:\n"+\
+		"  %s\n"%self.desc
+
+		dockey = "Keywords:\n"
+		for key in self.keys:
+			dockey += "%12s=%s\n"%(key.name, repr(key.typ))
+			if key.deflt is None:
+				dockey += " "*13+"(No default)\n"
+			elif key.deflt is Type.Optional:
+				dockey += " "*13+"(Optional)\n"
+			else:
+				dockey += " "*13+"(default: \"%s\")\n"%key.deflt
+			dockey += " "*13+key.desc+"\n\n"
+
+		doctail = \
+		"Explanation:\n"+\
+		"  %s"%self.expl
+		self.__doc__ = "\n".join([dochead, dockey, doctail])
+
+		return
+
+	##
+	## Inputs processor
+	##
+	def _proc_inps(self, **kwargs):
+		# args is a dictionary of user-specified keyword=value entries,
+		# so convert them to the proper values and store in the
+		# sparx.inputs.INP_DICT dictionary for later use by the task
+		for kwrd in kwargs:
+			# Retrieve value
+			valu = kwargs[kwrd]
+
+			# Convert value to proper format if kwrd is a valid key
+			if kwrd in self.keydict:
+				key = self.keydict[kwrd]
+				try:
+					# Convert value string
+					INP_DICT[kwrd] = key.typ(valu)
+				except:
+					# Something went wrong with the conversion
+					raise
+			else:
+				raise Exception, "Key '%s' is not a valid keyword for task '%s'" % (kwrd, self.name)
+
+		# Make sure input is valid by checking
+		# whether all required keys have been set
+		for key in self.keys:
+			if key.name not in INP_DICT:
+				if key.deflt is None:
+					# This key is mandatory
+					raise Exception, "Key '%s' must be given for task '%s'"%(key.name, self.name)
+				elif key.deflt is Type.Optional:
+					# Set key to None (VERY IMPORTANT!)
+					INP_DICT[key.name] = None
+				else:
+					# This key has a default value
+					INP_DICT[key.name] = key.typ(key.deflt)
+					Mesg("Key '%s' not given, using default=\"%s\"" % (key.name, key.deflt))
+		return
+
+	##
+	## What to do when the task is executed
+	##
+	def __call__(self, **kwargs):
+		# If this is not a parallel task, do not allow non-root processes to execute
+		# the task. THIS IS VERY IMPORTANT! Failing to check this may result in scary
+		# race conditions!!!
+		if not self.parallel and MPI_RANK != 0:
+			return
+
+		# Process user inputs
+		self._proc_inps(**kwargs)
+
+		# Run the main() hook function if defined
+		if hasattr(self, "main"):
+			self.main()
+
+		# Run C function if it isn't None. This function must
+		# be able to raise Python exceptions since no error
+		# checking is done after execution
+		if self.cfunc is not None:
+			self.cfunc()
+		return
+
+	##
+	## What to do when called from the command line
+	##
+	def run(self, args):
+		# args is a list of key=val pairs, so break them up
+		# and turn them into a dictionary
+		kwargs = {}
+		for arg in args:
+			toks = arg.split("=")
+			if len(toks) < 2:
+				raise Exception, "'%s' must be in the 'keyword=value' format"%arg
+			kwargs[toks[0]] = "=".join(toks[1:])
+		self.__call__(**kwargs)
+		return
+
+##
+## Function to install task in this module and add entry to
+## TASK_DICT dictionary
+##
+def install_task(task):
+	import sys
+	mod = sys.modules[__name__]
+	if not hasattr(mod, task.name):
+		setattr(mod, task.name, task)
+		TASK_DICT[task.name] = task
+	else:
+		raise Exception, "Task '%s' already exists" % task.name
+
+##
+## Task definitions
+##
+
+class Task_Template(Task):
+	"""
+	Task template
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "A brief description of what the task does"
+
+		# Explanation
+		self.expl = "Some documentation on the task"
+
+		# Keys
+		self.keys = [
+			Key("pos_int", Type.PosInt, 10, "Keyword for testing purposes only"),
+			Key("int", Type.Integer, -10, "Keyword for testing purposes only"),
+			Key("angle", Type.Angle, '0.1asec', "Keyword for testing purposes only"),
+			Key("velo", Type.Velo, '100kms^-1', "Keyword for testing purposes only"),
+			Key("length", Type.Length, '10pc', "Keyword for testing purposes only"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_template
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		return
+
+install_task(Task_Template("task_template"))
+
+################################################################################
+
+class Task_Empty(Task):
+	"""
+	An empty task mainly for generating valgrind suppressions
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "A task that does nothing"
+
+		# Explanation
+		self.expl = "Not much explanation here"
+
+		# Keys
+		self.keys = [
+			Key("pos_int", Type.PosInt, 10, "Keyword for testing purposes only"),
+			Key("int", Type.Integer, -10, "Keyword for testing purposes only"),
+			Key("angle", Type.Angle, '0.1asec', "Keyword for testing purposes only"),
+			Key("velo", Type.Velo, '100kms^-1', "Keyword for testing purposes only"),
+			Key("length", Type.Length, '10pc', "Keyword for testing purposes only"),
+		]
+
+		# C function to call
+		self.cfunc = None
+
+install_task(Task_Empty("task_empty"))
+
+################################################################################
+
+class Task_ValDust1D(Task):
+	"""
+	Validate dust radiative transfer, 1D version
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Generate sph1d grid for testing LTE dust radiative xfer"
+
+		# Explanation
+		self.expl = "Generate a uniform sph1d grid full of dust for verifying dust radiative transfer"
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		from sparx.grid import Grid_sph1d
+		# Setup dimensions
+		n = 100
+		length = 0.1 # pc
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_sph1d(n, length)
+
+		# Set model parameters
+		grid.gas_to_dust = 100.0
+		for i in range(n):
+			pos = i,0,0
+			grid.n_H2[pos] = 1e4 * 1e6 # m^-3
+			#grid.X_mol[pos] = 1e-4
+			grid.T_k[pos] = 100.0 # K
+			#grid.T_ff[pos] = grid.T_k[pos]
+			#grid.kapp_ff[pos] = Type.KappFLaw('100GHz', '1.0e-2cm^2g^-1', 0)
+			grid.T_d[pos] = grid.T_k[pos]
+			grid.kapp_d[pos] = Type.KappLLaw("['1mm', '0.1m^2kg^-1', 0]")
+		return
+
+install_task(Task_ValDust1D("task_valdust1d"))
+
+################################################################################
+
+class Task_ValDust3D(Task):
+	"""
+	Validate dust radiative transfer, 3D version
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Generate rec3d grid for testing LTE dust radiative xfer"
+
+		# Explanation
+		self.expl = "Generate a uniform rec3d grid full of dust for verifying dust radiative transfer"
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		from sparx.grid import Grid_rec3d
+		# Setup dimensions
+		radius = 0.1 # [pc] cloud radius
+		length = radius * 2 # [pc]
+		n = 32
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_rec3d((n, n, n), (length, length, length))
+
+		# Set model parameters
+		grid.gas_to_dust = 100.0
+		grid.T_cmb = 0
+		for pos in np.ndindex(n, n, n):
+			# Calculate radius at pos
+			di = grid.cen_i[pos] - grid.cen[0]
+			dj = grid.cen_j[pos] - grid.cen[1]
+			dk = grid.cen_k[pos] - grid.cen[2]
+			r = sqrt(di**2 + dj**2 + dk**2)
+
+			# Set parameters only if within cloud radius
+			if r <= radius:
+				# Set physical parameters
+				grid.n_H2[pos] = 1e4 * 1e6 # m^-3
+				grid.T_k[pos] = 100.0 # K
+				grid.T_d[pos] = grid.T_k[pos]
+				grid.kapp_d[pos] = Type.KappLLaw("['1mm', '0.1m^2kg^-1', 0]")
+		return
+
+install_task(Task_ValDust3D("task_valdust3d"))
+
+################################################################################
+
+class Task_ValLine1D(Task):
+	"""
+	Validate line radiative transfer, 1D version
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Generate sph1d grid for testing LTE molecular line radiative xfer"
+
+		# Explanation
+		self.expl = "Generate a uniform sph1d grid full of molecular gas for verifying line radiative transfer"
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
+			Key("molec", Type.Molec, None, "Molecule to generate LTE populations for"),
+			Key("xmol", Type.Fraction, None, "Molecular abundance"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		from sparx.grid import Grid_sph1d
+		# Setup dimensions
+		n = 100
+		length = 0.1 # pc
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_sph1d(n, length)
+
+		# Set model parameters
+		grid.gas_to_dust = 0
+		for i in range(n):
+			pos = i,0,0
+			grid.n_H2[pos] = 1e9 * 1e6 # m^-3
+			grid.T_k[pos] = 40.0 # K
+			grid.X_mol[pos] = INP_DICT["xmol"] # fraction
+		return
+
+install_task(Task_ValLine1D("task_valline1d"))
+
+################################################################################
+
+class Task_ValLine3D(Task):
+	"""
+	Validate line radiative transfer, 1D version
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Generate sph1d grid for testing LTE molecular line radiative xfer"
+
+		# Explanation
+		self.expl = "Generate a uniform sph1d grid full of molecular gas for verifying line radiative transfer"
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
+			Key("molec", Type.Molec, None, "Molecule to generate LTE populations for"),
+			Key("xmol", Type.Fraction, None, "Molecular abundance"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		from sparx.grid import Grid_rec3d
+		# Setup dimensions
+		radius = 0.1 # [pc] cloud radius
+		length = radius * 2 # [pc]
+		n = 32
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_rec3d((n, n, n), (length, length, length))
+
+		# Set model parameters
+		grid.gas_to_dust = 100.0
+		grid.T_cmb = 0
+		for pos in np.ndindex(n, n, n):
+			# Calculate radius at pos
+			di = grid.cen_i[pos] - grid.cen[0]
+			dj = grid.cen_j[pos] - grid.cen[1]
+			dk = grid.cen_k[pos] - grid.cen[2]
+			r = sqrt(di**2 + dj**2 + dk**2)
+
+			# Set parameters only if within cloud radius
+			if r <= radius:
+				# Set physical parameters
+				grid.n_H2[pos] = 1e9 * 1e6 # m^-3
+				grid.T_k[pos] = 40.0 # K
+				grid.X_mol[pos] = INP_DICT["xmol"] # fraction
+		return
+
+install_task(Task_ValLine3D("task_valline3d"))
+
+################################################################################
+
+class Task_Leiden1D(Task):
+	"""
+	Leiden benchmark problem, 1D version
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Leiden H2O benchmark problem generator"
+
+		# Explanation
+		self.expl = "Some documentation on the task"
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Output model file"),
+			Key("xmol", Type.Fraction, None, "Molecular abundance"),
+			Key("vgrad", Type.Velo, None, "Radial velocity gradient"),
+			Key("tk", Type.Temp, None, "Kinetic temperature"),
+			Key("tcmb", Type.Temp, "0.0K", "Brightness temperature of background radiation field"),
+			Key("ndiv", Type.PosInt, Type.Optional, "Number of shells (standard 200 shell grid used if not given)"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		from sparx.grid import Grid_sph1d
+		# Setup dimensions and gridding
+		radius = 0.1 # [pc] cloud radius
+		n = INP_DICT["ndiv"]
+		if n == None:
+			n = 200
+			manual_grid = [.100000000E-02, .626483225E-02, .112496854E-01, .159694484E-01, .204382186E-01, .246693436E-01, .286754610E-01, .324685367E-01, .360599000E-01, .394602777E-01, .426798264E-01, .457281623E-01, .486143904E-01, .513471314E-01, .539345477E-01, .563843674E-01, .587039079E-01, .609000973E-01, .629794953E-01, .649483128E-01, .668124302E-01, .685774156E-01, .702485405E-01, .718307966E-01, .733289096E-01, .747473544E-01, .760903674E-01, .773619603E-01, .785659310E-01, .797058755E-01, .807851988E-01, .818071247E-01, .827747054E-01, .836908311E-01, .845582380E-01, .853795169E-01, .861571210E-01, .868933728E-01, .875904713E-01, .882504988E-01, .888754266E-01, .894671213E-01, .900273502E-01, .905577866E-01, .910600148E-01, .915355350E-01, .919857675E-01, .924120570E-01, .928156768E-01, .931978325E-01, .935596654E-01, .939022564E-01, .942266287E-01, .945337512E-01, .948245412E-01, .950998672E-01, .953605517E-01, .956073731E-01, .958410688E-01, .960623368E-01, .962718380E-01, .964701980E-01, .966580095E-01, .968358333E-01, .970042006E-01, .971636142E-01, .973145504E-01, .974574599E-01, .975927697E-01, .977208838E-01, .978421848E-01, .979570352E-01, .980657780E-01, .981687379E-01, .982662225E-01, .983585230E-01, .984459150E-01, .985286595E-01, .986070038E-01, .986811818E-01, .987514151E-01, .988179134E-01, .988808755E-01, .989404892E-01, .989969328E-01, .990503747E-01, .991009746E-01, .991488837E-01, .991942450E-01, .992371940E-01, .992778591E-01, .993163616E-01, .993528166E-01, .993873329E-01, .994200137E-01, .994509566E-01, .994802539E-01, .995079932E-01, .995342574E-01, .995591249E-01, .995826699E-01, .996049629E-01, .996260703E-01, .996460553E-01, .996649774E-01, .996828933E-01, .996998565E-01, .997159175E-01, .997311245E-01, .997455227E-01, .997591553E-01, .997720629E-01, .997842841E-01, .997958554E-01, .998068113E-01, .998171846E-01, .998270063E-01, .998363056E-01, .998451104E-01, .998534470E-01, .998613403E-01, .998688138E-01, .998758898E-01, .998825896E-01, .998889375E-01, .998949433E-01, .999006298E-01, .999060139E-01, .999111116E-01, .999159383E-01, .999205083E-01, .999248353E-01, .999289321E-01, .999328111E-01, .999364838E-01, .999399612E-01, .999432537E-01, .999463711E-01, .999493227E-01, .999521173E-01, .999547633E-01, .999572686E-01, .999596407E-01, .999618867E-01, .999640132E-01, .999660266E-01, .999679329E-01, .999697379E-01, .999714469E-01, .999730650E-01, .999745970E-01, .999760476E-01, .999774211E-01, .999787215E-01, .999799527E-01, .999811185E-01, .999822223E-01, .999832674E-01, .999842569E-01, .999851937E-01, .999860808E-01, .999869207E-01, .999877159E-01, .999884689E-01, .999891818E-01, .999898568E-01, .999905415E-01, .999911429E-01, .999917114E-01, .999922498E-01, .999927596E-01, .999932425E-01, .999936997E-01, .999941328E-01, .999945429E-01, .999949314E-01, .999952993E-01, .999956477E-01, .999959777E-01, .999962903E-01, .999965863E-01, .999968667E-01, .999971323E-01, .999973838E-01, .999977677E-01, .999979928E-01, .999981857E-01, .999983665E-01, .999985387E-01, .999987031E-01, .999988601E-01, .999990103E-01, .999991538E-01, .999992911E-01, .999994225E-01, .999995483E-01, .999996687E-01, .999997841E-01, .999998947E-01, .100000000E+00]
+		else:
+			manual_grid = None
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_sph1d(n, radius)
+
+		# Setup model parameters
+		grid.gas_to_dust = 0
+		grid.T_cmb = INP_DICT["tcmb"] # K
+		for pos in np.ndindex(n, 1, 1):
+			# Manually regrid if requested
+			id = pos[0]
+			if manual_grid != None:
+				if id == 0:
+					grid.SetZoneBoundary_sph1d(id, 0, manual_grid[id])
+				else:
+					grid.SetZoneBoundary_sph1d(id, manual_grid[id - 1], manual_grid[id])
+					assert manual_grid[id - 1] < manual_grid[id]
+
+			# Set physical parameters
+			grid.n_H2[pos] = 1e4 * 1e6 # m^-3
+			grid.T_k[pos] = INP_DICT["tk"] # K
+			grid.X_mol[pos] = INP_DICT["xmol"] # Fraction
+			grid.V_i[pos] = INP_DICT["vgrad"] * grid.cen_i[pos] # m/s
+		return
+
+install_task(Task_Leiden1D("task_leiden1d"))
+
+################################################################################
+
+class Task_Leiden3D(Task_Leiden1D):
+	"""
+	Leiden benchmark problem, 3D version
+	"""
+	##
+	## Task procedures
+	##
+	def main(self):
+		from sparx.grid import Grid_rec3d
+		# Setup dimensions and gridding
+		radius = 0.1 # [pc] cloud radius
+		length = radius * 2 # [pc] length of each side of the box should be 2*radius
+		n = INP_DICT["ndiv"] # number of divisions per axis
+
+		# Set n=16 if not given by user
+		if n == None:
+			n = 16
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_rec3d((n, n, n), (length, length, length))
+
+		# Setup model parameters
+		grid.gas_to_dust = 0
+		grid.T_cmb = INP_DICT["tcmb"]
+		for pos in np.ndindex(n, n, n):
+			# Calculate radius at pos
+			di = grid.cen_i[pos] - grid.cen[0]
+			dj = grid.cen_j[pos] - grid.cen[1]
+			dk = grid.cen_k[pos] - grid.cen[2]
+			r = sqrt(di**2 + dj**2 + dk**2)
+
+			# Set parameters only if within cloud radius
+			if r <= radius:
+				# Set physical parameters
+				grid.n_H2[pos] = 1e4 * 1e6 # m^-3
+				grid.T_k[pos] = INP_DICT["tk"] # K
+				grid.X_mol[pos] = INP_DICT["xmol"] # Fraction
+
+				# Project radial velocity onto Cartesian coordinates
+				vel = phys.Vec3_Normalize([di, dj, dk])
+				vel = phys.Vec3_Scale(vel, INP_DICT["vgrad"] * r) # m/s
+				grid.V_i[pos] = vel[0]
+				grid.V_j[pos] = vel[1]
+				grid.V_k[pos] = vel[2]
+		return
+
+install_task(Task_Leiden3D("task_leiden3d"))
+
+################################################################################
+
+class Task_W3OH1D(Task):
+	"""
+	1D toy model for molecular gas in the W3(OH) region
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "W3(OH) model generator"
+
+		# Explanation
+		self.expl = ""
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Output file name"),
+			Key("xmol", Type.Fraction, None, "Molecular abundance"),
+			Key("nshell", Type.PosInt, None, "Number of shells"),
+			Key("radius", Type.Length, None, "Radius of model"),
+			Key("n0", Type.NumDens, None, "Gas density"),
+			Key("t0", Type.Temp, None, "Kinetic temperature"),
+			Key("v0", Type.Velo, None, "Radial velocity gradient [velocity/pc]"),
+			Key("vt", Type.Velo, None, "Turbulent line width"),
+			#Key("tcen", Type.Temp, None, "Temperature of central source"),
+			Key("rcen", Type.Length, None, "Radius of central cavity"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		from sparx.grid import Grid_sph1d
+		# Setup dimensions
+		n = INP_DICT["nshell"]
+		length = INP_DICT["radius"] / Unit.pc # [pc]
+
+		# Generate grid and attach to input
+		grid = INP_DICT["pygrid"] = Grid_sph1d(n, length)
+
+		# Radius of central "hole"
+		rcen = INP_DICT["rcen"] / Unit.pc # [pc]
+
+		# Regrid with inner radius arbitrarily set at 100 au (esc 09Dec30)
+		# grid.Grid_sph1d_log10(100.0 * Unit.au / Unit.pc)
+		grid.Grid_sph1d_log10(rcen)
+
+		# Reference radius arbitrarily set at 500 au
+		# DO NOT CHANGE unless for good reason
+		r0 = 500 * Unit.au / Unit.pc # [pc]
+
+		# Other model parameters
+		grid.gas_to_dust = 100.0
+		grid.T_cmb = 2.728 # K
+
+		def T_k(r):
+			return INP_DICT["t0"] * (r / r0)**-0.4 # [K]
+
+		# Model description
+		for pos in np.ndindex(n, 1, 1):
+			# Get radius
+			r = grid.cen_i[pos]
+
+			# Set parameters
+			grid.n_H2[pos] = INP_DICT["n0"] * (r / r0)**-1.5 # [m^-3]
+			grid.X_mol[pos] = INP_DICT["xmol"] # Fraction
+			grid.T_k[pos] =  T_k(r) # [K]
+			grid.V_i[pos] = INP_DICT["v0"] * (r / r0)**-0.5 # [m/s]
+			grid.V_t[pos] = INP_DICT["vt"] # [m/s]
+
+			# Dust properties
+			grid.T_d[pos] = grid.T_k[pos]
+			grid.kapp_d[pos] = Type.KappLLaw("['0.25mm','10cm^2g^-1',-1]")
+
+			if r <= rcen:
+				# No molecules or dust present inside dust destruction radius,
+				# which harbors an extremely optically thick continuum source
+				grid.T_d[pos] = T_k(rcen) # K
+				grid.kapp_d[pos] = Type.KappLLaw("['0.25mm','1e6cm^2g^-1',-1]")
+				grid.X_mol[pos] = 0
+		return
+
+install_task(Task_W3OH1D("task_w3oh1d"))
+
+################################################################################
+
+class Task_ConstInfall1D(Task):
+	"""
+	Spherical caloud with constant infall, 1D version
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Spherical caloud with constant infall, 1D version"
+
+		# Explanation
+		self.expl = ""
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Output model file"),
+			Key("xmol", Type.Fraction, None, "Molecular abundance"),
+			Key("vin", Type.Velo, None, "Infall velocity"),
+			Key("ndiv", Type.PosInt, 64, "Number of shells"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		# Model parameters (Tafalla et al. 2004)
+		n0 = 6.0e4 * 1e6 # [cm^-3] -> [m^-3]
+		r0 = 5e16 * 1e-2 / Unit.pc # [cm] -> [pc]
+		radius = 2e17 * 1e-2 / Unit.pc # [cm] -> [pc]
+		alpha = 4.0
+
+		from sparx.grid import Grid_sph1d
+		# Setup dimensions and gridding
+		n = INP_DICT["ndiv"]
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_sph1d(n, radius)
+
+		# Setup model parameters
+		grid.gas_to_dust = 0
+		grid.T_cmb = 2.728 # K
+
+		for pos in np.ndindex(n, 1, 1):
+			r = grid.cen_i[pos]
+
+			# Set physical parameters
+			grid.n_H2[pos] = n0 / (1.0 + (r / r0)**alpha) # m^-3
+			grid.T_k[pos] = 10.0 # K
+			grid.X_mol[pos] = INP_DICT["xmol"] # Fraction
+			grid.V_i[pos] = -INP_DICT["vin"] # m/s
+			grid.V_t[pos] = 0.1e3 # [m/s]
+		return
+
+install_task(Task_ConstInfall1D("task_constinfall1d"))
+
+################################################################################
+
+class Task_ConstInfall3D(Task):
+	"""
+	Spherical caloud with constant infall, 3D version
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Spherical caloud with constant infall, 3D version"
+
+		# Explanation
+		self.expl = ""
+
+		# Keys
+		self.keys = [
+			Key("out", Type.NewFile, None, "Output model file"),
+			Key("xmol", Type.Fraction, None, "Molecular abundance"),
+			Key("vin", Type.Velo, None, "Infall velocity"),
+			Key("ndiv", Type.PosInt, 64, "Number of shells"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_pygrid
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		# Model parameters (Tafalla et al. 2004)
+		n0 = 6.0e4 * 1e6 # [cm^-3] -> [m^-3]
+		r0 = 5e16 * 1e-2 / Unit.pc # [cm] -> [pc]
+		radius = 2e17 * 1e-2 / Unit.pc # [cm] -> [pc]
+		length = radius * 2.0 # [pc]
+		alpha = 4.0
+
+		from sparx.grid import Grid_rec3d
+		# Setup dimensions and gridding
+		n = INP_DICT["ndiv"]
+
+		# Generate grid and attach to input
+		INP_DICT["pygrid"] = grid = Grid_rec3d((n, n, n), (length, length, length))
+
+		# Setup model parameters
+		grid.gas_to_dust = 0
+		grid.T_cmb = 2.728 # K
+
+		for pos in np.ndindex(n, n, n):
+			# Calculate radius at pos
+			di = grid.cen_i[pos] - grid.cen[0]
+			dj = grid.cen_j[pos] - grid.cen[1]
+			dk = grid.cen_k[pos] - grid.cen[2]
+			r = sqrt(di**2 + dj**2 + dk**2)
+
+			# Set parameters only if within cloud radius
+			if r <= radius:
+				grid.n_H2[pos] = n0 / (1.0 + (r / r0)**alpha) # m^-3
+				grid.T_k[pos] = 10.0 # K
+				grid.X_mol[pos] = INP_DICT["xmol"] # Fraction
+				grid.V_t[pos] = 0.1e3 # [m/s]
+
+				# Project radial velocity onto Cartesian coordinates
+				vel = phys.Vec3_Normalize([di, dj, dk])
+				vel = phys.Vec3_Scale(vel, -INP_DICT["vin"]) # m/s
+				grid.V_i[pos] = vel[0]
+				grid.V_j[pos] = vel[1]
+				grid.V_k[pos] = vel[2]
+		return
+
+install_task(Task_ConstInfall3D("task_constinfall3d"))
+
+################################################################################
+
+class Task_AMC(Task):
+	"""
+	Accelerated Monte Carlo method for solving detailed balance
+	"""
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Non-LTE molecular excitation solver"
+
+		# Explanation
+		self.expl = "Calculate non-LTE molecular excitation by solving detailed balance with the Accelerated Monte Carlo method (Hogerheijde & van der Tak 2000)"
+
+		# Keys
+		self.keys = [
+			Key("source", Type.OldFile, None, "Name of input source model (HDF5 file)"),
+			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
+			Key("molec", Type.Molec, None, "Molecule to calculate"),
+			Key("lte", Type.Bool, "False", "Whether to start convergence from LTE conditions"),
+			Key("trace", Type.Bool, "False", "Whether to trace convergence history"),
+			Key("tolerance", Type.Fraction, "1e-6", "Convergence criterion for fixed rays stage"),
+			Key("snr", Type.Float, "20", "Upper limit of Monte Carlo noise level"),
+			Key("minpop", Type.Fraction, "1e-6", "Minimum pops to test for convergence"),
+			Key("nrays", Type.PosInt, "1000", "Number of initial rays per zone"),
+			Key("maxiter", Type.PosInt, "1000", "Maximum number of iterations for solving detailed balance"),
+			# esc 09Sep29: It seems it would be best for raniter to be set to at least 5 to
+			#              prevent false convergence (just an empirical guess)
+			Key("fixiter", Type.PosInt, "5", "Minimum number of iterations for fixed rays stage"),
+			Key("raniter", Type.PosInt, "5", "Minimum number of iterations for random rays stage"),
+		]
+
+		# C function to call
+		self.cfunc = _sparx.task_amc
+
+install_task(Task_AMC("task_amc"))
+
+##
+## telsim related tasks:
+## task_contobs and task_lineobs
+##
+# Keys both contobs and lineobs share:
+telsim_keys = [
+	Key("dist", Type.Length, "1kpc", "Distance to source"),
+	Key("cell", Type.Custom([Type.Angle, Type.Angle]), "['1asec', '1asec']", "Angular size of each pixel"),
+	Key("npix", Type.Custom([Type.PosInt, Type.PosInt]), "[128, 128]", "Image dimensions in number of pixels"),
+	Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[64, '0.1kms^-1']", "Number of spectral channels and width of each channel (in velocity units)"),
+	Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", "Image brightness unit"),
+	Key("rotate", Type.Custom([Type.Angle, Type.Angle, Type.Angle]), "['0deg', '0deg', '0deg']", "Rotation of model about its x, y and z axes, in x-y-z order."),
+	Key("tau", Type.NewFile, Type.Optional, "Name of output tau cube (Miriad image dataset)"),
+	Key("subres", Type.Custom([[Type.Angle, Type.Angle, Type.Angle, Type.Angle, Type.PosInt]]), Type.Optional, "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]"),
+	Key("lte", Type.Molec, Type.Optional, "Init model to LTE pops of Molec"),
+]
+
+##
+## task_contobs
+##
+class Task_ContObs(Task):
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Synthetic continuum map generator"
+
+		# Explanation
+		self.expl = "Generates synthetic continuum images"
+
+		# Keys
+		self.keys = [
+			Key("source", Type.OldFile, None, "Input source model (HDF5 file), must contain dust information"),
+			Key("out", Type.NewFile, None, "Name of output image (Miriad image dataset)"),
+			Key("wavelen", Type.Length, None, "Wavelength of observation")
+		]+telsim_keys
+
+		# C function to call
+		self.cfunc = _sparx.task_telsim
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		# Create 'obs' class used by C code (consider changing this
+		# eventually)
+		class obs:
+			cont = 1 # Disable continuum mode -- line observations
+			data = INP_DICT['wavelen']
+		INP_DICT["obs"] = obs
+		return
+
+install_task(Task_ContObs("task_contobs"))
+
+##
+## task_lineobs
+##
+class Task_LineObs(Task):
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "Synthetic line map generator"
+
+		# Explanation
+		self.expl = "Generates synthetic line images"
+
+		# Keys
+		self.keys = [
+			Key("source", Type.OldFile, None, "Input source model (HDF5 file), must contain dust information"),
+			Key("out", Type.NewFile, None, "Name of output image (Miriad image dataset)"),
+			Key("line", Type.Index, None, "Line index of observing line")
+		]+telsim_keys
+
+		# C function to call
+		self.cfunc = _sparx.task_telsim
+
+	##
+	## Task procedures
+	##
+	def main(self):
+		# Create 'obs' class used by C code (consider changing this
+		# eventually)
+		class obs:
+			cont = 0 # Disable continuum mode -- line observations
+			data = INP_DICT["line"]
+		INP_DICT["obs"] = obs
+		return
+
+install_task(Task_LineObs("task_lineobs"))
+
+##
+## Tasks for testing purposes only
+##
+
+# test_fft
+install_task(Task("test_fft", "Test fast fourier transform functionality.", "", _sparx.test_fft))
+install_task(Task("test_planck", "Test Planck function.", "", _sparx.test_planck))
+
+
+
+
+
+
+
+
+

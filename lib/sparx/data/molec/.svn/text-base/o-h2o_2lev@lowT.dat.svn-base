@@ -1,0 +1,37 @@
+! MOLECULE
+2lev-o-H2O
+! MASS
+ 18.
+! NUMBER OF ENERGY LEVELS
+2
+! LEVEL + ENERGY(CM-1) + WEIGHT + QUANTUM NOS.  J_K+_K-
+  1    23.794356     9.0      1_0_1
+  2    42.371741     9.0      1_1_0
+! NUMBER OF RADIATIVE TRANSITIONS
+1
+! TRANS + UP + LOW + EINSTEINA(s^-1) + FREQ(GHz)+ E_up(K)
+   1    2   1   3.458E-03    556.93607     61.0
+! NUMBER OF COLLISION PARTNERS
+2
+! COLLISION PARTNER
+2 oH2O - pH2 from Dubernet & Grosjean (2002) and Phillips et al. (1996) for T>20K       
+! NUMBER OF COLLISIONAL TRANSITIONS
+1
+! NUMBER OF COLLISION TEMPERATURES
+11
+! COLLISION TEMPERATURES
+  5.0    8.0   12.0   16.0   20.0   40.0   60.0   80.0  100.0  120.0  140.0
+! TRANS + UP + LOW + RATE COEFFS(cm^3 s^-1)
+    1    2   1   8.2E-12 1.2E-11 1.6E-11 1.8E-11 1.9E-11 1.6E-11 1.9E-11 2.2E-11 2.4E-11 2.7E-11 3.0E-11
+! COLLISION PARTNER
+3 oH2O - oH2 from Grosjean et al. (2003) and Phillips et al. (1996) for T>20K        
+! NUMBER OF COLLISIONAL TRANSITIONS
+1
+! NUMBER OF COLLISION TEMPERATURES
+11
+! COLLISION TEMPERATURES
+  5.0    8.0   12.0   16.0   20.0   40.0   60.0   80.0  100.0  120.0  140.0
+! TRANS + UP + LOW + RATE COEFFS(cm^3 s^-1)
+    1    2   1   2.2E-10 2.3E-10 2.5E-10 2.6E-10 2.7E-10 2.9E-10 2.9E-10 2.9e-10 2.9E-10 2.9E-10 2.9e-10
+!NOTES:
+!Energy levels, transition frequencies and Einstein A coefficients from JPL

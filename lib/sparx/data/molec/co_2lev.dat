@@ -1,0 +1,37 @@
+!MOLECULE
+2lev-CO
+!MOLECULAR WEIGHT
+28.0
+!NUMBER OF ENERGY LEVELS
+2
+!LEVEL + ENERGIES(cm^-1) + WEIGHT + J
+    1     0.0000    1.0     0
+    2     3.8450    3.0     1
+!NUMBER OF RADIATIVE TRANSITIONS
+1
+!TRANS + UP + LOW + EINSTEINA(s^-1) + FREQ(GHz) + E_u(K)
+    1     2     1   7.203e-08     115.2712018      5.53
+!NUMBER OF COLL PARTNERS
+2
+!COLLISIONS BETWEEN
+1 CO-H2 from Green and Thaddeus (1976)
+!NUMBER OF COLL TRANS
+1
+!NUMBER OF COLL TEMPS
+7
+!COLL TEMPS
+    5.0   10.0   20.0   40.0   60.0   80.0  100.0
+!TRANS + UP + LOW + COLLRATES(cm^3 s^-1)
+    1     2     1  0.0868e-10 0.1757e-10 0.2793e-10 0.3449e-10 0.3629e-10 0.3694e-10 0.3725e-10
+!COLLISIONS BETWEEN
+6 CO-He from Green and Thaddeus (1976)
+!NUMBER OF COLL TRANS
+1
+!NUMBER OF COLL TEMPS
+7
+!COLL TEMPS
+    5.0   10.0   20.0   40.0   60.0   80.0  100.0
+!TRANS + UP + LOW + COLLRATES(cm^3 s^-1)
+    1     2     1  0.2679e-10 0.2822e-10 0.2596e-10 0.2276e-10 0.2107e-10 0.1999e-10 0.1922e-10
+!NOTES:
+!Energy levels, transition frequencies and Einstein A coefficients taken from CDMS

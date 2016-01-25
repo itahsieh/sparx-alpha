@@ -1,0 +1,119 @@
+#! /usr/bin/env python
+
+if __name__ == "__main__":
+	import sparx
+
+	##
+	## Configure options parser
+	##
+	from optparse import OptionParser
+	parser = OptionParser(usage="%prog [OPTIONS] PARM FILE1 FILE2 ...")
+	parser.add_option("-o", metavar="FILE", dest="out", nargs=1, default=None, help="Output file name")
+	parser.add_option("-a", "--ascii", dest="ascii", action="store_true", default=False, help="Print out ascii table instead of plotting")
+	parser.add_option("--logx", dest="logx", action="store_true", default=False, help="log x axis")
+	parser.add_option("--logy", dest="logy", action="store_true", default=False, help="log y axis")
+	parser.add_option("--beg", dest="beg", action="store", default=None, help="Beginning index of X axis to plot")
+	parser.add_option("--end", dest="end", action="store", default=None, help="Ending index of X axis to plot")
+	parser.add_option("--nolegend", dest="nolegend", action="store_true", default=False, help="Don't draw legend")
+	parser.add_option("--tight", dest="tight", action="store_true", default=True, help="Fit plot scale to data")
+	parser.add_option("--slice", dest="slice", action="store_true", default=False, help="Plot slice instead of radial values")
+	parser.add_option("--xlab", metavar="XLABEL", dest="xlab", nargs=1, default=None, help="X axis label")
+	parser.add_option("--ylab", metavar="YLABEL", dest="ylab", nargs=1, default=None, help="Y axis label")
+	parser.add_option("--xmin", dest="xmin", action="store", nargs=1, help="X axis lower limit")
+	parser.add_option("--xmax", dest="xmax", action="store", nargs=1, help="X axis upper limit")
+	parser.add_option("--ymin", dest="ymin", action="store", nargs=1, help="Y axis lower limit")
+	parser.add_option("--ymax", dest="ymax", action="store", nargs=1, help="Y axis upper limit")
+	parser.add_option("--noshow", dest="noshow", action="store_true", default=False, help="Do not plot on terminal")
+	parser.add_option("--legsize", dest="legsize", action="store", default=8, help="Font size of legend")
+	parser.add_option("--legpos", dest="legpos", action="store", default="best", help="Legend position")
+
+	##
+	## Parse inputs
+	##
+	(opts, args) = parser.parse_args()
+
+	if len(args) < 2:
+		parser.error("Not enough arguments")
+
+	parm = args[0]
+	flst = args[1:]
+
+	if opts.xlab is None:
+		opts.xlab = "Radius [pc]"
+
+	if opts.ylab is None:
+		opts.ylab = parm
+
+	##
+	## Instantiate plotter and plot files
+	##
+	# Instantiate gui plotter
+	from sparx.plotter import GUIPlotter, mainloop
+	pltr = GUIPlotter()
+
+	# Plot all files
+	from os.path import exists
+	from sparx.grid import SPARXH5
+	for fname in flst:
+		# Check for file existence and load file
+		if not exists(fname):
+			raise Exception, "File '%s' does not exist"%fname
+		h5f = SPARXH5(fname)
+
+		# Get data
+		if opts.slice:
+			axis = 0
+			indx = h5f.shape[0] // 2
+			slice = h5f.GetSlice(axis, indx, parm)
+
+			# Plot image
+			from pylab import pcolor, colorbar, axis, title, xlabel, ylabel
+			pcolor(grid.transpose())
+			colorbar()
+			axis([0, shape[0], 0, shape[1]])
+			title("%s, %s index=%d" % (pname, slice_axis_title, slice_index))
+			xlabel(axis_titles[0])
+			ylabel(axis_titles[1])
+		else:
+			r_list = h5f.GetRadii()
+			p_list = h5f.GetRadial(parm)
+
+			# Plot lines
+			pltr.plot(
+				r_list,
+				p_list,
+				name=fname,
+				xlab=opts.xlab,
+				ylab=opts.ylab,
+				logx=opts.logx,
+				logy=opts.logy,
+				beg=opts.beg,
+				end=opts.end,
+				lsty="-",
+				msty="o"
+			)
+			if not opts.nolegend:
+				pltr.legend(fontsiz=6)
+
+		# Close file
+		h5f.Close()
+
+	##
+	## Outputs
+	##
+	# Show window if requested
+	if not opts.noshow:
+		pltr.show()
+		mainloop()
+
+	# Save to file if requested
+	if opts.out is not None:
+		pltr.save(opts.out)
+
+
+
+
+
+
+
+

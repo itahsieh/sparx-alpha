@@ -1,0 +1,194 @@
+#!/usr/bin/env python
+
+import os.path as path
+
+# Get root directory
+import sparx as sparx
+root_dir = path.realpath(path.dirname(sparx.__file__))
+
+# Some necessary imports
+from sparx import utils
+import sparx._sparx as _sparx
+
+# Get message handler
+Mesg = utils.MESG
+
+# Import tasks dictionary
+from sparx.tasks import TASK_DICT
+
+##
+## Command dictionary
+##
+CMD_DICT = {}
+
+##
+## The 'run' command
+##
+def cmd_run(parser, opts, args):
+	if not len(args) > 0:
+		Mesg.Bonk("No task specified")
+
+	taskname = args[0]
+	if taskname in TASK_DICT:
+		TASK_DICT[taskname].run(args[1:])
+	else:
+		parser.error("'%s' is not a valid task"%taskname)
+	return
+
+CMD_DICT['run'] = cmd_run
+
+##
+## The 'help' command
+##
+def cmd_help(parser, opts, args):
+	# Check length of arguments
+	if not len(args) > 0:
+		parser.print_help()
+		exit(0)
+
+	# Import Type container
+	from sparx.inputs import Type, PhysVal
+	# Import list of molecules
+	from sparx import MOLEC_LIST
+	from sparx.physics import Molecule
+
+	# Get topic from args[0]
+	topic = args[0]
+
+	##
+	## Documentation on tasks
+	##
+	if topic in TASK_DICT:
+		Mesg.Raw(TASK_DICT[topic].__doc__)
+	##
+	## Documentation on keyword types
+	##
+	elif hasattr(Type, topic):
+		typ = getattr(Type, topic)
+		if isinstance(typ, PhysVal):
+			convlst = sorted([[typ.convs[unit], unit] for unit in typ.convs])
+			Mesg.Raw("Keyword type '%s' accepts a string containing both a value and a unit, e.g. '1%s'.\n"%(typ.name, typ.unit)+\
+				 "The following units are available:\n")
+			for i in convlst:
+				Mesg.Raw("  '%s' = %g [%s]\n" % (i[1], i[0], typ.unit))
+		elif typ.name == "Molec":
+			molec_list = [Molecule(i) for i in MOLEC_LIST]
+			def freq_comp(x, y):
+				if x.min_freq < y.min_freq: return -1
+				elif x.min_freq > y.min_freq: return 1
+				else: return 0
+			#molec_list.sort(freq_comp) 
+			import os, re
+			Mesg.Raw("Keyword type 'Molec' accepts the following molecules:\n")
+			Mesg.Raw("%-20s\t%-20s\t%6s\t%6s\t%20s\t%6s\t%s\n" % ("Molecule", "Chemical Name", "Levs", "Lines", "LowFreq", "Trans", "Partners"))
+			for mol in molec_list:
+				molref = mol.chemname.split()
+				nlev = mol.nlev
+				nline = mol.nline
+				ncol = mol.ncol
+				Mesg.Raw("%-20s\t%-20s\t%6d\t%6d\t%17.5gMHz\t%6d\t" % (mol.name, molref[0], nlev, nline, mol.line_freq[0]*1e-6, mol.col[0].ntrans)+\
+					 ", ".join(["%s" % col.name for col in mol.col])+"\n")
+			Mesg.Raw("\n")
+			Mesg.Raw("For detailed data on individual molecules, try 'help MOLEC'")
+		else:
+			Mesg.Raw("Keyword type '%s':\n"%typ.name)
+			Mesg.Raw(typ.__doc__)
+	##
+	## Documentation on molecules
+	##
+	elif topic in MOLEC_LIST:
+		mol = Molecule(topic)
+		Mesg.Raw("Molecular data for '%s':\n"%mol.name)
+		Mesg.Raw("File path: '%s'\n"%mol.path)
+		Mesg.Raw("%s"%mol)
+	##
+	## No match
+	##
+	else:
+		Mesg.Err("No help available for '%s'"%topic)
+	return
+
+CMD_DICT['help'] = cmd_help
+
+##
+## Setup command line parser
+##
+def setup_parser():
+	from optparse import OptionParser
+
+	# Usage string
+	usage = "%prog [OPTIONS] COMMAND [TASK] [TASK OPTIONS] [KEY1=VAL1 KEY2=VAL2 ...]\n"+\
+	"Type '%prog help COMMAND' for help on COMMAND\n"+\
+	"Type '%prog help TASK' for help on TASK\n"+\
+	"\n"+\
+	"COMMAND can be one of the following:\n"+\
+	"\n".join(sorted(["  "+i for i in CMD_DICT]))+"\n"+\
+	"\n"+\
+	"TASK can be one of the following:\n"+\
+	"\n".join(sorted(["  "+i for i in TASK_DICT]))
+
+	# Version string
+	version = "%prog "+file(root_dir+"/VERSION").read()
+
+	# Instantiate parser
+	parser = OptionParser(usage=usage, version=version)
+
+	# Disable interspersed argument parsing so that commands and tasks
+	# can have options of their own
+	parser.disable_interspersed_args()
+	 
+	# Setup options
+	parser.add_option("-d", "--debug", dest="debug", default=False, action="store_true", help="Show traceback on exception")
+
+	# Options available only if MPI support is available
+	if _sparx.HAVE_MPI:
+		parser.add_option("-p", "--parallel", dest="parallel", default=False, action="store_true", help="Enable parallel operation")
+
+	return parser
+
+################################################################################
+
+##
+## Main
+##
+if __name__ == "__main__":
+	# Setup parser
+	parser = setup_parser()
+
+	# Call parser
+	opts, args = parser.parse_args()
+
+	# Check for number of args and get command
+	if len(args) > 0:
+		# Get command from arg[0]
+		command = args[0]
+	else:
+		# Print help and exit
+		parser.print_help()
+		exit(0)
+
+	# Init MPI if requested
+	if _sparx.HAVE_MPI and opts.parallel:
+		utils.MPI_RANK, utils.MPI_SIZE = _sparx.init_mpi()
+
+	# Execute command
+	if command in CMD_DICT:
+		cmd_func = CMD_DICT[command]
+		if opts.debug:
+			cmd_func(parser, opts, args[1:])
+		else:
+			try:
+				cmd_func(parser, opts, args[1:])
+			except Exception, mesg:
+				Mesg.Err(str(mesg))
+	else:
+		parser.error("'%s' is not a valid command\n"%command)
+
+
+	# Finalize MPI (mandatory in some MPI environments, e.g. MPICH)
+	if _sparx.HAVE_MPI and opts.parallel:
+		_sparx.finalize_mpi()
+
+
+
+

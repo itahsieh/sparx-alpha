@@ -1,0 +1,210 @@
+#! /usr/bin/env python
+
+from pysparx import *
+import pysparx.sparx as sparx
+from pysparx.sparx import *
+from pysparx.sparx.tasks import TASKS
+
+################################################################################
+# Main #########################################################################
+################################################################################
+if __name__ == "__main__":
+	### Setup commands ###
+	# 'help' command
+	def Help(args):
+		from pysparx.sparx.inputs import Key, Type
+		# If no arguments provided, print parser help
+		if len(args) == 0:
+			parser.print_help()
+		elif len(args) >= 1:
+			name = args[0]
+			if name in TASKS:
+				TASKS[name].PrintHelp()
+			elif hasattr(Type, name):
+				typ = getattr(Type, name)
+				from pysparx.sparx.inputs import PhysVal
+				if isinstance(typ, PhysVal):
+					convlst = sorted([[typ.convs[unit], unit] for unit in typ.convs])
+					Mesg.Raw("Keyword type '%s' accepts a string containing both a value and a unit, e.g. '1%s'.\n"%(typ.name, typ.unit)+\
+					         "The following units are available:\n")
+					for i in convlst:
+						Mesg.Raw("  '%s' = %g [%s]\n" % (i[1], i[0], typ.unit))
+				elif typ.name == "Molec":
+					import os, re
+					Mesg.Raw("Keyword type 'Molec' accepts the following molecule names:\n")
+					Mesg.Raw("%-20s\t%-20s\t%6s\t%6s\t%6s\t%s\n" % ("Name", "Chemical Name", "Levs", "Lines", "Trans", "Partners"))
+					for i in Sp_MOLECS:
+						mol = Molecule(Sp_MOLPATH+"/"+i+".dat")
+						molref = mol.name.split()
+						nlev = mol.nlev
+						nline = mol.nline
+						ncol = mol.ncol
+						Mesg.Raw("%-20s\t%-20s\t%6d\t%6d\t%6d\t" % (i, molref[0], nlev, nline, mol.col[0].ntrans)+\
+						         ", ".join(["%s" % col.name for col in mol.col])+"\n")
+					Mesg.Raw("\n")
+					Mesg.Raw("For detailed data on individual molecules, try\n"+
+					         prog+" help MOLEC")
+				else:
+					Mesg.Raw("Keyword type '%s':\n"%typ.name)
+					Mesg.Raw(typ.__doc__)
+			elif name in Sp_MOLECS:
+				path = Sp_MOLPATH+"/"+name+".dat"
+				Mesg.Raw("Molecular data for '%s':\n"%name)
+				Mesg.Raw("File path: '%s'\n"%path)
+				mol = Molecule(path)
+				Mesg.Raw("%s"%mol)
+			elif name == "const":
+				from pysparx.physics import Const
+				Mesg.Raw("List of physical constants and units in SI:\n")
+				for i in dir(Const):
+					obj = getattr(Const, i)
+					if type(obj) is float:
+						Mesg.Raw("%10s %e\n"%(i, obj))
+			elif name == "types":
+				from pysparx.sparx.inputs import KeyType, Type
+				from new import classobj, instance
+				Mesg.Raw("List of available keyword types:\n")
+				for i in dir(Type):
+					obj = getattr(Type, i)
+					istype = False
+					if type(obj) is classobj:
+						istype = issubclass(obj, KeyType)
+					elif type(obj) is instance:
+						istype = isinstance(obj, KeyType)
+
+					if istype:
+						Mesg.Raw("  '%s'\n" % i)
+			else:
+				Mesg.Bonk("'%s' is neither a task, a molecule nor a keyword, no help available"%name)
+		return
+
+	# 'run' command
+	def Run(args):
+		if not len(args) > 0:
+			Mesg.Bonk("No task specified")
+
+		taskname = args[0]
+		if taskname in TASKS:
+			TASKS[taskname].Run(args[1:])
+		else:
+			Mesg.Bonk("'%s' is not a valid task"%taskname)
+		return
+
+	# 'runuser' command
+	def RunUser(args):
+		if not len(args) > 0:
+			Mesg.Bonk("No files specified")
+		else:
+			fname = args[0]
+
+		# Remove trailing py if existing
+		from re import match
+		m = match(r"(.*)\.py", fname)
+		if m:
+			cname = m.groups()[0]
+		else:
+			cname = fname
+
+		import imp
+		from os.path import exists
+		from os import remove
+		# Import user-specified class from file
+		mod = imp.load_source(cname, fname)
+
+		# Remove annoying pyc file
+		if exists(cname+".pyc"):
+			remove(cname+".pyc")
+
+		# Run the task
+		task = mod.Task_User(cname)
+		task.Run(args[1:])
+		return
+
+	### Register commands ###
+	Sp_COMMANDS = {
+		"help": Help,
+		"run": Run,
+		"runuser": RunUser,
+	}
+
+	### Get name of command line program ###
+	from sys import argv, exit
+	from os.path import basename
+	prog = basename(argv[0])
+
+	# Change process name
+	import ctypes
+	libc = ctypes.CDLL('libc.so.6')
+	libc.prctl(15, prog, 0, 0, 0)
+
+	### Setup command line parser ###
+	from optparse import OptionParser
+
+	# Usage string
+	usage = "%s [OPTIONS] COMMAND [TASK] [TASK OPTIONS] [KEY1=VAL1 KEY2=VAL2 ...]\n"%prog+\
+	"Type '%s help COMMAND' for help on COMMAND\n"%prog+\
+	"Type '%s help TASK' for help on TASK\n"%prog+\
+	"\n"+\
+	"COMMAND can be one of the following:\n"+\
+	"\n".join(sorted(["  "+key for key in Sp_COMMANDS]))+"\n"+\
+	"\n"+\
+	"TASK can be one of the following:\n"+\
+	"\n".join(sorted(["  "+key for key in TASKS]))
+
+	# Version string
+	version = "%prog "+Sp_VERSION+"\n"+\
+	"libsparx.so, libpsparx.so compiled %s" % (Sp_BUILDDATE)
+
+	# Instantiate parser
+	parser = OptionParser(usage=usage, version=version)
+
+	# Disable interspersed argument parsing so that commands and tasks
+	# can have options of their own
+	parser.disable_interspersed_args()
+	 
+	# Setup options
+	parser.add_option("-d", "--debug", dest="debug", action="store_true", help="Show traceback on exception")
+
+	### Parse options and arguments ###
+	# Call option parser
+	(opts, args) = parser.parse_args()
+
+	if len(args) > 0:
+		# Get command from arg[0]
+		command = args[0]
+	else:
+		# Print help and exit
+		parser.print_help()
+		exit(0)
+
+	### Execute command ###
+	if command in Sp_COMMANDS:
+		comfunc = Sp_COMMANDS[command]
+		if opts.debug:
+			comfunc(args[1:])
+		else:
+			try:
+				comfunc(args[1:])
+			except Exception, mesg:
+				Mesg.Err(str(mesg))
+	else:
+		parser.error("'%s' is not a valid command\n"%command)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
