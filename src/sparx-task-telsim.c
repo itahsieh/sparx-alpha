@@ -54,9 +54,32 @@ static int InitModel(void);
 static void *InitModelThread(void *tid_p);
 static int CalcImage(void);
 static void *CalcImageThread(void *tid_p);
-static void RadiativeXfer(double dx, double dy, double *I_nu, double *V_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu);
-static void ColumnDensityTracer(double dx, double dy, double *I_nu);
-static void call_fits_output( const char *FileName, const char *bunit, const double scale, const int Stokes);
+static void *CalcImageThreadZeeman(void *tid_p);
+static void *CalcImageThreadCont(void *tid_p);
+static void *CalcImageThreadColdens(void *tid_p);
+static void RadiativeXfer(double dx, double dy, double *I_nu, double *tau_nu);
+static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu);
+static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu);
+static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu);
+static void ColumnDensityTracer(double dx, double dy, double *CD);
+static void InitRay(double *dx, double *dy, GeRay *ray);
+static void InitLOSCoord( double *dx, 
+                          double *dy, 
+                          GeRay *ray, 
+                          GeVec3_d *z, 
+                          GeVec3_d *n, 
+                          GeVec3_d *e
+                        );
+static size_t Init_nsub(size_t ix, size_t iy);
+static void InitSubPixel( double *dx, 
+                          double *dy, 
+                          size_t ix, 
+                          size_t iy, 
+                          size_t isub, 
+                          size_t jsub, 
+                          size_t nsub
+                        );
+static void call_fits_output( char *FileName, char *bunit, double scale, int Stokes);
 static void visualization(void);
 /*----------------------------------------------------------------------------*/
 
@@ -271,19 +294,30 @@ int SpTask_Telsim(void)
 	if(!sts) {
 		/* Denormalize and convert image to proper units, then write cube to
 		   Miriad image dataset */
-		if(glb.coldens) {
+		
+                // output column density image
+		if(glb.coldens){
 			MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, 1e-7);
-		}
-		else {
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
+                }
+		// output dust emission and its polarization image
+		else if(glb.cont){
+                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
+                        MirImg_WriteXY(glb.stokesqf, glb.stokesq, glb.unit->name, glb.I_norm/glb.ucon);
+                        MirImg_WriteXY(glb.stokesuf, glb.stokesu, glb.unit->name, glb.I_norm/glb.ucon);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesqf->name);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesuf->name);
+                }
+                // output line emission or zeeman effect (stokes V) image
+                else {
 			MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
-			if(glb.cont){
-				MirImg_WriteXY(glb.stokesqf, glb.stokesq, glb.unit->name, glb.I_norm/glb.ucon);
-				MirImg_WriteXY(glb.stokesuf, glb.stokesu, glb.unit->name, glb.I_norm/glb.ucon);
-			}
 			Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
 		}
+		// output tau image
 		if(glb.tau_imgf)
 			MirImg_WriteXY(glb.tau_imgf, glb.tau_img, "Optical depth", 1.0);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.tau_imgf->name);
 	}
 #endif
 
@@ -293,18 +327,19 @@ int SpTask_Telsim(void)
 	if(!sts){
 		
 		sprintf(filename,"%s.fits", glb.xyv_imgf->name);
-
-		if(glb.coldens) {
-			// column density image
+                
+                // output column density image
+		if(glb.coldens) 
 			call_fits_output( &filename, glb.unit->name, 1e-7, 0);
-		}
-		else{
-			call_fits_output( &filename, glb.unit->name, glb.I_norm/glb.ucon, 0);
-			if(glb.cont)
-				call_fits_output( &filename, glb.unit->name, glb.I_norm/glb.ucon, 1);
-		}
+		// output dust emission and its polarization image
+                else if(glb.cont)
+			call_fits_output( &filename, glb.unit->name, glb.I_norm/glb.ucon, 1);
+                // output line emission or zeeman effect (stokes V) image
+                else
+                        call_fits_output( &filename, glb.unit->name, glb.I_norm/glb.ucon, 0);
 		Sp_PRINT("Wrote FITS image to `%s'\n", filename);		
-		if(glb.tau_imgf){
+		// output tau image
+                if(glb.tau_imgf){
 			sprintf(filename,"%s.fits", glb.tau_imgf->name);
 			call_fits_output( &filename, "Optical depth", 1, 0);
 		}
@@ -315,7 +350,7 @@ int SpTask_Telsim(void)
 		visualization();
 	
 	FILE *fp;
-	size_t ix,iy,iz,iv;
+	size_t ix,iy,iv;
 	/* column density map to VTK */
 	if(glb.coldens && !glb.cont){
 		char filename[32];
@@ -389,6 +424,7 @@ int SpTask_Telsim(void)
 	
 	char filename[32];
 	
+        size_t iz;
 	sprintf(filename,"0thmov_%5s.vtk",glb.xyv_imgf->name);
 	fp=fopen(filename,"w");
 	fprintf(fp,"# vtk DataFile Version 3.0\n");
@@ -759,168 +795,81 @@ static void *InitModelThread(void *tid_p)
 
 static int CalcImage(void)
 {
-	return SpUtil_Threads2(Sp_NTHREAD, CalcImageThread);
+	if(glb.zeeman)
+                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadZeeman);
+        else if(glb.cont)
+                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadCont);
+        else if(glb.coldens)
+                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadColdens);
+        else
+                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThread);
 }
 
 /*----------------------------------------------------------------------------*/
 
 static void *CalcImageThread(void *tid_p)
 {
-	size_t tid = *((size_t *)tid_p), pix_id, ix, iy, iv, nsub, isub, jsub, ibox;
-	double dx, dy, subix, subiy,
-		*I_sub, *I_nu, *tau_sub, *tau_nu,
-		*V_sub, *Q_sub, *U_sub, *V_nu, *Q_nu, *U_nu, 
-		*sigma2, *sigma2_sub,
-		alpha;
-	
-	alpha=0.15; // polarized efficiency
+	size_t tid = *((size_t *)tid_p), pix_id, ix, iy, iv, nsub, isub, jsub;
+	double dx, dy, *I_sub, *I_nu, *tau_sub, *tau_nu;
 
-	/* pix_id is used for distributing work to threads */
-	pix_id = 0;
-	
+        /* pix_id is used for distributing work to threads */
+        pix_id = 0;
+        for(ix = 0; ix < glb.x.n; ix++) {
+         for(iy = 0; iy < glb.y.n; iy++) {
+                if(pix_id % Sp_NTHREAD == tid) {
+                        /* Check for thread termination */
+                        Sp_CHECKTERMTHREAD();
+                        /* check sub-sampling region */
+                        nsub = Init_nsub( ix, iy);
 
-	
-	for(ix = 0; ix < glb.x.n; ix++) {
-		for(iy = 0; iy < glb.y.n; iy++) {
-			if(pix_id % Sp_NTHREAD == tid) {
+			/* I_nu is the brightness for all channels at pixel (ix, iy) */
+			I_nu = Mem_CALLOC(glb.v.n, I_nu);
+			/* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
+			tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
 
-				/* Check for thread termination */
-				Sp_CHECKTERMTHREAD();
-
-				/* Determine angular offsets from the pointing center */
-				dx = ((int)ix - (int)glb.x.crpix) * glb.x.delt;
-				dy = ((int)iy - (int)glb.y.crpix) * glb.y.delt;
-
-				/* nsub is by default 1 */
-				nsub = 1;
-
-				/* Check if position is within any of the subres boxes */
-				for(ibox = 0; ibox < glb.nsubres; ibox++) {
-					if((dx >= glb.subres[ibox].blc_x) && (dx <= glb.subres[ibox].trc_x) &&
-					   (dy >= glb.subres[ibox].blc_y) && (dy <= glb.subres[ibox].trc_y)) {
-						/* Position within subres box, set nsub to subres[ibox].nsub */
-						nsub = glb.subres[ibox].nsub;
-						break;
-					}
-				}
-
-				/* I_nu is the brightness for all channels at pixel (ix, iy) */
-				I_nu = Mem_CALLOC(glb.v.n, I_nu);
-				if(glb.zeeman) {
-					V_nu = Mem_CALLOC(glb.v.n, V_nu);
-				}
-				else if(glb.cont) {
-					Q_nu = Mem_CALLOC(glb.v.n, Q_nu);
-					U_nu = Mem_CALLOC(glb.v.n, U_nu);
-					sigma2 = Mem_CALLOC(glb.v.n, sigma2);
-				}
-
-				/* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
-				tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
-
-				/* Loop through sub-resolution positions */
-				for(isub = 0; isub < nsub; isub++) {
-					for(jsub = 0; jsub < nsub; jsub++) {
+			/* Loop through sub-resolution positions */
+			for(isub = 0; isub < nsub; isub++) {
+			 for(jsub = 0; jsub < nsub; jsub++) {
+				/* Calculate sub-pixel position */
+                                InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
 						
-						/* Determine sub-resolution angular offsets from the pointing center */
-// 						subix = (double)ix + ((double)isub) / (double)nsub;
-// 						subiy = (double)iy + ((double)jsub) / (double)nsub;
-						subix = (double)ix + (2.*(double)isub-(double)nsub+1.) / ((double)(2*nsub));
- 						subiy = (double)iy + (2.*(double)jsub-(double)nsub+1.) / ((double)(2*nsub));
-						dx = (subix - (double)glb.x.crpix) * glb.x.delt;
-						dy = (subiy - (double)glb.y.crpix) * glb.y.delt;
-						/* I_sub is the brightness for all channels at each sub-resolution */
-						I_sub = Mem_CALLOC(glb.v.n, I_sub);
-						tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
-						if(glb.zeeman) {
-							V_sub = Mem_CALLOC(glb.v.n, V_sub);
-						}
-						else if(glb.cont) {
-							Q_sub = Mem_CALLOC(glb.v.n, Q_sub);
-							U_sub = Mem_CALLOC(glb.v.n, U_sub);
-							sigma2_sub = Mem_CALLOC(glb.v.n, sigma2_sub);
-						}
+                                /* I_sub is the brightness for all channels at each sub-resolution */
+				I_sub = Mem_CALLOC(glb.v.n, I_sub);
+				tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
 
-						/* Column density tracer */
-						if(glb.coldens){
-							ColumnDensityTracer(dx,dy,I_sub);
-						}
-						/* intensity tracer */
-						else{
-							/* Calculate radiative transfer for this sub-los */
-							RadiativeXfer(dx, dy, I_sub, V_sub, Q_sub, U_sub, sigma2_sub, tau_sub);
-							
-						}
+				/* Calculate radiative transfer for this sub-los */
+                                if(glb.overlap)
+                                        RadiativeXferOverlap(dx, dy, I_sub, tau_sub);
+                                else
+                                        RadiativeXfer(dx, dy, I_sub, tau_sub);
 
-						/* Add I_sub to I_nu */
-						for(iv = 0; iv < glb.v.n; iv++) {
-							
-
-							if (glb.zeeman){
-								V_nu[iv] += V_sub[iv];
-							}
-							else{
-								I_nu[iv] += I_sub[iv];
-								if(glb.cont){
-									Q_nu[iv] += Q_sub[iv];
-									U_nu[iv] += U_sub[iv];
-									sigma2[iv] += sigma2_sub[iv];
-								}
-							}
-							
-							tau_nu[iv] += tau_sub[iv];
-						}
-
-						/* Cleanup */
-						free(I_sub);
-                                                free(tau_sub);
-						if (glb.zeeman)
-                                                        free(V_sub);
-						else if(glb.cont) {
-                                                        free(Q_sub);
-                                                        free(U_sub);
-                                                        free(sigma2_sub);
-                                                }
-
-					}
-				}
-			
-				/* Save averaged I_nu to map */
+				/* Add I_sub to I_nu */
 				for(iv = 0; iv < glb.v.n; iv++) {
-					
-					if (glb.zeeman){
-// 						MirImg_PIXEL(*glb.stokesv, iv, ix, iy) = V_nu[iv] / (double)(nsub * nsub);
-						MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = V_nu[iv] / (double)(nsub * nsub);
-					}
-					else{
-						MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = I_nu[iv] / (double)(nsub * nsub);
-						if(glb.cont){
-							MirImg_PIXEL(*glb.stokesq, iv, ix, iy) = alpha*Q_nu[iv] / (double)(nsub * nsub);
-							MirImg_PIXEL(*glb.stokesu, iv, ix, iy) = alpha*U_nu[iv] / (double)(nsub * nsub);
-							MirImg_PIXEL(*glb.sigma2, iv, ix, iy) = 0.5*alpha*sigma2[iv] / (double)(nsub * nsub);
-						}
-					}
-
-					if(glb.tau_img)
-						MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] / (double)(nsub * nsub);
+					I_nu[iv] += I_sub[iv];
+					tau_nu[iv] += tau_sub[iv];
 				}
-
 
 				/* Cleanup */
-				free(I_nu);
-                                free(tau_nu);
-				if (glb.zeeman)
-                                        free(V_nu);
-				else if(glb.cont) {
-                                        free(Q_nu);
-                                        free(U_nu);
-                                        free(sigma2);
-                                }
-				
+				free(I_sub);
+                                free(tau_sub);
+			 }
 			}
-			/* Increment pix_id */
-			pix_id += 1;
+			
+			/* Save averaged I_nu to map */
+                        double DnsubSquare = 1. / (double)(nsub * nsub);
+			for(iv = 0; iv < glb.v.n; iv++) {
+				MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = I_nu[iv] * DnsubSquare;
+				if(glb.tau_img)
+					MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
+			}
+
+                        /* Cleanup */
+                        free(I_nu);
+                        free(tau_nu);				
 		}
+                /* Increment pix_id */
+                pix_id += 1;
+	 }
 	}
 
 	return NULL;
@@ -928,238 +877,246 @@ static void *CalcImageThread(void *tid_p)
 
 /*----------------------------------------------------------------------------*/
 
-static void RadiativeXfer(double dx, double dy, double *I_nu, double *V_nu,double *Q_nu, double *U_nu, double *sigma2, double *tau_nu)
+
+static void *CalcImageThreadZeeman(void *tid_p)
+{
+        size_t tid = *((size_t *)tid_p), pix_id, ix, iy, iv, nsub, isub, jsub;
+        double dx, dy, *V_sub, *V_nu, *tau_sub, *tau_nu;
+
+        /* pix_id is used for distributing work to threads */
+        pix_id = 0;
+        for(ix = 0; ix < glb.x.n; ix++) {
+         for(iy = 0; iy < glb.y.n; iy++) {
+                if(pix_id % Sp_NTHREAD == tid) {
+                        /* Check for thread termination */
+                        Sp_CHECKTERMTHREAD();
+                        /* check sub-sampling region */
+                        nsub = Init_nsub( ix, iy);
+                        /* I_nu is the brightness for all channels at pixel (ix, iy) */
+                        V_nu = Mem_CALLOC(glb.v.n, V_nu);
+                        /* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
+                        tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
+                        /* Loop through sub-resolution positions */
+                        for(isub = 0; isub < nsub; isub++) {
+                         for(jsub = 0; jsub < nsub; jsub++) {
+                                /* Calculate sub-pixel position */
+                                InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
+                                /* V_sub is Stokes V for all channels at each sub-resolution */
+                                V_sub = Mem_CALLOC(glb.v.n, V_sub);
+                                tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
+                                /* Calculate radiative transfer for this sub-los (Zeeman) */
+                                RadiativeXferZeeman(dx, dy, V_sub, tau_sub);
+                                /* Add I_sub to I_nu */
+                                for(iv = 0; iv < glb.v.n; iv++) {
+                                        V_nu[iv] += V_sub[iv];
+                                        tau_nu[iv] += tau_sub[iv];
+                                }
+                                /* Cleanup */
+                                free(V_sub);
+                                free(tau_sub);
+                         }
+                        }
+                        /* Save averaged I_nu to map */
+                        double DnsubSquare = 1. / (double)(nsub * nsub);
+                        for(iv = 0; iv < glb.v.n; iv++) {
+                                MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = V_nu[iv] / (double)(nsub * nsub);
+                                if(glb.tau_img)
+                                        MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
+                        }
+                        /* Cleanup */
+                        free(V_nu);
+                        free(tau_nu);
+                }
+                /* Increment pix_id */
+                pix_id += 1;
+         }
+        }
+
+        return NULL;
+}
+
+
+/*----------------------------------------------------------------------------*/
+
+static void *CalcImageThreadColdens(void *tid_p)
+{
+        /* Column density image tracer
+           CD is the column density at pixel (ix, iy)
+           glb.v.n = 1                                     */
+        size_t tid = *((size_t *)tid_p), pix_id, ix, iy, nsub, isub, jsub;
+        double dx, dy, *CD_sub, *CD;
+
+        /* pix_id is used for distributing work to threads */
+        pix_id = 0;
+        for(ix = 0; ix < glb.x.n; ix++) {
+         for(iy = 0; iy < glb.y.n; iy++) {
+                if(pix_id % Sp_NTHREAD == tid) {
+                        /* Check for thread termination */
+                        Sp_CHECKTERMTHREAD();
+                        /* check sub-sampling region */
+                        nsub = Init_nsub( ix, iy);
+                        /* Loop through sub-resolution positions */
+                        for(isub = 0; isub < nsub; isub++) {
+                         for(jsub = 0; jsub < nsub; jsub++) {
+                                /* Calculate sub-pixel position */
+                                InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
+                                /* Column density tracer */
+                                ColumnDensityTracer(dx,dy, CD_sub);
+                                /* Add CD_sub to CD */
+                                *CD += *CD_sub;
+                         }
+                        }
+                        double DnsubSquare = 1. / (double)(nsub * nsub);
+                        /* Save averaged I_nu to map */
+                        MirImg_PIXEL(*glb.xyv_img, 0, ix, iy) = *CD * DnsubSquare;
+                }
+         /* Increment pix_id */
+         pix_id += 1;
+         }
+        }
+
+        return NULL;
+}
+
+/*----------------------------------------------------------------------------*/
+
+static void *CalcImageThreadCont(void *tid_p)
+{
+        size_t tid = *((size_t *)tid_p), pix_id, ix, iy, iv, nsub, isub, jsub;
+        double dx, dy, 
+                *I_sub, *I_nu, *tau_sub, *tau_nu,
+                *Q_sub, *U_sub, *Q_nu, *U_nu, 
+                *sigma2, *sigma2_sub,
+                alpha;
+        
+        alpha=0.15; // polarized efficiency
+
+         /* pix_id is used for distributing work to threads */
+        pix_id = 0;
+        for(ix = 0; ix < glb.x.n; ix++) {
+         for(iy = 0; iy < glb.y.n; iy++) {
+                if(pix_id % Sp_NTHREAD == tid) {
+                        /* Check for thread termination */
+                        Sp_CHECKTERMTHREAD();
+                        /* check sub-sampling region */
+                        nsub = Init_nsub( ix, iy);
+
+                        /* I_nu is the brightness for all channels at pixel (ix, iy) */
+                        I_nu = Mem_CALLOC(glb.v.n, I_nu);
+                        Q_nu = Mem_CALLOC(glb.v.n, Q_nu);
+                        U_nu = Mem_CALLOC(glb.v.n, U_nu);
+                        sigma2 = Mem_CALLOC(glb.v.n, sigma2);
+                        /* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
+                        tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
+
+                        /* Loop through sub-resolution positions */
+                        for(isub = 0; isub < nsub; isub++) {
+                         for(jsub = 0; jsub < nsub; jsub++) {
+                                /* Calculate sub-pixel position */
+                                InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
+                                /* I_sub is the brightness for all channels at each sub-resolution */
+                                I_sub = Mem_CALLOC(glb.v.n, I_sub);
+                                Q_sub = Mem_CALLOC(glb.v.n, Q_sub);
+                                U_sub = Mem_CALLOC(glb.v.n, U_sub);
+                                sigma2_sub = Mem_CALLOC(glb.v.n, sigma2_sub);
+                                tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
+                                /* Calculate radiative transfer for this sub-los */
+                                RadiativeXferCont(dx, dy, I_sub, Q_sub, U_sub, sigma2_sub, tau_sub);
+                                /* Add I_sub to I_nu */
+                                for(iv = 0; iv < glb.v.n; iv++) {
+                                        I_nu[iv] += I_sub[iv];
+                                        Q_nu[iv] += Q_sub[iv];
+                                        U_nu[iv] += U_sub[iv];
+                                        sigma2[iv] += sigma2_sub[iv];
+                                        tau_nu[iv] += tau_sub[iv];
+                                }
+                                /* Cleanup */
+                                free(I_sub);
+                                free(tau_sub);
+                                free(Q_sub);
+                                free(U_sub);
+                                free(sigma2_sub);
+                         }
+                        }
+                        /* Save averaged I_nu to map */
+                        double DnsubSquare = 1. / (double)(nsub * nsub);
+                        for(iv = 0; iv < glb.v.n; iv++) {
+                                MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = I_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.stokesq, iv, ix, iy) = alpha * Q_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.stokesu, iv, ix, iy) = alpha * U_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.sigma2, iv, ix, iy) = 0.5 * alpha * sigma2[iv] * DnsubSquare;
+                                if(glb.tau_img)
+                                        MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
+                        }
+                        /* Cleanup */
+                        free(I_nu);
+                        free(tau_nu);
+                        free(Q_nu);
+                        free(U_nu);
+                        free(sigma2);
+                                
+                }
+                /* Increment pix_id */
+                pix_id += 1;
+         }
+        }
+
+        return NULL;
+}
+
+
+/*----------------------------------------------------------------------------*/
+
+static void RadiativeXfer(double dx, double dy, double *I_nu, double *tau_nu)
 {
 	GeRay ray;
-	double dv, theta, phi, t, vfac, vfac2, j_nu, k_nu, S_nu, dtau_nu, tempj_nu, tempk_nu;
+	double dv, t, vfac, j_nu, k_nu, S_nu, dtau_nu;
 	SpPhys *pp;
-	size_t iv, side,i,j;
+	size_t iv, side;
 	Zone *zp, *root = glb.model.grid;
-	
-	GeVec3_d z,n,e;
-	double nproduct,zproduct,eproduct,psi,cosgammasquare,costheta,temp;
-	double Vr,Vt,Vp,thetac,phic;
-	GeVec3_d B;
-	double d23 = 2./3. ;
-	
-	double dnu, deltav;
-	double g = 2.18/1.4;
 
-	/* Reset ray */
-	Mem_BZERO(&ray);
-
-	/* Init ray position to <dist, 0, 0> */
-	GeRay_E(ray, 0) = glb.dist / Sp_LENFAC;
-	GeRay_E(ray, 1) = 0;
-	GeRay_E(ray, 2) = 0;
-
-	/* Set direction of ray according to pixel position:
-	 *   theta = PI/2 + dy
-	 *   phi = -dx
-	 */
-	phi = M_PI + dx;   //
-	theta = (M_PI / 2.0) - dy;
-
-	/*  the coordinate
-	 *                          north   eastern
-	 *                             ^   A 
-	 *                             |  / 
-	 *                             | /
-	 *                             |/
-	 * tracing direction D <-------|-------> light traversing direction z
-	 */
-
-
-	/* Convert to Cartesian coordinates */
-	GeRay_D(ray, 0) = sin(theta) * cos(phi);
-	GeRay_D(ray, 1) = sin(theta) * sin(phi);
-	GeRay_D(ray, 2) = cos(theta);
-	
-	/* line of sight coordinate */
-	if (glb.cont || glb.zeeman){
-		
-		z.x[0]=-GeRay_D(ray, 0);
-		z.x[1]=-GeRay_D(ray, 1);
-		z.x[2]=-GeRay_D(ray, 2);
-		n.x[0]=-cos(theta)*cos(phi);
-		n.x[1]=-cos(theta)*sin(phi);
-		n.x[2]= sin(theta);
-		e.x[0]= sin(phi);
-		e.x[1]= -cos(phi);
-		e.x[2]= 0.0;
-		
-		z = GeVec3_Rotate_z(&z, -glb.rotate[2]);
-		n = GeVec3_Rotate_z(&n, -glb.rotate[2]);
-		e = GeVec3_Rotate_z(&e, -glb.rotate[2]);
-		z = GeVec3_Rotate_y(&z, -glb.rotate[1]);
-		n = GeVec3_Rotate_y(&n, -glb.rotate[1]);
-		e = GeVec3_Rotate_y(&e, -glb.rotate[1]);
-		z = GeVec3_Rotate_x(&z, -glb.rotate[0]);
-		n = GeVec3_Rotate_x(&n, -glb.rotate[0]);
-		e = GeVec3_Rotate_x(&e, -glb.rotate[0]);
-	
-	}
-
-	/* Rotate ray:
-	 * Since what we REALLY want to rotate is the model and that the rays
-	 * are pointed towards the model, rays should be rotated in the negative
-	 * direction, and in the opposite order of what we would've done to
-	 * rotate the model. */
-	ray = GeRay_Rotate(&ray, 2, -glb.rotate[2]);
-	ray = GeRay_Rotate(&ray, 1, -glb.rotate[1]);
-	ray = GeRay_Rotate(&ray, 0, -glb.rotate[0]);
-
-	/* Coordinate-dependent offset */
-	switch(root->voxel.geom) {
-		case GEOM_SPH1D:
-			break;
-			
-		case GEOM_SPH3D:
-			break;
-
-		case GEOM_REC3D:
-			ray.e = GeVec3_Add(&ray.e, &root->voxel.cen);
-			break;
-			
-		case GEOM_CYL3D:
-			break;
-
-		default: /* Shouldn't reach here */
-			Deb_ASSERT(0);
-	}
+	InitRay( &dx, &dy, &ray);
 
 	/* Reset tau for all channels */
 	Mem_BZERO2(tau_nu, glb.v.n);
-
 	/* Shoot ray at model and see what happens! */
 	if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
 		/* Calculate intersection */
 		ray = GeRay_Inc(&ray, t);
-
 		/* Locate starting leaf zone according to intersection */
 		zp = Zone_GetLeaf(root, side, &ray.e, &ray);
-
 		/* Keep going until there's no next zone to traverse to */
 		while(zp) {
 			/* Calculate path to next boundary */
 			GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
 // 			Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
-
 			/* Pointer to physical parameters associated with this zone */
 			pp = zp->data;
-
 			/* Do radiative transfer only if gas is present in this zone */
 			if(pp->non_empty_leaf) {
 				/* Do calculations on all channels at this pixel. Try to minimize the 
 				 * amount of operations in this loop, since everything here is repeated 
 				 * for ALL channels, and can significantly increase computation time.
 				 */
-				if(glb.zeeman){
-					B = SpPhys_GetBfac(&ray, t, zp, 0);
-					zproduct = GeVec3_DotProd(&z,&B);
-					costheta = zproduct/GeVec3_Mag(&B);
-					dnu = 1.4e6 * g * GeVec3_Mag(&B);
-					deltav = dnu * PHYS_CONST_MKS_LIGHTC / glb.freq;
-					//printf("delta V = %e %e %e %e\n",deltav,dnu,PHYS_CONST_MKS_LIGHTC,glb.freq);
-				}
-				else if (glb.cont){
-					B = SpPhys_GetBfac(&ray, t, zp, 0);
-					
-					nproduct = GeVec3_DotProd(&n,&B);
-					eproduct = GeVec3_DotProd(&e,&B);
-					zproduct = GeVec3_DotProd(&z,&B);
-					
-// 					if (nproduct==0.0){
-// 						if(-eproduct>0) psi=0.5*M_PI;
-// 						else psi=-0.5*M_PI;
-// 					}
-// 					else
-// 						psi=atan(-eproduct/nproduct);
-// 					if (nproduct<0)
-// 						psi=psi+M_PI;
-// 					else if (psi<0)
-// 						psi=psi+2*M_PI;
-
-					psi=atan2(-eproduct,nproduct); // psi is the angle between the projected B-field on p.o.s. and the north of the image
-					
-					cosgammasquare=1.0-zproduct*zproduct/( GeVec3_X(B, 0)*GeVec3_X(B, 0) + GeVec3_X(B, 1)*GeVec3_X(B, 1) + GeVec3_X(B, 2)*GeVec3_X(B, 2) ); // gamma ia the angle bettwen B-field an the plane of sky
-				}
-				
-
 				for(iv = 0; iv < glb.v.n; iv++) {
 					/* Calculate velocity associated with this channel */
 					dv = ((double)iv - glb.v.crpix) * glb.v.delt;
-
 					/* Reset emission and absorption coeffs */
 					j_nu = 0;
 					k_nu = 0;
 
-					if(!glb.cont && pp->has_tracer) {
-						if(glb.zeeman){
-							
-// 							vfac = SpPhys_GetVfac(&ray, t, dv+deltav, zp, 0); 
-// 							SpPhys_GetMoljk((size_t)0, pp, j, vfac, &tempj_nu, &tempk_nu);
-// 							
-// 							j_nu += 0.5*tempj_nu;
-// 							k_nu += 0.5*tempk_nu;
-// 							
-// 							vfac = SpPhys_GetVfac(&ray, t, dv-deltav, zp, 0);  
-// 							SpPhys_GetMoljk((size_t)0, pp, j, vfac, &tempj_nu, &tempk_nu);
-// 							
-// 							j_nu -= 0.5*tempj_nu;
-// 							k_nu += 0.5*tempk_nu;
-
-
-							vfac = SpPhys_GetVfac(&ray, t, dv+deltav, zp, 0);
-							vfac2 = SpPhys_GetVfac(&ray, t, dv-deltav, zp, 0);
-							vfac = vfac-vfac2;
-							SpPhys_GetMoljk((size_t)0, pp, j, vfac, &tempj_nu, &tempk_nu);
-
-							j_nu = 0.5*tempj_nu;
-							k_nu += tempk_nu;
-							//if(deltav>1.0)printf("dv= %e vfac = %e j_nu = %e\n",dv,vfac,j_nu);
-							
-						
-						}
-						else{ // discard zeeman splitting
-							/* Calculate velocity line profile factor for this channel:
-							 * This version averages over the line profile in steps
-							 * of the local line width -- very time consuming! */
-							vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
-
-							/* Calculate molecular line emission and absorption coefficients */
-							//SpPhys_GetMoljk((size_t)0, pp, glb.line, vfac, &j_nu, &k_nu);
-						
-							if(glb.overlap){
-								i=glb.line;
-								for(j = 0; j < NRAD; j++) {
-									if(OVERLAP(i,j)){
-										if(i==j){
-											/* Calculate molecular line emission and absorption coefficients */
-											SpPhys_GetMoljk((size_t)0, pp, j, vfac, &tempj_nu, &tempk_nu);
-										}
-										else{
-											/* Calculate velocity line profile factor */
-											vfac2 = pp->has_tracer ? SpPhys_GetVfac(&ray, t, dv-RELVEL(i,j), zp, 0) : 0.0;
-											/* Calculate molecular line emission and absorption coefficients */
-											SpPhys_GetMoljk((size_t)0, pp, j, vfac2, &tempj_nu, &tempk_nu);
-										}
-										j_nu += tempj_nu;
-										k_nu += tempk_nu;
-									}
-								}
-							}
-							else{
-								/* Calculate molecular line emission and absorption coefficients */
-								SpPhys_GetMoljk((size_t)0, pp, glb.line, vfac, &j_nu, &k_nu);
-							}
-						}
-						
+					if(pp->has_tracer) {
+						/* Calculate velocity line profile factor for this channel:
+                                                 * This version averages over the line profile in steps
+                                                 * of the local line width -- very time consuming! */
+						vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
+						/* Calculate molecular line emission and absorption coefficients */
+						SpPhys_GetMoljk((size_t)0, pp, glb.line, vfac, &j_nu, &k_nu);
 						
 					}
 					
                                         /* Add continuum emission/absorption */
-					if(!glb.zeeman) j_nu += pp->cont[glb.line].j;
+					j_nu += pp->cont[glb.line].j;
 					k_nu += pp->cont[glb.line].k;
 
 					/* Calculate source function and optical depth if
@@ -1173,24 +1130,10 @@ static void RadiativeXfer(double dx, double dy, double *I_nu, double *V_nu,doubl
 						S_nu = dtau_nu = 0.0;
 					}
 
-
 					/* Calculate intensity contributed by this step */
 					//debug
-					temp = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
-					
-					//I_nu[iv] += (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
-					
-					if(glb.zeeman){
-						V_nu[iv] += temp*costheta;
-					}
-					else{
-						I_nu[iv] += temp;
-						if (glb.cont){
-							Q_nu[iv] += temp*cos(2.0 * psi) * cosgammasquare;
-							U_nu[iv] += temp*sin(2.0 * psi) * cosgammasquare;
-							sigma2[iv] += temp * (cosgammasquare - d23);
-						}
-					}
+					I_nu[iv] += (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
+
 					/* Accumulate total optical depth for this channel (must be done
 					 * AFTER calculation of intensity!) */
 					tau_nu[iv] += dtau_nu;
@@ -1225,88 +1168,340 @@ static void RadiativeXfer(double dx, double dy, double *I_nu, double *V_nu,doubl
 	}
 
 	/* Add CMB to all channels -- this is done even if the ray misses the source */
-	
-
 	for(iv = 0; iv < glb.v.n; iv++)
 		I_nu[iv] += glb.I_cmb * exp(-tau_nu[iv]);
 
 	return;
 }
 
+/*----------------------------------------------------------------------------*/
 
+static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu)
+{
+        GeRay ray;
+        double dv, t, vfac, vfac2, j_nu, k_nu, S_nu, dtau_nu, tempj_nu, tempk_nu;
+        SpPhys *pp;
+        size_t iv, side,i,j;
+        Zone *zp, *root = glb.model.grid;
 
+        InitRay( &dx, &dy, &ray);
 
+        /* Reset tau for all channels */
+        Mem_BZERO2(tau_nu, glb.v.n);
+        /* Shoot ray at model and see what happens! */
+        if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
+                /* Calculate intersection */
+                ray = GeRay_Inc(&ray, t);
+                /* Locate starting leaf zone according to intersection */
+                zp = Zone_GetLeaf(root, side, &ray.e, &ray);
+                /* Keep going until there's no next zone to traverse to */
+                while(zp) {
+                        /* Calculate path to next boundary */
+                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+//                      Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
+                        /* Pointer to physical parameters associated with this zone */
+                        pp = zp->data;
+                        /* Do radiative transfer only if gas is present in this zone */
+                        if(pp->non_empty_leaf) {
+                                /* Do calculations on all channels at this pixel. Try to minimize the 
+                                 * amount of operations in this loop, since everything here is repeated 
+                                 * for ALL channels, and can significantly increase computation time.
+                                 */
+                                for(iv = 0; iv < glb.v.n; iv++) {
+                                        /* Calculate velocity associated with this channel */
+                                        dv = ((double)iv - glb.v.crpix) * glb.v.delt;
+                                        /* Reset emission and absorption coeffs */
+                                        j_nu = 0;
+                                        k_nu = 0;
 
-static void ColumnDensityTracer(double dx, double dy, double *I_nu)
+                                        if(pp->has_tracer) {
+                                                /* Calculate velocity line profile factor for this channel:
+                                                 * This version averages over the line profile in steps
+                                                 * of the local line width -- very time consuming! */
+                                                vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
+                                                /* Calculate molecular line emission and absorption coefficients */                                             
+                                                
+                                                i=glb.line;
+                                                for(j = 0; j < NRAD; j++) {
+                                                        if(OVERLAP(i,j)){
+                                                                if(i==j){
+                                                                        /* Calculate molecular line emission and absorption coefficients */
+                                                                        SpPhys_GetMoljk((size_t)0, pp, j, vfac, &tempj_nu, &tempk_nu);
+                                                                }
+                                                                else{
+                                                                        /* Calculate velocity line profile factor */
+                                                                        vfac2 = pp->has_tracer ? SpPhys_GetVfac(&ray, t, dv-RELVEL(i,j), zp, 0) : 0.0;
+                                                                        /* Calculate molecular line emission and absorption coefficients */
+                                                                        SpPhys_GetMoljk((size_t)0, pp, j, vfac2, &tempj_nu, &tempk_nu);
+                                                                }
+                                                                j_nu += tempj_nu;
+                                                                k_nu += tempk_nu;
+                                                       }
+                                                }
+                                                
+                                        }
+                                        
+                                        /* Add continuum emission/absorption */
+                                        j_nu += pp->cont[glb.line].j;
+                                        k_nu += pp->cont[glb.line].k;
+
+                                        /* Calculate source function and optical depth if
+                                         * absorption is NOT zero */
+                                        if(fabs(k_nu) > 0.0) {
+                                                //S_nu = j_nu / ( k_nu * glb.I_norm );
+                                                S_nu = j_nu / ( k_nu * glb.I_norm );
+                                                dtau_nu = k_nu * t * Sp_LENFAC;
+                                        }
+                                        else {
+                                                S_nu = dtau_nu = 0.0;
+                                        }
+
+                                        /* Calculate intensity contributed by this step */
+                                        //debug
+                                        I_nu[iv] += (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
+
+                                        /* Accumulate total optical depth for this channel (must be done
+                                         * AFTER calculation of intensity!) */
+                                        tau_nu[iv] += dtau_nu;
+                                }
+                        }
+                        /* Calculate next position */
+                        ray = GeRay_Inc(&ray, t);
+                        /* Get next zone to traverse to */
+                        zp = Zone_GetNext(zp, &side, &ray);
+                }
+        }
+
+        /* Add CMB to all channels -- this is done even if the ray misses the source */
+        for(iv = 0; iv < glb.v.n; iv++)
+                I_nu[iv] += glb.I_cmb * exp(-tau_nu[iv]);
+
+        return;
+}
+
+/*----------------------------------------------------------------------------*/
+
+static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu)
+{
+        GeRay ray;
+        double dv, t, vfac, vfac2, j_nu, k_nu, S_nu, dtau_nu, tempj_nu, tempk_nu;
+        SpPhys *pp;
+        size_t iv, side,j;
+        Zone *zp, *root = glb.model.grid;
+        
+        GeVec3_d z,n,e;
+        double zproduct,costheta,temp;
+        GeVec3_d B;
+        
+        double dnu, deltav;
+        double g = 2.18/1.4;
+
+        InitRay( &dx, &dy, &ray);
+        InitLOSCoord( &dx, &dy, &ray, &z, &n, &e);
+
+        /* Reset tau for all channels */
+        Mem_BZERO2(tau_nu, glb.v.n);
+
+        /* Shoot ray at model and see what happens! */
+        if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
+                /* Calculate intersection */
+                ray = GeRay_Inc(&ray, t);
+                /* Locate starting leaf zone according to intersection */
+                zp = Zone_GetLeaf(root, side, &ray.e, &ray);
+                /* Keep going until there's no next zone to traverse to */
+                while(zp) {
+                        /* Calculate path to next boundary */
+                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+//                      Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
+                        /* Pointer to physical parameters associated with this zone */
+                        pp = zp->data;
+                        /* Do radiative transfer only if gas is present in this zone */
+                        if(pp->non_empty_leaf) {
+                                /* Do calculations on all channels at this pixel. Try to minimize the 
+                                 * amount of operations in this loop, since everything here is repeated 
+                                 * for ALL channels, and can significantly increase computation time.
+                                 */
+    
+                                 B = SpPhys_GetBfac(&ray, t, zp, 0);
+                                 zproduct = GeVec3_DotProd(&z,&B);
+                                 costheta = zproduct/GeVec3_Mag(&B);
+                                 dnu = 1.4e6 * g * GeVec3_Mag(&B);
+                                 deltav = dnu * PHYS_CONST_MKS_LIGHTC / glb.freq;
+                                 //printf("delta V = %e %e %e %e\n",deltav,dnu,PHYS_CONST_MKS_LIGHTC,glb.freq);
+
+                                for(iv = 0; iv < glb.v.n; iv++) {
+                                        /* Calculate velocity associated with this channel */
+                                        dv = ((double)iv - glb.v.crpix) * glb.v.delt;
+
+                                        /* Reset emission and absorption coeffs */
+                                        j_nu = 0;
+                                        k_nu = 0;
+
+                                        if(pp->has_tracer) {
+                                                vfac = SpPhys_GetVfac(&ray, t, dv+deltav, zp, 0);
+                                                vfac2 = SpPhys_GetVfac(&ray, t, dv-deltav, zp, 0);
+                                                vfac = vfac-vfac2;
+                                                SpPhys_GetMoljk((size_t)0, pp, j, vfac, &tempj_nu, &tempk_nu);
+                                                j_nu = 0.5*tempj_nu;
+                                                k_nu += tempk_nu;
+                                        }
+
+                                        /* Calculate source function and optical depth if
+                                         * absorption is NOT zero */
+                                        if(fabs(k_nu) > 0.0) {
+                                                //S_nu = j_nu / ( k_nu * glb.I_norm );
+                                                S_nu = j_nu / ( k_nu * glb.I_norm );
+                                                dtau_nu = k_nu * t * Sp_LENFAC;
+                                        }
+                                        else {
+                                                S_nu = dtau_nu = 0.0;
+                                        }
+
+                                        /* Calculate intensity contributed by this step */
+                                        //debug
+                                        temp = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
+                                        V_nu[iv] += temp*costheta;
+        
+                                        /* Accumulate total optical depth for this channel (must be done
+                                         * AFTER calculation of intensity!) */
+                                        tau_nu[iv] += dtau_nu;
+                                }
+                        }
+                }
+        }
+
+        return;
+}
+
+/*----------------------------------------------------------------------------*/
+
+static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu)
+{
+        GeRay ray;
+        double dv, t, j_nu, k_nu, S_nu, dtau_nu, tempj_nu, tempk_nu;
+        SpPhys *pp;
+        size_t iv, side;
+        Zone *zp, *root = glb.model.grid;
+        
+        GeVec3_d z,n,e;
+        double nproduct,zproduct,eproduct,psi,cosgammasquare,temp;
+        GeVec3_d B;
+        double d23 = 2./3. ;
+        
+        InitRay( &dx, &dy, &ray);
+        InitLOSCoord( &dx, &dy, &ray, &z, &n, &e);
+
+        /* Reset tau for all channels */
+        Mem_BZERO2(tau_nu, glb.v.n);
+
+        /* Shoot ray at model and see what happens! */
+        if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
+                /* Calculate intersection */
+                ray = GeRay_Inc(&ray, t);
+
+                /* Locate starting leaf zone according to intersection */
+                zp = Zone_GetLeaf(root, side, &ray.e, &ray);
+
+                /* Keep going until there's no next zone to traverse to */
+                while(zp) {
+                        /* Calculate path to next boundary */
+                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+//                      Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
+                        /* Pointer to physical parameters associated with this zone */
+                        pp = zp->data;
+                        /* Do radiative transfer only if gas is present in this zone */
+                        if(pp->non_empty_leaf) {
+                                /* Do calculations on all channels at this pixel. Try to minimize the 
+                                 * amount of operations in this loop, since everything here is repeated 
+                                 * for ALL channels, and can significantly increase computation time.
+                                 */
+
+                                B = SpPhys_GetBfac(&ray, t, zp, 0);
+                                nproduct = GeVec3_DotProd(&n,&B);
+                                eproduct = GeVec3_DotProd(&e,&B);
+                                zproduct = GeVec3_DotProd(&z,&B);
+                                
+                                // psi is the angle between the projected B-field on p.o.s. and the north of the image
+                                psi=atan2(-eproduct,nproduct); 
+                                // gamma ia the angle bettwen B-field an the plane of sky
+                                cosgammasquare=1.0-zproduct*zproduct/( GeVec3_X(B, 0)*GeVec3_X(B, 0) + GeVec3_X(B, 1)*GeVec3_X(B, 1) + GeVec3_X(B, 2)*GeVec3_X(B, 2) ); 
+ 
+                                for(iv = 0; iv < glb.v.n; iv++) {
+                                        /* Calculate velocity associated with this channel */
+                                        dv = ((double)iv - glb.v.crpix) * glb.v.delt;
+
+                                        /* Reset emission and absorption coeffs */
+                                        j_nu = 0;
+                                        k_nu = 0;
+
+                                        /* Add continuum emission/absorption */
+                                        j_nu += pp->cont[glb.line].j;
+                                        k_nu += pp->cont[glb.line].k;
+
+                                        /* Calculate source function and optical depth if
+                                         * absorption is NOT zero */
+                                        if(fabs(k_nu) > 0.0) {
+                                                //S_nu = j_nu / ( k_nu * glb.I_norm );
+                                                S_nu = j_nu / ( k_nu * glb.I_norm );
+                                                dtau_nu = k_nu * t * Sp_LENFAC;
+                                        }
+                                        else {
+                                                S_nu = dtau_nu = 0.0;
+                                        }
+
+                                        /* Calculate intensity contributed by this step */
+                                        //debug
+                                        temp = (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
+                                        
+                                        I_nu[iv] += temp;
+                                        Q_nu[iv] += temp*cos(2.0 * psi) * cosgammasquare;
+                                        U_nu[iv] += temp*sin(2.0 * psi) * cosgammasquare;
+                                        sigma2[iv] += temp * (cosgammasquare - d23);
+
+                                        /* Accumulate total optical depth for this channel (must be done
+                                         * AFTER calculation of intensity!) */
+                                        tau_nu[iv] += dtau_nu;
+                                }
+                        }
+//                      Deb_PRINT("checkpoint: non_empty_leaf\n");
+                        /* Calculate next position */
+                        ray = GeRay_Inc(&ray, t);
+//                      Deb_PRINT("checkpoint: GeRay_Inc\n");
+                        /* Get next zone to traverse to */
+                        zp = Zone_GetNext(zp, &side, &ray);
+                }
+        }
+
+        /* Add CMB to all channels -- this is done even if the ray misses the source */
+        
+
+        for(iv = 0; iv < glb.v.n; iv++)
+                I_nu[iv] += glb.I_cmb * exp(-tau_nu[iv]);
+
+        return;
+}
+
+/*----------------------------------------------------------------------------*/
+static void ColumnDensityTracer(double dx, double dy, double *CD)
 {
 	GeRay ray;
-	double dv, theta, phi, t, vfac;
+	double t;
 	SpPhys *pp;
 	size_t side;
 	Zone *zp, *root = glb.model.grid;
 	
-	GeVec3_d z;
-// 	GeVec3_d B;
-// 	GeVec3_d V;
-	double zproduct;
-
-	/* Reset ray */
-	Mem_BZERO(&ray);
-
-	/* Init ray position to <dist, 0, 0> */
-	GeRay_E(ray, 0) = glb.dist / Sp_LENFAC;
-	GeRay_E(ray, 1) = 0;
-	GeRay_E(ray, 2) = 0;
-
-	/* Set direction of ray according to pixel position:
-	 *   theta = PI/2 + dy
-	 *   phi = -dx
-	 */
-	phi = -dx;
-	theta = (M_PI / 2.0) + dy;
-
-	/* Convert to Cartesian coordinates */
-	GeRay_D(ray, 0) = sin(theta) * cos(phi);
-	GeRay_D(ray, 1) = sin(theta) * sin(phi);
-	GeRay_D(ray, 2) = cos(theta);
-	
-	
-			
-	/* Rotate ray:
-	 * Since what we REALLY want to rotate is the model and that the rays
-	 * are pointed towards the model, rays should be rotated in the negative
-	 * direction, and in the opposite order of what we would've done to
-	 * rotate the model. */
-	ray = GeRay_Rotate(&ray, 2, -glb.rotate[2]);
-	ray = GeRay_Rotate(&ray, 1, -glb.rotate[1]);
-	ray = GeRay_Rotate(&ray, 0, -glb.rotate[0]);
-
-	/* Coordinate-dependent offset */
-	switch(root->voxel.geom) {
-		case GEOM_SPH1D:
-			break;
-			
-		case GEOM_SPH3D:
-			break;
-
-		case GEOM_REC3D:
-			ray.e = GeVec3_Add(&ray.e, &root->voxel.cen);
-			break;
-			
-		case GEOM_CYL3D:
-			break;
-
-		default: /* Shouldn't reach here */
-			Deb_ASSERT(0);
-	}
 
 
-	z.x[0]=-GeRay_D(ray, 0);
-	z.x[1]=-GeRay_D(ray, 1);
-	z.x[2]=-GeRay_D(ray, 2);
+        InitRay( &dx, &dy, &ray);
+        
+//      GeVec3_d z;
+//      GeVec3_d B;
+//      GeVec3_d V;
+//      double zproduct;
 
-
-	
+// 	z.x[0]=-GeRay_D(ray, 0);
+// 	z.x[1]=-GeRay_D(ray, 1);
+// 	z.x[2]=-GeRay_D(ray, 2);
 
 	/* Shoot ray at model and see what happens! */
 	if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
@@ -1322,7 +1517,6 @@ static void ColumnDensityTracer(double dx, double dy, double *I_nu)
 			/* Calculate path to next boundary */
 			GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
 
-
 			/* Pointer to physical parameters associated with this zone */
 			pp = zp->data;
 
@@ -1332,26 +1526,18 @@ static void ColumnDensityTracer(double dx, double dy, double *I_nu)
 				 * amount of operations in this loop, since everything here is repeated 
 				 * for ALL channels, and can significantly increase computation time.
 				 */ 
-				
-				
 // 				B = SpPhys_GetBfac(&ray, t, zp, 0);
 // 				zproduct = GeVec3_DotProd(&z,&B);
 //				V = SpPhys_GetVfac2(&ray, t, zp, 0);
 // 				zproduct = GeVec3_DotProd(&z,&V);
-				
-				
-                      
-// 				I_nu[0] += pp->n_H2 * pp->X_mol * t * Sp_LENFAC * zproduct;
-				I_nu[0] += pp->n_H2 * pp->X_mol * t * Sp_LENFAC;
+// 				*CD += pp->n_H2 * pp->X_mol * t * Sp_LENFAC * zproduct;
+				*CD += pp->n_H2 * pp->X_mol * t * Sp_LENFAC;
 			}
-
 			/* Calculate next position */
 			ray = GeRay_Inc(&ray, t);
 
 			/* Get next zone to traverse to */
 			zp = Zone_GetNext(zp, &side, &ray);
-
-
 		}
 	}
 
@@ -1359,6 +1545,148 @@ static void ColumnDensityTracer(double dx, double dy, double *I_nu)
 }
 
 
+/*---------------------------------------------------------------------------- */
+/* Initialize the position of the ray and its shooting direction */
+static void InitRay(double *dx, double *dy, GeRay *ray)
+{       
+        double theta, phi;
+        Zone *root = glb.model.grid;
+
+        /* Reset ray */
+        Mem_BZERO(ray);
+
+        /* Init ray position to <dist, 0, 0> */
+        GeRay_E(*ray, 0) = glb.dist / Sp_LENFAC;
+        GeRay_E(*ray, 1) = 0;
+        GeRay_E(*ray, 2) = 0;
+
+        /* Set direction of ray according to pixel position:
+         *   theta = PI/2 + dy
+         *   phi = -dx
+         */
+        phi = -(*dx);
+        theta = 0.5 * M_PI + (*dy);
+
+        /* Convert to Cartesian coordinates */
+        GeRay_D(*ray, 0) = sin(theta) * cos(phi);
+        GeRay_D(*ray, 1) = sin(theta) * sin(phi);
+        GeRay_D(*ray, 2) = cos(theta);
+        
+        
+                        
+        /* Rotate ray:
+         * Since what we REALLY want to rotate is the model and that the rays
+         * are pointed towards the model, rays should be rotated in the negative
+         * direction, and in the opposite order of what we would've done to
+         * rotate the model. */
+        *ray = GeRay_Rotate(ray, 2, -glb.rotate[2]);
+        *ray = GeRay_Rotate(ray, 1, -glb.rotate[1]);
+        *ray = GeRay_Rotate(ray, 0, -glb.rotate[0]);
+
+        /* Coordinate-dependent offset */
+        switch(root->voxel.geom) {
+                case GEOM_SPH1D:
+                        break;
+                        
+                case GEOM_SPH3D:
+                        break;
+
+                case GEOM_REC3D:
+                        ray->e = GeVec3_Add(&ray->e, &root->voxel.cen);
+                        break;
+                        
+                case GEOM_CYL3D:
+                        break;
+
+                default: /* Shouldn't reach here */
+                        Deb_ASSERT(0);
+        }
+        return;
+}
+
+
+
+/*----------------------------------------------------------------------------*/
+/* initialize line-of-sight coordinate */
+static void InitLOSCoord( double *dx, double *dy, GeRay *ray, GeVec3_d *z, GeVec3_d *n, GeVec3_d *e)
+{
+        double theta,phi;
+        
+        phi = M_PI + *dx;   
+        theta = 0.5 * M_PI - *dy;
+        
+        /* line of sight coordinate */
+        GeVec3_X(*z,0) = -GeRay_D(*ray, 0);
+        GeVec3_X(*z,1) = -GeRay_D(*ray, 1);
+        GeVec3_X(*z,2) = -GeRay_D(*ray, 2);
+        
+        GeVec3_X(*n,0) = -cos(theta)*cos(phi);
+        GeVec3_X(*n,1) = -cos(theta)*sin(phi);
+        GeVec3_X(*n,2) =  sin(theta);
+        *n = GeVec3_Rotate_z(n, -glb.rotate[2]);
+        *n = GeVec3_Rotate_y(n, -glb.rotate[1]);
+        *n = GeVec3_Rotate_x(n, -glb.rotate[0]);
+        
+        GeVec3_X(*e,0) = sin(phi);
+        GeVec3_X(*e,1) = -cos(phi);
+        GeVec3_X(*e,2) = 0.0;
+        *e = GeVec3_Rotate_z(e, -glb.rotate[2]);
+        *e = GeVec3_Rotate_y(e, -glb.rotate[1]);
+        *e = GeVec3_Rotate_x(e, -glb.rotate[0]);
+        return;
+}
+
+/*----------------------------------------------------------------------------*/
+/* determine nsub if the pixel is in the sub-sampling position */
+static size_t Init_nsub(size_t ix, size_t iy)
+{
+        double dx, dy;
+        size_t nsub, ibox;
+        
+        /* Determine angular offsets from the pointing center */
+        dx = ((int)ix - (int)glb.x.crpix) * glb.x.delt;
+        dy = ((int)iy - (int)glb.y.crpix) * glb.y.delt;
+
+        /* nsub is by default 1 */
+        nsub = 1;
+
+        /* Check if position is within any of the subres boxes */
+        for(ibox = 0; ibox < glb.nsubres; ibox++) {
+                if((dx >= glb.subres[ibox].blc_x) && (dx <= glb.subres[ibox].trc_x) &&
+                        (dy >= glb.subres[ibox].blc_y) && (dy <= glb.subres[ibox].trc_y)) {
+                        /* Position within subres box, set nsub to subres[ibox].nsub */
+                        nsub = glb.subres[ibox].nsub;
+                        break;
+                }
+        }
+        
+        return nsub;
+}
+
+/*----------------------------------------------------------------------------*/
+static void InitSubPixel( double *dx, 
+                          double *dy, 
+                          size_t ix, 
+                          size_t iy, 
+                          size_t isub, 
+                          size_t jsub, 
+                          size_t nsub)
+{
+        double subix, subiy;
+        /* Determine sub-resolution angular offsets from the pointing center */
+        subix = (double)ix + (2.*(double)isub-(double)nsub+1.) / ((double)(2*nsub));
+        subiy = (double)iy + (2.*(double)jsub-(double)nsub+1.) / ((double)(2*nsub));
+        *dx = (subix - (double)glb.x.crpix) * glb.x.delt;
+        *dy = (subiy - (double)glb.y.crpix) * glb.y.delt;
+
+        return;
+}
+
+
+/*----------------------------------------------------------------------------*/
+/*   
+write out VTK file of the excitation temperature for the nested Cartesian Cell in multiblock format 
+*/
 static void visualization(void)
 {
 	Zone *zp, *zp1, *zp2, *zp3, *root = glb.model.grid;
@@ -1369,9 +1697,7 @@ static void visualization(void)
 	char filename[22];
 	double Tex;
 	SpPhys *pp;
-	static const double c = PHYS_CONST_MKS_LIGHTC,
-		h = PHYS_CONST_MKS_PLANCKH,
-		k = PHYS_CONST_MKS_BOLTZK;
+	static double k = PHYS_CONST_MKS_BOLTZK;
 	MolTrRad *trans;
 	double n_u, n_l, g_u, g_l, E_u, E_l;
 	size_t up, lo;
@@ -1385,13 +1711,13 @@ static void visualization(void)
 	
 	zp1 = root;
 	for(ix1=0; ix1 < zp1->naxes.x[0]; ix1++){
-	for(iy1=0; iy1 < zp1->naxes.x[1]; iy1++){
-	for(iz1=0; iz1 < zp1->naxes.x[2]; iz1++){
+	 for(iy1=0; iy1 < zp1->naxes.x[1]; iy1++){
+	  for(iz1=0; iz1 < zp1->naxes.x[2]; iz1++){
 		izone1 = iz1 + iy1*(zp1->naxes.x[2]) + ix1*(zp1->naxes.x[2])*(zp1->naxes.x[1]);
 		zp2 = zp1->children[izone1];
 		for(ix2=0; ix2 < zp2->naxes.x[0]; ix2++){
-		for(iy2=0; iy2 < zp2->naxes.x[1]; iy2++){
-		for(iz2=0; iz2 < zp2->naxes.x[2]; iz2++){
+		 for(iy2=0; iy2 < zp2->naxes.x[1]; iy2++){
+		  for(iz2=0; iz2 < zp2->naxes.x[2]; iz2++){
 			izone2 = iz2 + iy2*(zp2->naxes.x[2]) + ix2*(zp2->naxes.x[2])*(zp2->naxes.x[1]);
 			zp3 = zp2->children[izone2];
 			
@@ -1433,8 +1759,8 @@ static void visualization(void)
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"Tex*\" NumberOfComponents=\"1\">\n");
 			
 			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			for(ix=0; ix < zp3->naxes.x[0]; ix++){
+			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
 				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
 				zp = zp3->children[izone];
 				pp = zp->data;
@@ -1454,41 +1780,41 @@ static void visualization(void)
 					Tex = (E_l-E_u)/(k*log((n_u*g_l)/(n_l*g_u))); 
 					fprintf(fp2,"%12.6e\n",Tex/(pp->T_k));
 				}
-			}
-			}
+			  }
+			 }
 			}
 			fprintf(fp2,"        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"Tk\" NumberOfComponents=\"1\">\n");
 			
 			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			for(ix=0; ix < zp3->naxes.x[0]; ix++){
+			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
 				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
 				zp = zp3->children[izone];
 				pp = zp->data;
 				fprintf(fp2,"%12.6e\n",pp->T_k);
-			}
-			}
+			  }
+			 }
 			}
 			fprintf(fp2,"        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"N_h2\" NumberOfComponents=\"1\">\n");
 			
 			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			for(ix=0; ix < zp3->naxes.x[0]; ix++){
+			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
 				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
 				zp = zp3->children[izone];
 				pp = zp->data;
 				fprintf(fp2,"%12.6e\n",pp->n_H2);
-			}
-			}
+			  }
+			 }
 			}
 			fprintf(fp2,"        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"contribution\" NumberOfComponents=\"1\">\n");
 			
 			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			for(ix=0; ix < zp3->naxes.x[0]; ix++){
+			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
 				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
 				zp = zp3->children[izone];
 				pp = zp->data;
@@ -1508,8 +1834,8 @@ static void visualization(void)
 					Tex = (E_l-E_u)/(k*log((n_u*g_l)/(n_l*g_u))); 
 					fprintf(fp2,"%12.6e\n", Tex * pp->n_H2 * pp->X_mol);
 				}
-			}
-			}
+			  }
+			 }
 			}
 			fprintf(fp2,"        </DataArray>\n");
 			fprintf(fp2,"      </CellData>\n");
@@ -1518,21 +1844,23 @@ static void visualization(void)
 			fprintf(fp2,"</VTKFile>");
 			fclose(fp2);
 			
+                  }
+		 }
 		}
-		}
-		}
-	}
-	}
+	  }
+	 }
 	}
 		
-		fprintf(fp,"  </Collection>\n");
-		fprintf(fp,"</VTKFile>");
-		
-		
-		fclose(fp);
+	fprintf(fp,"  </Collection>\n");
+	fprintf(fp,"</VTKFile>");
+	
+	fclose(fp);
+        return;
 }
 
-static void call_fits_output( const char *FileName, const char *bunit, const double scale, const int Stokes){
+/*----------------------------------------------------------------------------*/
+static void call_fits_output( char *FileName, char *bunit, double scale, int Stokes)
+{
 	size_t ix,iy,iz,iv;
 
 	/* output FITS file  */
@@ -1611,24 +1939,30 @@ static void call_fits_output( const char *FileName, const char *bunit, const dou
 	
 	
 	if(Stokes) {
-		for (iv = 0; iv < naxes[2]; iv++) for (iy = 0; iy < naxes[1]; iy++) for (ix = 0; ix < naxes[0]; ix++) {
+		for (iv = 0; iv < naxes[2]; iv++) 
+                 for (iy = 0; iy < naxes[1]; iy++)      
+                  for (ix = 0; ix < naxes[0]; ix++) {
 			int idx = ( ( 0 * naxes[2] + iv) * naxes[1] + iy) * naxes[0] + ix;
 			array[idx] = scale * MirImg_PIXEL(*glb.xyv_img, iv, ix, iy);
 		}
-		for (iv = 0; iv < naxes[2]; iv++) for (iy = 0; iy < naxes[1]; iy++) for (ix = 0; ix < naxes[0]; ix++) {
+		for (iv = 0; iv < naxes[2]; iv++) 
+                 for (iy = 0; iy < naxes[1]; iy++) 
+                  for (ix = 0; ix < naxes[0]; ix++) {
 			
 			int idx = ( ( 1 * naxes[2] + iv) * naxes[1] + iy) * naxes[0] + ix;
 			array[idx] = scale * MirImg_PIXEL(*glb.stokesq, iv, ix, iy);
 		}
-		for (iv = 0; iv < naxes[2]; iv++) for (iy = 0; iy < naxes[1]; iy++) for (ix = 0; ix < naxes[0]; ix++) {
+		for (iv = 0; iv < naxes[2]; iv++) 
+                 for (iy = 0; iy < naxes[1]; iy++) 
+                  for (ix = 0; ix < naxes[0]; ix++) {
 			int idx = ( ( 2 * naxes[2] + iv) * naxes[1] + iy) * naxes[0] + ix;
 			array[idx] = scale * MirImg_PIXEL(*glb.stokesu, iv, ix, iy);
 		}
 	}
 	else{
 		for (iv = 0; iv < naxes[2]; iv++)
-		  for (iy = 0; iy < naxes[1]; iy++)
-		    for (ix = 0; ix < naxes[0]; ix++) {
+		 for (iy = 0; iy < naxes[1]; iy++)
+		  for (ix = 0; ix < naxes[0]; ix++) {
 			int idx = (iv * naxes[1] + iy) * naxes[0] + ix;
 			array[idx] = scale * MirImg_PIXEL(*glb.xyv_img, iv, ix, iy);
 		}
@@ -1640,9 +1974,8 @@ static void call_fits_output( const char *FileName, const char *bunit, const dou
 	Deb_ASSERT(status == 0);
 	
 	free(array);
-	
-	
-	
+
+	return;
 }
 
 
