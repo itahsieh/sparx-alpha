@@ -1,8 +1,0 @@
-[1;36mSTART THE MAPPING OF CONTINUUM EMISSION [0m
-sparx: Key 'dist' not given, using default="1kpc"
-sparx: Key 'cell' not given, using default="['1asec', '1asec']"
-sparx: Key 'chan' not given, using default="[64, '0.1kms^-1']"
-sparx: Key 'unit' not given, using default="JY/PIXEL"
-sparx: Key 'rotate' not given, using default="['0deg', '0deg', '0deg']"
-OK
-OK
