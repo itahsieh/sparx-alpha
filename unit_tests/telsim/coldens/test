@@ -1,0 +1,11 @@
+#!/bin/bash
+
+rm -rf coldens/ coldens.fits
+
+printf "${LIGHTCYAN}START THE MAPPING OF COLUMN DENSITY ${NC}\n"
+
+$sparx_version run task_coldens \
+source=model \
+out=coldens 
+# subres="[['-10asec','-10asec','10asec','10asec',4]]"
+

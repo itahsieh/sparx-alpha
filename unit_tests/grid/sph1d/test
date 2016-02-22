@@ -1,0 +1,11 @@
+#!/bin/bash
+
+rm -rf model
+
+# generating Shu's 1D model
+# printf "${LIGHTBLUE}GENERATING SPH1D GRID : SHU's MODEL${NC}\n"
+# $sparx_version run task_shu1d out=model abundance=1e-9
+
+# generating AGB 1D model
+printf "${LIGHTBLUE}GENERATING SPH1D GRID : AGB${NC}\n"
+$sparx_version run task_agb1d out=model 

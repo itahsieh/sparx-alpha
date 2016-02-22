@@ -14,7 +14,7 @@ alpha-2.2.0   JAN  2016   implement cylindrical coordinate (GEOM : CYL3D)
 alpha-2.2.1   JAN  2016   fix kappa-LTE-lineobs bug and multi-thread telsim memory conflict
 alpha-2.2.2   JAN  2016   improving readability of task_telsim & enable I_bb in telsim
         TODO : to test various tracer(coldens/line/zeeman/overlap/cont)
-alpha-2.2.3               improving the readability of AMC
+alpha-2.2.3   FEB  2016   improving the readability of AMC
         
 ## STATUS : PENDING
 alpha-2.2.4               compiling unit tests

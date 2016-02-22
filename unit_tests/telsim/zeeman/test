@@ -1,0 +1,13 @@
+#!/bin/bash
+
+rm -rf map/ tau/ map.fits tau.fits
+
+printf "${LIGHTCYAN}START THE MAPPING OF ZEEMAN EFFECT (STOKES V) ${NC}\n"
+
+$sparx_version run task_lineobs \
+source=pops \
+out=map \
+zeeman=1 \
+line=1 \
+tau=tau \
+subres="[['-10asec','-10asec','10asec','10asec',4]]"
