@@ -575,7 +575,7 @@ linear equaiton
 */
 {
 	double tanphi, a, b;
-        static double pi = 4.* atan(1.);
+        static const double pi = 4.* atan(1.);
 	
 	tanphi=tan(phi);
 	a=( tanphi*GeRay_E(*ray, 0)-GeRay_E(*ray, 1) );
@@ -1039,25 +1039,26 @@ Side 2&3: lower/upper theta
 Side 4&5: lower/upper phi
 */
 {
-	double t00, t01, t10, t11, t20, t21, t30, t31,
-		t0, t1, t2, t3, t4, t5, 
+	double t0, t1, t2, t3, t4, t5, 
 	       r_in = GeVec3_X(voxel->min, 0), r_out = GeVec3_X(voxel->max, 0),
 	       theta_in = GeVec3_X(voxel->min, 1), theta_out = GeVec3_X(voxel->max, 1),
 	       phi_in = GeVec3_X(voxel->min, 2), phi_out = GeVec3_X(voxel->max, 2);
 	size_t oldside=*side;
-	double half_pi=0.5*3.1415926535897932384626433832795;
+	static const double half_pi = 0.5*3.1415926535897932384626433832795;
 	/* Find intersections with outer sphere */
 		
 	
 	if( oldside == 0 )
 		t0=HUGE_VAL;
 	else{
-		GeRay_IntersectSphere3d(ray, r_in, &t00, &t01);
+		double t00, t01;
+                GeRay_IntersectSphere3d(ray, r_in, &t00, &t01);
 		t0 = Num_MIN(t00,t01);
 		//if( t0 <= 0.0 ) t0=HUGE_VAL;
 		if( t0 < 0.0 ) t0=HUGE_VAL;
 	}
 	
+	double t10, t11;
 	GeRay_IntersectSphere3d(ray, r_out, &t10, &t11);
 	if( oldside == 1 )
 		t1 = Num_MAX(t10,t11);
@@ -1067,6 +1068,7 @@ Side 4&5: lower/upper phi
 		t1 = Num_MIN(t10,t11);
 	}
 	
+	double t20, t21;
 	if( theta_in < half_pi || fabs(theta_in-half_pi)<1e-16 ){ 
 		//printf("upper semi-sphere %g %g\n",fabs(half_pi-theta_out),fabs(half_pi-theta_in));
 		if( oldside == 2 )
@@ -1090,7 +1092,9 @@ Side 4&5: lower/upper phi
 		}
 	}
 	
+	double t30, t31;
 	if(theta_out < half_pi && fabs(theta_in-half_pi)>1e-16 ){
+                
 		GeRay_IntersectTheta(ray, theta_out, &t30, &t31);
 		if( oldside == 3 ){
 			t3 = Num_MAX(t30,t31);
@@ -1269,8 +1273,6 @@ intersection is ALWAYS guranteed, since we're traveling out of a bounded volume.
 	* sides 4 & 5: z axis
 */
 {
-	double t;
-	size_t i, iside;
 	static const GeVec3_d normal[6] = {
 		GeVec3_INIT(-1,  0,  0),
 		GeVec3_INIT( 1,  0,  0),
@@ -1284,7 +1286,7 @@ intersection is ALWAYS guranteed, since we're traveling out of a bounded volume.
 	/* Init tmin */
 	*tmin = HUGE_VAL;
 
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		/*
 		Calculate intersections with planes on all 3 axes
 	          i == 0: x axis
@@ -1296,6 +1298,7 @@ intersection is ALWAYS guranteed, since we're traveling out of a bounded volume.
 			continue;
 		}
 		else {
+                        size_t iside;
 			if(GeRay_D(*ray, i) > 0) {
 				iside = i * 2 + 1;
 				q = &voxel->max;
@@ -1304,7 +1307,7 @@ intersection is ALWAYS guranteed, since we're traveling out of a bounded volume.
 				iside = i * 2;
 				q = &voxel->min;
 			}
-			t = GeRay_IntersectPlane(ray, &normal[iside], q);
+			double t = GeRay_IntersectPlane(ray, &normal[iside], q);
 
 			/* Find tmin */
 			if(t < *tmin) {
@@ -1334,7 +1337,7 @@ Side 2&3: minimum/maximum phi
 Side 4&5: lower/upper Height
 */
 {
-	double t00, t01, t10, t11, t[4],
+	double t[4],
 	       Rc_in = GeVec3_X(voxel->min, 0), 
 	       Rc_out = GeVec3_X(voxel->max, 0),
 	       Phi_min = GeVec3_X(voxel->min, 1),
@@ -1348,13 +1351,15 @@ Side 4&5: lower/upper Height
 	if( oldside == 0 )
 		t[0]=HUGE_VAL;
 	else{
+                double t00, t01;
 		GeRay_IntersectRc(ray, Rc_in, &t00, &t01);
 		t[0] = Num_MIN(t00,t01);
 		if( t[0] < 0.0 ) t[0]=HUGE_VAL; /* just in case */
 	}
 	
 	/* if the ray is shooting from outside Rc */
-	GeRay_IntersectRc(ray, Rc_out, &t10, &t11);
+	double t10, t11;
+        GeRay_IntersectRc(ray, Rc_out, &t10, &t11);
 	if( oldside == 1 )
 		t[1] = Num_MAX(t10,t11);
 	else{
@@ -1456,9 +1461,8 @@ GeRay GeRay_Rand(gsl_rng *rng, const GeVox *voxel)
 
 GeRay GeRay_Rand_sph1d(gsl_rng *rng, const GeVox *voxel)
 {
-	GeRay ray;
-	double
-		r, phi, cost, sint,
+	
+	double r, phi, cost, sint,
 		r_in = GeVec3_X(voxel->min, 0),
 		r_out = GeVec3_X(voxel->max, 0);
 
@@ -1475,6 +1479,7 @@ GeRay GeRay_Rand_sph1d(gsl_rng *rng, const GeVox *voxel)
 	#undef ONE_THIRD
 
 	/* Reset ray */
+        GeRay ray;
 	Mem_BZERO(&ray);
 
 	/* Since this is a 1D problem, starting every ray from the
@@ -1497,7 +1502,7 @@ GeRay GeRay_Rand_sph3d(gsl_rng *rng, const GeVox *voxel)
 /* Generate a randomly directed ray starting from a random position within
    the voxel */
 {
-	GeRay ray;
+	
 	double Er, Et, Ep;
 	double r_in = GeVec3_X(voxel->min, 0),
 		r_out = GeVec3_X(voxel->max, 0),
@@ -1510,6 +1515,7 @@ GeRay GeRay_Rand_sph3d(gsl_rng *rng, const GeVox *voxel)
 	#define USE_RNG 1
 
 	/* Reset ray */
+        GeRay ray;
 	Mem_BZERO(&ray);
 	
 	
@@ -1594,7 +1600,7 @@ GeRay GeRay_Rand_cyl3d(gsl_rng *rng, const GeVox *voxel)
 /* Generate a randomly directed ray starting from a random position within
    the voxel */
 {
-	GeRay ray;
+	
 	double ERc, Ez, Ep;
 	double 
 		Rc_in = GeVec3_X(voxel->min, 0),
@@ -1608,6 +1614,7 @@ GeRay GeRay_Rand_cyl3d(gsl_rng *rng, const GeVox *voxel)
 	#define USE_RNG 1
 
 	/* Reset ray */
+        GeRay ray;
 	Mem_BZERO(&ray);
 	
 	
