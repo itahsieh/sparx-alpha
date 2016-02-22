@@ -520,7 +520,7 @@ void MirImg_WriteXY(MirFile *fp, const MirImg *image, const char *bunit, double 
 	size_t i, j, k;
 	int idx;
 	float *row;
-
+        //printf("xcrp=%d xcrv=%e x\n");
 	/************************************************************************/
 	/*                           Axis 1--RA                                 */
 	/************************************************************************/

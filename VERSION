@@ -1,4 +1,4 @@
-SPARX VERSION : alpha-2.2.2
+SPARX VERSION : alpha-2.2.3
 
 ###########################
 # DEVELOPING HISTORY      #
@@ -11,23 +11,25 @@ alpha-2.1.0   Dec  2015   add FITS output
 alpha-2.1.1   Dec  2015   get rid of MIRIAD dependancy
 alpha-2.2.0   JAN  2016   implement cylindrical coordinate (GEOM : CYL3D)
         TODO : a test case of nested CYL3D model
-alpha-2.2.1   JAN  2016   fix kappa-LTE-linobs bug and multi-thread telsim memory conflic
+alpha-2.2.1   JAN  2016   fix kappa-LTE-lineobs bug and multi-thread telsim memory conflict
 alpha-2.2.2   JAN  2016   improving readability of task_telsim & enable I_bb in telsim
         TODO : to test various tracer(coldens/line/zeeman/overlap/cont)
-
+alpha-2.2.3               improving the readability of AMC
+        
 ## STATUS : PENDING
-alpha-2.2.3               compiling unit tests
+alpha-2.2.4               compiling unit tests
+
 
 ###########################
 # THE PLANS               #
 ###########################
 - Short-term :
-        * consistency of the intialization for molecule with HDF format and data sstructures
+        * consistency of the intialization for molecule with HDF format and data structures
         * (automatic converged mapping)
 
 - Mid-term :
         * "pre-sparx" project -- integrated preprocessor
-        * capbility of unstructured grid solvers
+        * capability of unstructured grid solvers
 
 - Long-term :
-        * angular high-order schemes
+        * angular high-order scheme

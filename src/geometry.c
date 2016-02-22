@@ -575,7 +575,7 @@ linear equaiton
 */
 {
 	double tanphi, a, b;
-	static double pi = 4.*atan(1.);
+        static double pi = 4.* atan(1.);
 	
 	tanphi=tan(phi);
 	a=( tanphi*GeRay_E(*ray, 0)-GeRay_E(*ray, 1) );
@@ -835,7 +835,6 @@ int GeRay_IntersectVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmi
 	double t[6];
 	size_t i;
 	int within_box;
-	const GeVec3_d *q = NULL;
 	GeRay tstray = GeRay_INIT(0, 0, 0, 0, 0, 0);
 
 	/* Init tmin */
@@ -888,11 +887,10 @@ int point_in_voxel2(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 /* Check if coordinates of pt NOT on axis are within the limits of the voxel */
 {
-	size_t i;
 	int within_box = 1;
 	
 	double Rc, phi, Hz;
-	static pi = 4. * atan(1.); 
+	static double pi = 4. * atan(1.); 
 	Rc = sqrt( GeVec3_X(*pt, 0) * GeVec3_X(*pt, 0) + GeVec3_X(*pt, 1) * GeVec3_X(*pt, 1) );
 	if( GeVec3_X(*pt, 1) >= 0. ) phi = acos(GeVec3_X(*pt, 0)/Rc);
 	else phi = 2. * pi - acos(GeVec3_X(*pt, 0)/Rc);
@@ -1042,12 +1040,12 @@ Side 4&5: lower/upper phi
 */
 {
 	double t00, t01, t10, t11, t20, t21, t30, t31,
-		t0, t1, t2, t3, t4, t5, R, theta, phi,
+		t0, t1, t2, t3, t4, t5, 
 	       r_in = GeVec3_X(voxel->min, 0), r_out = GeVec3_X(voxel->max, 0),
 	       theta_in = GeVec3_X(voxel->min, 1), theta_out = GeVec3_X(voxel->max, 1),
 	       phi_in = GeVec3_X(voxel->min, 2), phi_out = GeVec3_X(voxel->max, 2);
 	size_t oldside=*side;
-	double pi=3.141592653589793238462643383279,half_pi=0.5*3.1415926535897932384626433832795;
+	double half_pi=0.5*3.1415926535897932384626433832795;
 	/* Find intersections with outer sphere */
 		
 	

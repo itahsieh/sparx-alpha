@@ -27,6 +27,6 @@ if [ $dev == 1 ]; then
   sed -e 's/import sparx._sparx as _sparx/import sparxdev._sparx as _sparx/g' -e 's/from sparx.tasks/from sparxdev.tasks/g' $destination/bin/sparx > $destination/bin/sparx-dev
   chmod 755 $destination/bin/sparx-dev
   rm $destination/bin/sparx
-  sed -e 's/from sparx import _sparx/from sparxdev import _sparx/g' $HOME/sparx-alpha/lib/sparx/tasks.py > $destination/lib/python2.5/site-packages/sparxdev/tasks.py
+  sed -e 's/from sparx import _sparx/from sparxdev import _sparx/g' `pwd`/lib/sparx/tasks.py > $destination/lib/python2.5/site-packages/sparxdev/tasks.py
 fi
 
