@@ -14,6 +14,8 @@
 #include "numerical.h"
 #include "geometry.h"
 
+#define M_PI 3.14159265358979323846264338327950288419716939937510
+
 DatINode GEOM_TYPES[] = {
 	{"sph1d", GEOM_SPH1D},
 	{"sph3d", GEOM_SPH3D},
@@ -42,10 +44,9 @@ size_t Ge_PosToIelem(size_t i, size_t j, size_t k, const GeVec3_s *naxes)
 
 GeVec3_s Ge_IelemToIndex(size_t ielem, const GeVec3_s *naxes)
 {
-	size_t i;
 	GeVec3_s idx;
 
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		GeVec3_X(idx, 2 - i) = ielem % GeVec3_X(*naxes, 2 - i);
 		ielem = ielem / GeVec3_X(*naxes, 2 - i);
 	}
@@ -57,10 +58,10 @@ GeVec3_s Ge_IelemToIndex(size_t ielem, const GeVec3_s *naxes)
 
 size_t Ge_IndexToIelem(const GeVec3_s *idx, const GeVec3_s *naxes)
 {
-	size_t i, ielem = 0;
+	size_t ielem = 0;
 
-	for(i = 0; i < 3; i++) {
-		ielem = i == 0 ? GeVec3_X(*idx, i) : ielem * GeVec3_X(*naxes, i) + GeVec3_X(*idx, i);
+	for(size_t i = 0; i < 3; i++) {
+		ielem = (i == 0) ? GeVec3_X(*idx, i) : ielem * GeVec3_X(*naxes, i) + GeVec3_X(*idx, i);
 	}
 
 	return ielem;
@@ -70,14 +71,12 @@ size_t Ge_IndexToIelem(const GeVec3_s *idx, const GeVec3_s *naxes)
 
 GeVox GeVox_GetSubVox(const GeVox *voxel, const GeVec3_s *idx, const GeVec3_s *naxes)
 {
-	size_t i;
-	double delta;
 	GeVox subvox;
 
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		/* Remember to update these if the GeVox struct changes!!! */
 		subvox.geom = voxel->geom;
-		delta = subvox.delta.x[i] = voxel->delta.x[i] / (double)naxes->x[i];
+		double delta = subvox.delta.x[i] = voxel->delta.x[i] / (double)naxes->x[i];
 		subvox.min.x[i] = voxel->min.x[i] + (double)idx->x[i] * delta;
 		subvox.max.x[i] = voxel->min.x[i] + (double)(idx->x[i] + 1) * delta;
 		subvox.cen.x[i] = subvox.min.x[i] + 0.5 * delta; /* This is only valid if the gridding is uniform */
@@ -100,13 +99,10 @@ GeCam GeCam_Init(double phix, double phiy, double phiz)
 
 GeVec3_d GeVec3_Rotate(const GeVec3_d *vec, const GeCam *cam)
 {
-	GeVec3_d result;
-
-	result = *vec;
+	GeVec3_d result = *vec;
 	result = GeVec3_Rotate_x(&result, GeVec3_X(cam->phi, 0));
 	result = GeVec3_Rotate_y(&result, GeVec3_X(cam->phi, 1));
 	result = GeVec3_Rotate_z(&result, GeVec3_X(cam->phi, 2));
-
 	return result;
 }
 
@@ -115,7 +111,6 @@ GeVec3_d GeVec3_Rotate(const GeVec3_d *vec, const GeCam *cam)
 GeVec3_d GeVec3_d_Init(double x, double y, double z)
 {
 	GeVec3_d vec = GeVec3_INIT(x, y, z);
-
 	return vec;
 }
 
@@ -124,7 +119,6 @@ GeVec3_d GeVec3_d_Init(double x, double y, double z)
 GeVec3_s GeVec3_s_Init(size_t x, size_t y, size_t z)
 {
 	GeVec3_s vec = GeVec3_INIT(x, y, z);
-
 	return vec;
 }
 
@@ -133,13 +127,10 @@ GeVec3_s GeVec3_s_Init(size_t x, size_t y, size_t z)
 double GeVec3_Mag(const GeVec3_d *a)
 /* Calculate the magnitude of <a> = |<a>| */
 {
-	size_t i;
 	double mag = 0;
-
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		mag += pow(GeVec3_X(*a, i), 2.0);
 	}
-
 	return sqrt(mag);
 }
 
@@ -148,10 +139,7 @@ double GeVec3_Mag(const GeVec3_d *a)
 double GeVec3_Mag2(const GeVec3_d *a, const GeVec3_d *b)
 /* Calculate the magnitude of <b> - <a> = |<b> - <a>| */
 {
-	GeVec3_d c;
-
-	c = GeVec3_Sub(a, b);
-
+	GeVec3_d c = GeVec3_Sub(a, b);
 	return GeVec3_Mag(&c);
 }
 
@@ -160,12 +148,9 @@ double GeVec3_Mag2(const GeVec3_d *a, const GeVec3_d *b)
 GeVec3_d GeVec3_Add(const GeVec3_d *a, const GeVec3_d *b)
 /* Calculate the result of <c> = <a> + <b> */
 {
-	size_t i;
 	GeVec3_d c = GeVec3_INIT(0,0,0);
-
-	for(i = 0; i < 3; i++)
+	for(size_t i = 0; i < 3; i++)
 		c.x[i] = a->x[i] + b->x[i];
-	
 	return c;
 }
 
@@ -174,12 +159,9 @@ GeVec3_d GeVec3_Add(const GeVec3_d *a, const GeVec3_d *b)
 GeVec3_d GeVec3_Sub(const GeVec3_d *a, const GeVec3_d *b)
 /* Calculate the result of <c> = <b> - <a> */
 {
-	size_t i;
 	GeVec3_d c;
-
-	for(i = 0; i < 3; i++)
+	for(size_t i = 0; i < 3; i++)
 		c.x[i] = b->x[i] - a->x[i];
-	
 	return c;
 }
 
@@ -190,12 +172,9 @@ GeVec3_d GeVec3_Normalize(const GeVec3_d *a)
 {
 	GeVec3_d b;
 	double mag = GeVec3_Mag(a);
-	size_t i;
-
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		GeVec3_X(b, i) = GeVec3_X(*a, i) / mag;
 	}
-
 	return b;
 }
 
@@ -204,15 +183,11 @@ GeVec3_d GeVec3_Normalize(const GeVec3_d *a)
 GeVec3_d GeVec3_Scale(const GeVec3_d *a, double fac)
 /* Scale <a> by fac, i.e. <b> = fac * <a> */
 {
-	size_t i;
 	GeVec3_d b;
-
 	Mem_BZERO(&b);
-
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		GeVec3_X(b, i) = fac * GeVec3_X(*a, i);
 	}
-
 	return b;
 }
 
@@ -235,18 +210,15 @@ GeVec3_d GeVec3_InterpLinear(const GeVec3_d *xa, const GeVec3_d *xb, const GeVec
  * 	      pos_i = ith component of interpolation position
  */
 {
-	size_t i;
-	double m, delta_x;
 	//const double *xav = xa->x, *xbv = xb->x, *av = a->x, *bv = b->x, *posv = pos->x;
 	GeVec3_d result;
-
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		/* Calculate delta_x */
-		delta_x = (GeVec3_X(*xb, i) - GeVec3_X(*xa, i));
+		double delta_x = (GeVec3_X(*xb, i) - GeVec3_X(*xa, i));
 		//delta_x = xbv[i] - xav[i];
 
 		/* Calculate slope */
-		m = fabs(delta_x) > 0 ? (GeVec3_X(*b, i) - GeVec3_X(*a, i)) / delta_x : 0;
+		double m = fabs(delta_x) > 0 ? (GeVec3_X(*b, i) - GeVec3_X(*a, i)) / delta_x : 0;
 		//m = fabs(delta_x) > 0 ? (bv[i] - av[i]) / delta_x : 0;
 
 		/* Calculate linearly interpolated value */
@@ -262,12 +234,9 @@ GeVec3_d GeVec3_InterpLinear(const GeVec3_d *xa, const GeVec3_d *xb, const GeVec
 double GeVec3_DotProd(const GeVec3_d *a, const GeVec3_d *b)
 /* Calculate prod = <a> dot <b> */
 {
-	size_t i;
 	double prod = 0;
-
-	for(i = 0; i < 3; i++)
+	for(size_t i = 0; i < 3; i++)
 		prod += a->x[i] * b->x[i];
-
 	return prod;
 }
 /*----------------------------------------------------------------------------*/
@@ -289,15 +258,12 @@ GeVec3_d GeVec3_CrossProd(const GeVec3_d *a, const GeVec3_d *b)
 GeVec3_d GeVec3_MatOp(const GeVec3_d *vec, const GeMat3_d *mat)
 /* Calculate <result> = [mat]<vec> */
 {
-	size_t i, j;
 	GeVec3_d result = GeVec3_INIT(0, 0, 0);
-
-	for(i = 0; i < 3; i++) {
-		for(j = 0; j < 3; j++) {
+	for(size_t i = 0; i < 3; i++) {
+		for(size_t j = 0; j < 3; j++) {
 			result.x[i] += GeMat3_X(*mat, i, j) * vec->x[j];
 		}
 	}
-
 	return result;
 }
 
@@ -433,11 +399,9 @@ where
 	c = |<e>|^2 - R^2
 */
 {
-	double a, b, c;
-
-	a = GeVec3_DotProd(&ray->d, &ray->d); /* Is <d> guaranteed to be unit vector? (questioned by I-Ta) */
-	b = 2.0 * GeVec3_DotProd(&ray->e, &ray->d);
-	c = GeVec3_DotProd(&ray->e, &ray->e) - r * r;
+	double a = GeVec3_DotProd(&ray->d, &ray->d); /* Is <d> guaranteed to be unit vector? (questioned by I-Ta) */
+	double b = 2. * GeVec3_DotProd(&ray->e, &ray->d);
+	double c = GeVec3_DotProd(&ray->e, &ray->e) - r * r;
 
 	Num_QuadraticRoots(a, b, c, t1, t2);
 
@@ -474,11 +438,9 @@ where
 	c = |<e>|^2 - R^2
 */
 {
-	double a, b, c;
-
-	a = GeVec3_DotProd(&ray->d, &ray->d); /* Is <d> guaranteed to be unit vector? (questioned by I-Ta) */
-	b = 2.0 * GeVec3_DotProd(&ray->e, &ray->d);
-	c = GeVec3_DotProd(&ray->e, &ray->e) - r * r;
+	double a = GeVec3_DotProd(&ray->d, &ray->d); /* Is <d> guaranteed to be unit vector? (questioned by I-Ta) */
+	double b = 2. * GeVec3_DotProd(&ray->e, &ray->d);
+	double c = GeVec3_DotProd(&ray->e, &ray->e) - r * r;
 
 	Num_QuadraticRoots(a, b, c, t1, t2);
 
@@ -517,17 +479,11 @@ where
 	c = cos^2(theta)*|<e>|^2 - e_z
 */
 {
-	double a, b, c, cos2theta, costheta;
-	
-	costheta = cos(theta);
-	cos2theta = costheta * costheta;
-
-	a = cos2theta - GeRay_D(*ray, 2) * GeRay_D(*ray, 2); 
-	b = cos2theta * 2.0 * GeVec3_DotProd(&ray->e,&ray->d) - 2.0 * GeRay_D(*ray, 2) * GeRay_E(*ray, 2);
-	c = cos2theta * GeVec3_DotProd(&ray->e, &ray->e) - GeRay_E(*ray, 2) * GeRay_E(*ray, 2);
-
-	
-
+	double costheta = cos(theta);
+	double cos2theta = costheta * costheta;
+	double a = cos2theta - GeRay_D(*ray, 2) * GeRay_D(*ray, 2); 
+	double b = cos2theta * 2.0 * GeVec3_DotProd(&ray->e,&ray->d) - 2.0 * GeRay_D(*ray, 2) * GeRay_E(*ray, 2);
+	double c = cos2theta * GeVec3_DotProd(&ray->e, &ray->e) - GeRay_E(*ray, 2) * GeRay_E(*ray, 2);
 	
 	if( cos2theta < 1e-24){
 		*t1 = -0.5*b/a;
@@ -574,12 +530,9 @@ linear equaiton
 	t = (tan(phi)*<e>_x-<e>_y)/(<d>_y-tan(phi)*<d>_x)
 */
 {
-	double tanphi, a, b;
-        static const double pi = 4.* atan(1.);
-	
-	tanphi=tan(phi);
-	a=( tanphi*GeRay_E(*ray, 0)-GeRay_E(*ray, 1) );
-	b=( GeRay_D(*ray, 1)-tanphi*GeRay_D(*ray, 0) );
+	double tanphi=tan(phi);
+	double a = ( tanphi*GeRay_E(*ray, 0)-GeRay_E(*ray, 1) );
+	double b = ( GeRay_D(*ray, 1)-tanphi*GeRay_D(*ray, 0) );
 	if(fabs(b)<1e-8)
 		*t=HUGE_VAL;
 	else
@@ -590,7 +543,7 @@ linear equaiton
 		*t = HUGE_VAL;
 	else{ 
 		double RayPos_y = GeRay_E(*ray, 1) + GeRay_D(*ray, 1) * (*t);
-		if( phi <= pi ){
+		if( phi <= M_PI ){
 			if ( RayPos_y < 0. )
 				/* phi <= phi but <x>_y < 0 => inconsistency */
 				*t = HUGE_VAL;
@@ -626,11 +579,9 @@ where
 	c = <e>_x^2 + <e>_y^2 - R_c^2
 */
 {
-	double a, b, c;
-
-	a = ray->d.x[0] * ray->d.x[0] + ray->d.x[1] * ray->d.x[1]; 
-	b = 2.0 * ray->d.x[0] * ray->e.x[0] + 2.0 * ray->d.x[1] * ray->e.x[1];
-	c = ray->e.x[0] * ray->e.x[0] + ray->e.x[1] * ray->e.x[1] - Rc * Rc;
+	double a = ray->d.x[0] * ray->d.x[0] + ray->d.x[1] * ray->d.x[1]; 
+	double b = 2.0 * ray->d.x[0] * ray->e.x[0] + 2.0 * ray->d.x[1] * ray->e.x[1];
+	double c = ray->e.x[0] * ray->e.x[0] + ray->e.x[1] * ray->e.x[1] - Rc * Rc;
 
 	Num_QuadraticRoots(a, b, c, t1, t2);
 
@@ -664,13 +615,10 @@ Calculate the intersection between ray and plane according to
 /*----------------------------------------------------------------------------*/
 GeRay GeRay_Inc(const GeRay *ray, double t)
 {
-	size_t i;
 	GeRay newray = *ray;
-
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		newray.e.x[i] += newray.d.x[i] * t;
 	}
-
 	return newray;
 }
 
@@ -750,7 +698,8 @@ side=1 --> outer sphere
 If there is a hit, side would always be 1 for this routine.
 */
 {
-	double r = GeVec3_X(voxel->max, 0), t1, t2;
+	double r = GeVec3_X(voxel->max, 0);
+        double t1, t2;
 
 	GeRay_IntersectSphere(ray, r, &t1, &t2);
 	
@@ -833,8 +782,6 @@ int GeRay_IntersectVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmi
 /* Find the intersection of a ray OUTSIDE voxel in rectangular coordinates. */
 {
 	double t[6];
-	size_t i;
-	int within_box;
 	GeRay tstray = GeRay_INIT(0, 0, 0, 0, 0, 0);
 
 	/* Init tmin */
@@ -849,10 +796,10 @@ int GeRay_IntersectVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmi
 	GeRay_IntersectHz(ray, voxel->min.x[2], &t[4]);
 	GeRay_IntersectHz(ray, voxel->max.x[2], &t[5]);
 
-	for(i = 0; i < 6; i++) {
+	for(size_t i = 0; i < 6; i++) {
 		/* Check if intersection is inside box */
 		tstray = GeRay_Inc(ray, t[i]);
-		within_box = point_in_voxel_cyl3d(&tstray.e, voxel, i / 2);
+		int within_box = point_in_voxel_cyl3d(&tstray.e, voxel, i / 2);
 
 		/* Find tmin if intersection is within box*/
 		if(within_box && (t[i] < *tmin)) {
@@ -868,10 +815,8 @@ int GeRay_IntersectVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmi
 int point_in_voxel2(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 /* Check if coordinates of pt NOT on axis are within the limits of the voxel */
 {
-	size_t i;
 	int within_box = 1;
-
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		if(i != axis) {
 			if((GeVec3_X(*pt, i) < GeVec3_X(voxel->min, i)) || (GeVec3_X(*pt, i) > GeVec3_X(voxel->max, i))) {
 				within_box = 0;
@@ -879,7 +824,6 @@ int point_in_voxel2(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 			}
 		}
 	}
-
 	return within_box;
 }
 
@@ -888,13 +832,13 @@ int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 /* Check if coordinates of pt NOT on axis are within the limits of the voxel */
 {
 	int within_box = 1;
-	
-	double Rc, phi, Hz;
-	static double pi = 4. * atan(1.); 
-	Rc = sqrt( GeVec3_X(*pt, 0) * GeVec3_X(*pt, 0) + GeVec3_X(*pt, 1) * GeVec3_X(*pt, 1) );
-	if( GeVec3_X(*pt, 1) >= 0. ) phi = acos(GeVec3_X(*pt, 0)/Rc);
-	else phi = 2. * pi - acos(GeVec3_X(*pt, 0)/Rc);
-	Hz = GeVec3_X(*pt, 2); 
+	double Rc = sqrt( GeVec3_X(*pt, 0) * GeVec3_X(*pt, 0) + GeVec3_X(*pt, 1) * GeVec3_X(*pt, 1) );
+	double phi;
+        if( GeVec3_X(*pt, 1) >= 0. ) 
+                phi = acos(GeVec3_X(*pt, 0)/Rc);
+	else 
+                phi = 2. * M_PI - acos(GeVec3_X(*pt, 0)/Rc);
+	double Hz = GeVec3_X(*pt, 2); 
 	
 	switch(axis) {
 		case 0:
@@ -1039,10 +983,13 @@ Side 2&3: lower/upper theta
 Side 4&5: lower/upper phi
 */
 {
-	double t0, t1, t2, t3, t4, t5, 
-	       r_in = GeVec3_X(voxel->min, 0), r_out = GeVec3_X(voxel->max, 0),
-	       theta_in = GeVec3_X(voxel->min, 1), theta_out = GeVec3_X(voxel->max, 1),
-	       phi_in = GeVec3_X(voxel->min, 2), phi_out = GeVec3_X(voxel->max, 2);
+	double t0, t1, t2, t3, t4, t5;
+	double r_in = GeVec3_X(voxel->min, 0);
+        double r_out = GeVec3_X(voxel->max, 0);
+        double theta_in = GeVec3_X(voxel->min, 1);
+        double theta_out = GeVec3_X(voxel->max, 1);
+        double phi_in = GeVec3_X(voxel->min, 2);
+        double phi_out = GeVec3_X(voxel->max, 2);
 	size_t oldside=*side;
 	static const double half_pi = 0.5*3.1415926535897932384626433832795;
 	/* Find intersections with outer sphere */
@@ -1568,18 +1515,17 @@ GeRay GeRay_Rand_rec3d(gsl_rng *rng, const GeVox *voxel)
 {
 	GeRay ray;
 	double phi, cost, sint;
-	size_t i;
 
 	/* Reset ray */
 	Mem_BZERO(&ray);
 
 	#if 1
 	/* Set random ray origin in rectangular coordinates */
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		GeRay_E(ray, i) = GeVec3_X(voxel->cen, i) + (RAND() - 0.5) * GeVec3_X(voxel->delta, i);
 	}
 	#else
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		GeRay_E(ray, i) = GeVec3_X(voxel->min, i) + RAND() * GeVec3_X(voxel->delta, i);
 	}
 	#endif
@@ -1716,7 +1662,6 @@ static void GeVox_Cpgplot_rec(const GeVox *voxel, const GeCam *cam)
 
 */
 {
-	size_t i;
 	GeVec3_d min = voxel->min, max = voxel->max;
 	GeVec3_d verts[8];
 
@@ -1730,7 +1675,7 @@ static void GeVox_Cpgplot_rec(const GeVox *voxel, const GeCam *cam)
 	verts[6] = max;
 	verts[7] = max; verts[7].x[1] = GeVec3_X(min, 1);
 
-	for(i = 0; i < 4; i++) {
+	for(size_t i = 0; i < 4; i++) {
 		GeVec3_Cpgline2(&verts[i], &verts[(i+1)%4], cam); /* lower plane */
 		GeVec3_Cpgline2(&verts[4+i], &verts[4+(i+1)%4], cam); /* upper plane */
 		GeVec3_Cpgline2(&verts[i], &verts[i+4], cam); /* sides */
@@ -1812,14 +1757,11 @@ void GeVec3_Cpgarro2(const GeVec3_d *v1, const GeVec3_d *v2, const GeCam *cam)
 void GeRay_Cpgarro(const GeRay *ray, const GeCam *cam)
 /* Plot ray as an arrow according to origin and direction vector */
 {
-	size_t i;
 	GeVec3_d head = GeVec3_INIT(0, 0, 0);
-
-	for(i = 0; i < 3; i++)
+	for(size_t i = 0; i < 3; i++)
 		head.x[i] = ray->e.x[i] + ray->d.x[i];
 
 	GeVec3_Cpgarro2(&ray->e, &head, cam);
-
 	return;
 }
 
@@ -1925,8 +1867,6 @@ GeVox GeVox_Init2(int geom, GeVec3_d min, GeVec3_d max)
 
 void GeRay_AWInit(GeRay *ray, const GeVox *voxel)
 {
-	double t;
-	size_t i, iplane;
 	static const GeVec3_d normal[6] = {
 		GeVec3_INIT(-1,  0,  0),
 		GeVec3_INIT( 1,  0,  0),
@@ -1935,9 +1875,9 @@ void GeRay_AWInit(GeRay *ray, const GeVox *voxel)
 		GeVec3_INIT( 0,  0, -1),
 		GeVec3_INIT( 0,  0,  1)
 	};
-	const GeVec3_d *q = NULL;
+	
 
-	for(i = 0; i < 3; i++) {
+	for(size_t i = 0; i < 3; i++) {
 		/*
 		Calculate intersections with planes on all 3 axes
 	          i == 0: x axis
@@ -1951,6 +1891,8 @@ void GeRay_AWInit(GeRay *ray, const GeVox *voxel)
 			continue;
 		}
 		else {
+                        size_t iplane;
+                        const GeVec3_d *q = NULL;
 			if(GeRay_D(*ray, i) > 0) {
 				iplane = i * 2 + 1;
 				q = &voxel->max;
@@ -1959,7 +1901,7 @@ void GeRay_AWInit(GeRay *ray, const GeVox *voxel)
 				iplane = i * 2;
 				q = &voxel->min;
 			}
-			t = GeRay_IntersectPlane(ray, &normal[iplane], q);
+			double t = GeRay_IntersectPlane(ray, &normal[iplane], q);
 
 			/* Set tMax for this axis */
 			GeVec3_X(ray->tMax, i) = t;
@@ -2041,10 +1983,7 @@ void GeRay_AWTraverse(GeRay *ray, double *dt, size_t *plane)
 GeVec3_d GeRay_AWPos(const GeRay *ray)
 /* Calculate current position based on t and ray origin */
 {
-	GeRay tmp_ray;
-
-	tmp_ray = GeRay_Inc(ray, ray->t);
-
+	GeRay tmp_ray = GeRay_Inc(ray, ray->t);
 	return tmp_ray.e;
 }
 
