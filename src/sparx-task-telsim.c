@@ -1663,10 +1663,6 @@ static void visualization(void)
 {
 	Zone *root = glb.model.grid;
 	static double k = PHYS_CONST_MKS_BOLTZK;
-	double n_u, n_l, g_u, g_l, E_u, E_l;
-	size_t up, lo;
-	
-	
 	FILE *fp=fopen("vis.pvd","w");
 	fprintf(fp,"<?xml version=\"1.0\"?>\n");
 	fprintf(fp,"<VTKFile type=\"Collection\" version=\"0.1\" byte_order=\"LittleEndian\" compressor=\"vtkZLibDataCompressor\">\n");
