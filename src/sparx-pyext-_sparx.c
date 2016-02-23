@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
 #include "sparx.h"
+#define Sp_DEV_VERSION DEV_VERSION
 
 /* Global parameters */
 SpParm Sp_parm;
@@ -63,8 +64,10 @@ PyMODINIT_FUNC init_sparx(void)
 	Mem_BZERO(&Sp_parm);
 
 	/* Set default values */
-	strncpy(Sp_parm.prog, "sparxdev", BUFSIZ);
-// 	strncpy(Sp_parm.prog, "sparx", BUFSIZ);
+        if (Sp_DEV_VERSION == 0)
+                strncpy(Sp_parm.prog, "sparx", BUFSIZ);
+        else
+                strncpy(Sp_parm.prog, "sparxdev", BUFSIZ);
 	Sp_parm.debug = 0;
 	Sp_parm.verbose = 1;
 	Sp_parm.out_fp = stdout;
@@ -75,8 +78,10 @@ PyMODINIT_FUNC init_sparx(void)
 	Sp_parm.mpi_size = 1;
 
 	/* Initialize module */
-	mod = Py_InitModule("sparxdev._sparx", _SPARXMethods);
-// 	mod = Py_InitModule("sparx._sparx", _SPARXMethods);
+        if (Sp_DEV_VERSION == 0)
+                mod = Py_InitModule("sparx._sparx", _SPARXMethods);
+	else
+                mod = Py_InitModule("sparxdev._sparx", _SPARXMethods);
 
 	/* Necessary for NumPy */
 	import_array();
@@ -93,8 +98,10 @@ PyMODINIT_FUNC init_sparx(void)
 	Py_DECREF(o);
 
 	/* Import sparx module */
-	sparx = PyImport_ImportModule("sparxdev");
-// 	sparx = PyImport_ImportModule("sparx");
+        if (Sp_DEV_VERSION == 0)
+                sparx = PyImport_ImportModule("sparx");
+	else
+                sparx = PyImport_ImportModule("sparxdev");
 
 	/* Import MOLEC_DIR from module sparx */
 	o = PyObject_GetAttrString(sparx, "MOLEC_DIR");

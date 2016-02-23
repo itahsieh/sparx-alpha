@@ -1,6 +1,33 @@
 #! /bin/env python
 # Python Distutils setup script for SPARX
 
+# Version of SPARX
+Version = '2.2.4'
+dev = 1
+# MIRIAD support option
+MIRSUPPORT = 1   
+# number of Thread using in per job
+NumberOfThread = 24 
+
+# Define macros
+macros = [
+        ('NTHREAD', str(NumberOfThread)),
+        ('MIRSUPPORT',MIRSUPPORT),
+        ('DEV_VERSION',dev)
+]
+
+
+# Test for MPI by checking whether mpicc can be called
+from subprocess import call, Popen, PIPE
+HAVE_MPI = (call("mpicc src/mpi-test.c -o/tmp/a.out", shell=True, stdout=PIPE, stderr=PIPE) == 0)
+# Get svn revision and update VERSION
+import time
+p = Popen("svnversion", shell=True, stdout=PIPE)
+REV = p.communicate()[0].strip()
+fo = file("lib/sparx/VERSION", "w")
+fo.write("%s (r%s, %s)"%(Version,REV, time.asctime()))
+fo.close()
+
 ##
 ## Gather information for setting up the package
 ##
@@ -20,7 +47,6 @@ import numpy
 NPINC = numpy.get_include()
 
 # Get Miriad paths
-MIRSUPPORT = 1   # MIRIAD support option
 if MIRSUPPORT:
 	MIRINC = os.getenv("MIRINC")
 	MIRLIB = os.getenv("MIRLIB")
@@ -31,17 +57,9 @@ if MIRSUPPORT:
 	if not (exists(MIRINC1) and exists(MIRINC2)):
 		raise Exception, "MIRIAD include paths '%s' and '%s' not present, cannot continue"%(MIRINC1, MIRINC2)
 
-# Test for MPI by checking whether mpicc can be called
-from subprocess import call, Popen, PIPE
-HAVE_MPI = (call("mpicc src/mpi-test.c -o/tmp/a.out", shell=True, stdout=PIPE, stderr=PIPE) == 0)
 
-# Get svn revision and update VERSION
-import time
-p = Popen("svnversion", shell=True, stdout=PIPE)
-REV = p.communicate()[0].strip()
-fo = file("lib/sparx/VERSION", "w")
-fo.write("0.3 (r%s, %s)"%(REV, time.asctime()))
-fo.close()
+
+
 
 # Check for additional search paths specified by user
 USER_INCLUDE = []
@@ -64,6 +82,7 @@ for arg in args:
 	elif arg.find('--mpich') == 0:
 		mpi_libs = ['mpich', 'pgc', 'pgftnrtl', 'pgftnrtl', 'nspgc', 'pgc', 'rt']
 		sys.argv.remove(arg)
+
 
 if not HAVE_MPI:
 	print\
@@ -111,11 +130,7 @@ compiler_flags = [
 	'-Wnested-externs',
 ]
 
-# Define macros
-macros = [
-	('NTHREAD', '24'),
-	('MIRSUPPORT',MIRSUPPORT),
-]
+
 
 # Header directories
 header_dirs = [
@@ -235,9 +250,7 @@ if HAVE_MPI:
 
 # Definition for the _sparx extension module
 
-#ext_sparx = Extension('sparx._sparx',
-
-ext_sparx = Extension('sparxdev._sparx',
+ext_sparx = Extension('sparx._sparx' if dev==0 else 'sparxdev._sparx',
 	sources = sources_base+sources_sparx+[
 		'src/sparx-pyext-_sparx.c',
 		'src/sparx-task-amc.c',
@@ -256,17 +269,14 @@ ext_sparx = Extension('sparxdev._sparx',
 # The main setup call
 setup(
 	name = 'sparx',
-	version = '0.3',
-	author = 'Eric Chung',
-	author_email = 'schung@asiaa.sinica.edu.tw',
+	version = Version,
+	author = 'Eric Chung & I-Ta Hsieh',
+	author_email = 'schung@asiaa.sinica.edu.tw / ita.hsieh@gmail.com',
 	url = 'http://esclab.tw/wiki/index.php/Category:SPARX',
 	description = 'SPARX Platform for Astrophysical Radiative Xfer',
-	packages = ['sparxdev'],
-	package_dir = {'sparxdev': "lib/sparx"},
-	package_data = {'sparxdev': [
-	#packages = ['sparx'],
-	#package_dir = {'sparx': "lib/sparx"},
-	#package_data = {'sparx': [
+	packages = ['sparx' if dev==0 else 'sparxdev'],
+	package_dir = {'sparx' if dev==0 else 'sparxdev': "lib/sparx"},
+	package_data = {'sparx' if dev==0 else 'sparxdev': [
 		'data/molec/*.dat', # Molecular data files
 		'data/opacity/*.tab', # Opacity data files
 		'VERSION', # Program version

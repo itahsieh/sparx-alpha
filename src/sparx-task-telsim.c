@@ -284,42 +284,7 @@ int SpTask_Telsim(void)
 
 	}
 
-#if Sp_MIRSUPPORT
-	/* writing out MIRIAD file */
-	if(!sts) {
-		/* Denormalize and convert image to proper units, then write cube to
-		   Miriad image dataset */
-		
-                // output column density image
-		if(glb.coldens){
-			MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, 1e-7);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
-                }
-		// output dust emission and its polarization image
-		else if(glb.cont){
-                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
-                        MirImg_WriteXY(glb.stokesqf, glb.stokesq, glb.unit->name, glb.I_norm/glb.ucon);
-                        MirImg_WriteXY(glb.stokesuf, glb.stokesu, glb.unit->name, glb.I_norm/glb.ucon);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesqf->name);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesuf->name);
-                }
-                // output line emission or zeeman effect (stokes V) image
-                else {
-			MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
-			Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
-		}
-		// output tau image
-		if(glb.tau_imgf){
-			MirImg_WriteXY(glb.tau_imgf, glb.tau_img, "Optical depth", 1.0);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.tau_imgf->name);
-                }
-	}
-#endif
-
-	
-	
-	
+        /* OUTPUT */
 	if(!sts){
 		char filename[32];
 		sprintf(filename,"%s.fits", glb.xyv_imgf->name);
@@ -339,11 +304,44 @@ int SpTask_Telsim(void)
 			sprintf(filename,"%s.fits", glb.tau_imgf->name);
 			FITSoutput( filename, "Optical depth", 1, 0);
 		}
+		
+		#if Sp_MIRSUPPORT
+		/* writing out MIRIAD file */
+		/* Denormalize and convert image to proper units, then write cube to
+                   Miriad image dataset */
+                
+                // output column density image
+                if(glb.coldens){
+                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, 1e-7);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
+                }
+                // output dust emission and its polarization image
+                else if(glb.cont){
+                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
+                        MirImg_WriteXY(glb.stokesqf, glb.stokesq, glb.unit->name, glb.I_norm/glb.ucon);
+                        MirImg_WriteXY(glb.stokesuf, glb.stokesu, glb.unit->name, glb.I_norm/glb.ucon);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesqf->name);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesuf->name);
+                }
+                // output line emission or zeeman effect (stokes V) image
+                else {
+                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
+                }
+                // output tau image
+                if(glb.tau_imgf){
+                        MirImg_WriteXY(glb.tau_imgf, glb.tau_img, "Optical depth", 1.0);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.tau_imgf->name);
+                }
+                #endif
+                
+                /* write excitation visualization to VTK */
+                if(glb.excit && !glb.cont)
+                        visualization();
 	}
 
-	/* write excitation visualization to VTK */
-	if(glb.excit && !glb.cont)
-		visualization();
+	
 	
 	FILE *fp;
 	size_t ix,iy,iv;
@@ -1318,7 +1316,15 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
     
                                  GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
                                  double zproduct = GeVec3_DotProd(&z,&B);
-                                 double costheta = zproduct/GeVec3_Mag(&B);
+                                 double B_Mag = GeVec3_Mag(&B);
+                                 double costheta; 
+                                 
+                                 if (B_Mag == 0.)
+                                         // preventing costheta overflow
+                                         costheta = 0.;
+                                 else
+                                         costheta = zproduct / B_Mag;
+                                 
                                  static const double g = 2.18/1.4;
                                  double dnu = 1.4e6 * g * GeVec3_Mag(&B);
                                  double deltav = dnu * PHYS_CONST_MKS_LIGHTC / glb.freq;
@@ -1414,6 +1420,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                                 double zproduct = GeVec3_DotProd(&z,&B);
                                 
                                 // psi is the angle between the projected B-field on p.o.s. and the north of the image
+                                double B_Mag = GeVec3_Mag(&B);
                                 double psi = atan2( -eproduct, nproduct); 
                                 // gamma ia the angle bettwen B-field an the plane of sky
                                 double cosgammasquare = 1.0 - zproduct * zproduct / ( GeVec3_X(B, 0)*GeVec3_X(B, 0) + GeVec3_X(B, 1)*GeVec3_X(B, 1) + GeVec3_X(B, 2)*GeVec3_X(B, 2) ); 
@@ -1444,8 +1451,14 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                                         double temp = (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
                                         
                                         I_nu[iv] += temp;
-                                        Q_nu[iv] += temp * cos(2.0 * psi) * cosgammasquare;
-                                        U_nu[iv] += temp * sin(2.0 * psi) * cosgammasquare;
+                                        if (B_Mag == 0.){
+                                                // do nothing
+                                                // preventing undefined psi
+                                        }
+                                        else{
+                                                Q_nu[iv] += temp * cos(2.0 * psi) * cosgammasquare;
+                                                U_nu[iv] += temp * sin(2.0 * psi) * cosgammasquare;
+                                        }
                                         static const double d23 = 2. / 3. ;
                                         sigma2[iv] += temp * (cosgammasquare - d23);
 
@@ -1826,6 +1839,11 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
 	fitsfile *fptr;       /* pointer to the FITS file; defined in fitsio.h */
 	
 	/* createing new FITS file  */
+        // if the file exist, remove it.
+        if(access( FileName, F_OK ) != -1){ 
+                fits_delete_file( fptr, &status);
+                status = 0;
+        }
  	fits_create_file(&fptr, FileName, &status);   /* create new file */
 	Deb_ASSERT(status == 0);
 
@@ -1834,7 +1852,7 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
 	else naxis =3;
 	
 	long naxes[naxis];
-	long  fpixel[3];
+	
 	naxes[0] = (long) glb.x.n;
 	naxes[1] = (long) glb.y.n;
 	naxes[2] = (long) glb.v.n;
@@ -1843,9 +1861,6 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
 	for (int i = 0; i < naxis; i++)
 		nelements *= naxes[i];
 
-	fpixel[0] = fpixel[1] = fpixel[2] = 1;
-	
-	
         char 
         ctype1[32],
         ctype2[32],
@@ -1874,7 +1889,7 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
 	bzero = 0.,
 	restfreq = glb.freq;
 
-	double *array = malloc(nelements*sizeof(*array));
+	double *array = Mem_CALLOC(nelements, array);;
 	
 	fits_create_img(fptr, FLOAT_IMG, naxis, naxes, &status);
 	Deb_ASSERT(status == 0);
@@ -1940,8 +1955,19 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
 	}
 	
 	Deb_ASSERT(status == 0);
+        long *fpixel;
+        if (Stokes){
+                fpixel = Mem_CALLOC( 4, fpixel);
+                fpixel[0] = fpixel[1] = fpixel[2] = fpixel[3] = 1;
+        }
+        else{
+                fpixel = Mem_CALLOC( 3, fpixel);
+                fpixel[0] = fpixel[1] = fpixel[2] = 1;
+        }
+        
 	fits_write_pix(fptr, TDOUBLE, fpixel, nelements, array, &status);
-	fits_close_file(fptr, &status);            /* close the file */
+	free(fpixel);
+        fits_close_file(fptr, &status);            /* close the file */
 	Deb_ASSERT(status == 0);
 	
 	free(array);

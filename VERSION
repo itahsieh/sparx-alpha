@@ -1,4 +1,4 @@
-SPARX VERSION : alpha-2.2.3
+SPARX VERSION : alpha-2.2.4
 
 ###########################
 # DEVELOPING HISTORY      #
@@ -26,6 +26,7 @@ alpha-2.2.4               compiling unit tests
 - Short-term :
         * consistency of the intialization for molecule with HDF format and data structures
         * (automatic converged mapping)
+        * (arbitrary bounday / painter's algorithm -- for user's flexibility)
 
 - Mid-term :
         * "pre-sparx" project -- integrated preprocessor

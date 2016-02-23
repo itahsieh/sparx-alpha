@@ -9,6 +9,5 @@ source=pops \
 out=map \
 wavelen='850um' \
 tau=tau \
-npix="[1,1]" #\
-#subres="[['-10asec','-10asec','10asec','10asec',4]]" \
+subres="[['-10asec','-10asec','10asec','10asec',4]]" 
 

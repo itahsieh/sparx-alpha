@@ -33,10 +33,9 @@ void *SpPhys_Alloc(const Zone *zp, const void *parms_p)
 
 void SpPhys_Free(void *ptr)
 {
-	size_t i;
 	SpPhys *pp = ptr;
 
-	for(i = 0; i < Sp_NTHREAD; i++) {
+	for(size_t i = 0; i < Sp_NTHREAD; i++) {
 		if(pp->pops[i])
 			free(pp->pops[i]);
 	}
@@ -59,9 +58,6 @@ void SpPhys_Free(void *ptr)
 
 void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
 {
-	size_t i;
-	double *freq;
-	
 	Deb_ASSERT(mol != NULL);
 	if(!popsold){
 		Deb_ASSERT(pp->mol == NULL);
@@ -69,7 +65,7 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
 	}
 	pp->mol = mol;
 	if(!popsold){
-		for(i = 0; i < Sp_NTHREAD; i++) {
+		for(size_t i = 0; i < Sp_NTHREAD; i++) {
 			Deb_ASSERT(pp->pops[i] == NULL);
 			pp->pops[i] = Mem_CALLOC(mol->nlev, pp->pops[i]);
 		}
@@ -79,8 +75,8 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
 	//pp->J_bar = Mem_CALLOC(mol->nrad, pp->J_bar);
 
 	/* Allocate continuum emission/absorption */
-	freq = Mem_CALLOC(mol->nrad, freq);
-	for(i = 0; i < mol->nrad; i++) {
+	double *freq = Mem_CALLOC(mol->nrad, freq);
+	for(size_t i = 0; i < mol->nrad; i++) {
 		freq[i] = mol->rad[i]->freq;
 	}
 	SpPhys_InitContWindows(pp, freq, mol->nrad);
@@ -94,8 +90,6 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
 
 void SpPhys_InitContWindows(SpPhys *pp, double freq[], size_t nfreq)
 {
-	size_t i;
-
 	Deb_ASSERT(nfreq > 0);
 
 	if(pp->cont)
@@ -105,7 +99,7 @@ void SpPhys_InitContWindows(SpPhys *pp, double freq[], size_t nfreq)
 	pp->ncont = nfreq;
 	pp->cont = Mem_CALLOC(nfreq, pp->cont);
 
-	for(i = 0; i < nfreq; i++) {
+	for(size_t i = 0; i < nfreq; i++) {
 		Deb_ASSERT(freq[i] > 0);
 		pp->cont[i].freq = freq[i];
 		pp->cont[i].lambda = PHYS_CONST_MKS_LIGHTC / freq[i];
@@ -120,9 +114,6 @@ void SpPhys_InitCollRates(SpPhys *pp)
 /* Allocate and initialize collisional rates:
  * Interpolate downward rates and infer upward rates from Boltzmann relation */
 {
-	size_t i, j, itmp;
-	double K_ul;
-
 	Deb_ASSERT(pp->mol != NULL);
 	Deb_ASSERT(pp->cmat == NULL);
 
@@ -137,13 +128,14 @@ void SpPhys_InitCollRates(SpPhys *pp)
 
 	/* Fill in downward rates: collisional rates for each transition are the
 	 * sum of collisional rates from ALL collisional partners */
-	for(i = 0; i < pp->mol->ncol; i++) {
+	for(size_t i = 0; i < pp->mol->ncol; i++) {
 		/* Locate nearest temperature available for this species */
-		itmp = gsl_interp_bsearch(COL(i)->tmp, pp->T_k, (size_t)0, COL(i)->ntmp);
+		size_t itmp = gsl_interp_bsearch(COL(i)->tmp, pp->T_k, (size_t)0, COL(i)->ntmp);
 
 		/* Loop through all collisional transitions and calculate
 		 * collisional rats */
-		for(j = 0; j < COL(i)->ntr; j++) {
+		for(size_t j = 0; j < COL(i)->ntr; j++) {
+                        double K_ul;
 			/* Interpolate downward rate coeffs */
 			if(itmp == COL(i)->ntmp - 1) {
 				/* T_k greater than available tempratures, coerce to
@@ -171,8 +163,8 @@ void SpPhys_InitCollRates(SpPhys *pp)
 	 * 	C_lu / C_ul = N_u / N_l = (g_u / g_l) * exp(-(E_u - E_l) / (k * T)) = BoltzRatio
 	 * -->	C_lu = C_ul * BoltzRatio
 	 */
-	for(i = 0; i < NLEV; i++) {
-		for(j = i + 1; j < NLEV; j++) {
+	for(size_t i = 0; i < NLEV; i++) {
+		for(size_t j = i + 1; j < NLEV; j++) {
 			CMAT(i, j) = CMAT(j, i) * SpPhys_BoltzRatio(pp->mol, j, i, pp->T_k);
 		}
 	}
@@ -192,7 +184,7 @@ void SpPhys_SetContinuumIntens_bb(SpPhys *pp, int cont, double T_bb, double I_no
 /* Add continuum abosrption and emission associated with T_bb, kap and rho to total
    continuum absorption and emission for all line or continuum windows. */
 {
-	size_t i, nrad;
+	size_t nrad;
 
 	if(cont) {
 		Deb_ASSERT(pp->cont != NULL);
@@ -203,10 +195,9 @@ void SpPhys_SetContinuumIntens_bb(SpPhys *pp, int cont, double T_bb, double I_no
 		nrad = pp->mol->nrad;
 	}
 
-	#define FREQ(i)\
-		(cont ? pp->cont[i].freq : pp->mol->rad[i]->freq)
-
-	for(i = 0; i < nrad; i++) {
+	for(size_t i = 0; i < nrad; i++) {
+                #define FREQ(i)\
+                        (cont ? pp->cont[i].freq : pp->mol->rad[i]->freq)
 		pp->cont[i].I_bb = Phys_PlanckFunc(FREQ(i), T_bb) / I_norm;
 	}
 
@@ -221,8 +212,7 @@ void SpPhys_AddContinuum(SpPhys *pp, int cont, double T_bb, const Kappa *kap, do
 /* Add continuum abosrption and emission associated with T_bb, kap and rho to total
    continuum absorption and emission for all line or continuum windows. */
 {
-	size_t i, nrad;
-	double j_nu, k_nu;
+	size_t nrad;
 
 	Deb_ASSERT(kap != NULL);
 
@@ -238,12 +228,12 @@ void SpPhys_AddContinuum(SpPhys *pp, int cont, double T_bb, const Kappa *kap, do
 	#define FREQ(i)\
 		(cont ? pp->cont[i].freq : pp->mol->rad[i]->freq)
 
-	for(i = 0; i < nrad; i++) {
+	for(size_t i = 0; i < nrad; i++) {
 		/* k = kappa_dust * rho_dust */
-		k_nu = Kap_FromFreq(kap, FREQ(i)) * rho;
+		double k_nu = Kap_FromFreq(kap, FREQ(i)) * rho;
 
 		/* j = B_nu * k */
-		j_nu = Phys_PlanckFunc(FREQ(i), T_bb) * k_nu;
+		double j_nu = Phys_PlanckFunc(FREQ(i), T_bb) * k_nu;
 
 		/* Accumulate j and k */
 		pp->cont[i].j += j_nu;
@@ -260,9 +250,6 @@ void SpPhys_AddContinuum(SpPhys *pp, int cont, double T_bb, const Kappa *kap, do
 
 void SpPhys_AddContinuum_d(SpPhys *pp, int cont, double gas_to_dust)
 {
-	double rho;
-	Kappa *kap;
-
 	/* Dust mass density is
 		rho_dust = (n_H2 * mu_H2 * amu) / gas_to_dust
 	   where
@@ -274,9 +261,9 @@ void SpPhys_AddContinuum_d(SpPhys *pp, int cont, double gas_to_dust)
 		amu = atomic mass unit
 	*/
 	Deb_ASSERT(gas_to_dust > 0);
-	rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU) / gas_to_dust;
+	double rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU) / gas_to_dust;
 
-	kap = SpIO_LoadKappa(pp->kapp_d);
+	Kappa *kap = SpIO_LoadKappa(pp->kapp_d);
 
         SpPhys_AddContinuum(pp, cont, pp->T_d, kap, rho);
 
@@ -289,9 +276,6 @@ void SpPhys_AddContinuum_d(SpPhys *pp, int cont, double gas_to_dust)
 
 void SpPhys_AddContinuum_ff(SpPhys *pp, int cont)
 {
-	double rho;
-	Kappa *kap;
-
 	/* Total mass density is
 		rho_dust = (n_H2 * mu_H2 * amu)
 	   where
@@ -301,8 +285,8 @@ void SpPhys_AddContinuum_ff(SpPhys *pp, int cont)
 		        this would be ~ 2.8
 		amu = atomic mass unit
 	*/
-	rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU);
-	kap = SpIO_LoadKappa(pp->kapp_ff);
+	double rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU);
+	Kappa *kap = SpIO_LoadKappa(pp->kapp_ff);
 	SpPhys_AddContinuum(pp, cont, pp->T_ff, kap, rho);
 	Kap_Free(kap);
 
@@ -489,8 +473,6 @@ double SpPhys_GetCollDens(const SpPhys *pp, int species)
 
 void SpPhys_Fprintf(SpPhys *pp, FILE *fp)
 {
-	size_t i;
-
 	fprintf(fp, "n_H2=%g, T_k=%g, X_mol=%g, width=%g, dust=`%s'\n",
 		pp->n_H2, pp->T_k, pp->X_mol, pp->width, strlen(pp->kapp_d) > 0 ? pp->kapp_d : "None");
 
@@ -498,7 +480,7 @@ void SpPhys_Fprintf(SpPhys *pp, FILE *fp)
 		Deb_ASSERT(pp->pops[0] != 0);
 		fprintf(fp, " %5s|%20s\n", "Level", "Fractional density");
 		fprintf(fp, " %5s|%20s\n", "-----", "--------------------");
-		for(i = 0; i < pp->mol->nlev; i++) {
+		for(size_t i = 0; i < pp->mol->nlev; i++) {
 			fprintf(fp, " %5lu|%20g\n", (unsigned long)i, pp->pops[0][i]);
 		}
 	}
@@ -715,25 +697,21 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 {
 	#define USE_LVG 0
 	#define USE_CONST 0
-
-	SpPhys *pp;
-	GeVec3_d v_gas, 
-		vr,vt,vp,
-		vRc,vz;
-	#if USE_LVG
-	double radius;
-	#endif
-	#if USE_CONST
+        
+	GeVec3_d v_gas;
+	GeVec3_d vr, vt, vp;
+        GeVec3_d vRc, vz;
+        #if USE_CONST
 	double velo = -0.2e3; // [km/s]
 	#endif
 
 	/* Get zone physics */
-	pp = zone->data;
+	SpPhys *pp = zone->data;
 
 	switch(zone->voxel.geom) {
 		case GEOM_SPH1D:
 			#if USE_LVG
-			radius = GeVec3_Mag(pos);
+			double radius = GeVec3_Mag(pos);
 			v_gas = GeVec3_Normalize(pos);
 			v_gas = GeVec3_Scale(&v_gas, 100.0e3 * radius); /* 100 km/s/pc velocity gradient */
 			#elif USE_CONST
@@ -747,11 +725,9 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			break;
 			
 		case GEOM_SPH3D:
-
 			/* Project radial velocity onto position vector */
 			/* get normalized vr, vt vp */
 			vr = GeVec3_Normalize(pos);
-			
 			if( fabs(pos->x[0])<1e-6 && fabs(pos->x[1])<1e-6 ){
 				GeVec3_X(vp,0) = 0.0;
 				GeVec3_X(vp,1) = 1.0;
@@ -778,7 +754,7 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			#if USE_LVG
 			/* Analytic expression for LVG expanding cloud */
 			v_gas = GeVec3_Sub(&zone->root->voxel.cen, pos);
-			radius = GeVec3_Mag(&v_gas); /* [pc] */
+			double radius = GeVec3_Mag(&v_gas); /* [pc] */
 			v_gas = GeVec3_Normalize(&v_gas); /* Direction vector */
 			v_gas = GeVec3_Scale(&v_gas, 100.0e3 * radius); /* 100 km/s/pc velocity gradient */
 			#elif USE_CONST
@@ -798,7 +774,6 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			vRc = *pos;
 			vRc.x[2] = 0.;
 			vRc = GeVec3_Normalize(&vRc);
-			
 			if( fabs(pos->x[0])<1e-6 && fabs(pos->x[1])<1e-6 ){
 				GeVec3_X(vp,0) = 0.0;
 				GeVec3_X(vp,1) = 1.0;
@@ -840,24 +815,21 @@ GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone)
 	#define USE_LVG 0
 	#define USE_CONST 0
 
-	SpPhys *pp;
-	GeVec3_d b_gas, 
-		br,bt,bp,
-		bRc,bz;
-	#if USE_LVG
-	double radius;
-	#endif
+	GeVec3_d b_gas;
+        GeVec3_d br, bp, bt;
+        GeVec3_d bRc, bz;
+
 	#if USE_CONST
 	double velo = -0.2e3; // [km/s]
 	#endif
 
 	/* Get zone physics */
-	pp = zone->data;
+	SpPhys *pp = zone->data;
 
 	switch(zone->voxel.geom) {
 		case GEOM_SPH1D:
 			#if USE_LVG
-			radius = GeVec3_Mag(pos);
+			double radius = GeVec3_Mag(pos);
 			b_gas = GeVec3_Normalize(pos);
 			b_gas = GeVec3_Scale(&b_gas, 100.0e3 * radius); /* 100 km/s/pc velocity gradient */
 			#elif USE_CONST
@@ -875,7 +847,7 @@ GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone)
 			#if USE_LVG
 			/* Analytic expression for LVG expanding cloud */
 			b_gas = GeVec3_Sub(&zone->root->voxel.cen, pos);
-			radius = GeVec3_Mag(&b_gas); /* [pc] */
+			double radius = GeVec3_Mag(&b_gas); /* [pc] */
 			b_gas = GeVec3_Normalize(&b_gas); /* Direction vector */
 			b_gas = GeVec3_Scale(&b_gas, 100.0e3 * radius); /* 100 km/s/pc velocity gradient */
 			#elif USE_CONST
@@ -887,7 +859,6 @@ GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone)
 			/* Project radial velocity onto position vector */
 			/* get normalized vr, vt vp */
 			br = GeVec3_Normalize(pos);
-			
 			if( fabs(pos->x[0])<1e-6 && fabs(pos->x[1])<1e-6 ){
 				GeVec3_X(bp,0) = 0.0;
 				GeVec3_X(bp,1) = 1.0;
@@ -916,7 +887,7 @@ GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone)
 			#if USE_LVG
 			/* Analytic expression for LVG expanding cloud */
 			b_gas = GeVec3_Sub(&zone->root->voxel.cen, pos);
-			radius = GeVec3_Mag(&b_gas); /* [pc] */
+			double radius = GeVec3_Mag(&b_gas); /* [pc] */
 			b_gas = GeVec3_Normalize(&b_gas); /* Direction vector */
 			b_gas = GeVec3_Scale(&b_gas, 100.0e3 * radius); /* 100 km/s/pc velocity gradient */
 			#elif USE_CONST
@@ -937,7 +908,6 @@ GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone)
 			bRc.x[2] = 0.;
 			bRc = GeVec3_Normalize(&bRc);
 
-			
 			if( fabs(pos->x[0])<1e-6 && fabs(pos->x[1])<1e-6 ){
 				GeVec3_X(bp,0) = 0.0;
 				GeVec3_X(bp,1) = 1.0;
@@ -949,7 +919,7 @@ GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone)
 				GeVec3_X(bp,2) = 0.0;	
 				bp = GeVec3_Normalize(&bp);
 			}
-						
+			
 			GeVec3_X(bz,0) = 0.0;
 			GeVec3_X(bz,1) = 0.0;
 			GeVec3_X(bz,2) = 1.0;
@@ -1009,9 +979,7 @@ GeVec3_d SpPhys_GetBfunc(const GeRay *ray, double dt, const Zone *zone)
 double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zone, int debug)
 {
 	SpPhys *pp = zone->data;
-	size_t i, j, n_step, n_avg;
-	double s_0, s_1, s, vfac = 0;
-	GeVec3_d v_0, v_1, v;
+	double vfac = 0;
 	
 	//debug
 	//return Num_GaussNormal(SpPhys_GetVfunc(ray, dt, v_los, zone), pp->width);
@@ -1022,35 +990,35 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 	 * where delta_v = |v_1 - v_1|
 	 *       width = local gaussian line width
 	 */
-	v_0 = SpPhys_GetVfunc(ray, 0.0, zone);
-	v_1 = SpPhys_GetVfunc(ray, dt, zone);
+	GeVec3_d v_0 = SpPhys_GetVfunc(ray, 0.0, zone);
+	GeVec3_d v_1 = SpPhys_GetVfunc(ray, dt, zone);
 
 // 	Deb_PRINT("dt=%g, v_0=%g, v_1=%g\n", dt, v_0, v_1);
 
-	n_step = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width), 1);
+	size_t n_step = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width), 1);
 
 // 	Deb_PRINT("n_step=%d\n", (int)n_step);
 
 	Deb_ASSERT(n_step > 0); /* Just in case */
 	//Deb_PRINT("n_step=%d\n", (int)n_step);
 
-	for(i = 0; i < n_step; i++) {
+	for(size_t i = 0; i < n_step; i++) {
 		/* Check for velocity differences within each step
 		 * in case there are large variations */
-		s_0 = dt * (double)i / (double)n_step;
-		s_1 = dt * (double)(i + 1) / (double)n_step;
+		double s_0 = dt * (double)i / (double)n_step;
+		double s_1 = dt * (double)(i + 1) / (double)n_step;
 		v_0 = SpPhys_GetVfunc(ray, s_0, zone);
 		v_1 = SpPhys_GetVfunc(ray, s_1, zone);
-		n_avg = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width), 1);
+		size_t n_avg = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width), 1);
 
 		Deb_ASSERT(n_avg > 0); /* Just in case */
 
 		//Deb_PRINT("  n_avg=%d\n", (int)n_step);
 
 		/* Average line profile over n_avg */
-		for(j = 0; j < n_avg; j++) {
-			s = s_0 + (s_1 - s_0) * ((double)j + 0.5) / (double)n_avg;
-			v = SpPhys_GetVfunc(ray, s, zone);
+		for(size_t j = 0; j < n_avg; j++) {
+			double s = s_0 + (s_1 - s_0) * ((double)j + 0.5) / (double)n_avg;
+			GeVec3_d v = SpPhys_GetVfunc(ray, s, zone);
 			vfac += Num_GaussNormal(v_los - GeVec3_DotProd(&v, &ray->d), pp->width) / (double)n_avg;
 		}
 	}
@@ -1072,13 +1040,8 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 
 GeVec3_d SpPhys_GetVfac2(const GeRay *ray, double dt, const Zone *zone, int debug)
 {
-	SpPhys *pp = zone->data;
-	size_t i, j, n_step, n_avg;
-	double s_0, s_1, s;
-	GeVec3_d v_0, v_1, v, v_field = GeVec3_INIT(0.,  0.,  0.);
-
-
 	//debug
+        //SpPhys *pp = zone->data;
 	//return Num_GaussNormal(SpPhys_GetVfunc(ray, dt, v_los, zone), pp->width);
 
 	/* Number of steps is
@@ -1087,41 +1050,52 @@ GeVec3_d SpPhys_GetVfac2(const GeRay *ray, double dt, const Zone *zone, int debu
 	 * where delta_v = |v_1 - v_1|
 	 *       width = local gaussian line width
 	 */
-	v_0 = SpPhys_GetVfunc(ray, 0.0, zone);
-	v_1 = SpPhys_GetVfunc(ray, dt, zone);
+	GeVec3_d v_0 = SpPhys_GetVfunc(ray, 0.0, zone);
+	GeVec3_d v_1 = SpPhys_GetVfunc(ray, dt, zone);
 
 // 	Deb_PRINT("dt=%g, v_0=%g, v_1=%g\n", dt, v_0, v_1);
 
-	n_step = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / (GeVec3_Mag(&v_0)*0.01)), 1);
+	size_t n_step;
+        double V_Mag = GeVec3_Mag(&v_0);
+        if (V_Mag == 0.)
+                n_step = 1;
+        else
+                n_step = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / (V_Mag * 0.01)), 1);
 
 // 	Deb_PRINT("n_step=%d\n", (int)n_step);
 
 	Deb_ASSERT(n_step > 0); /* Just in case */
 	//Deb_PRINT("n_step=%d\n", (int)n_step);
-
-	for(i = 0; i < n_step; i++) {
+        size_t n_avg;
+        GeVec3_d v_field = GeVec3_INIT(0.,  0.,  0.);
+	for(size_t i = 0; i < n_step; i++) {
 		/* Check for velocity differences within each step
 		 * in case there are large variations */
-		s_0 = dt * (double)i / (double)n_step;
-		s_1 = dt * (double)(i + 1) / (double)n_step;
+		double s_0 = dt * (double)i / (double)n_step;
+		double s_1 = dt * (double)(i + 1) / (double)n_step;
 		v_0 = SpPhys_GetVfunc(ray, s_0, zone);
 		v_1 = SpPhys_GetVfunc(ray, s_1, zone);
-		n_avg = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / (GeVec3_Mag(&v_0)*0.01)), 1);
+                
+                V_Mag = GeVec3_Mag(&v_0);
+                if (V_Mag == 0.)
+                        n_avg = 1;
+                else
+                        n_avg = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / (V_Mag*0.01)), 1);
 
 		Deb_ASSERT(n_avg > 0); /* Just in case */
 
 		//Deb_PRINT("  n_avg=%d\n", (int)n_step);
 
 		/* Average line profile over n_avg */
-		for(j = 0; j < n_avg; j++) {
-			s = s_0 + (s_1 - s_0) * ((double)j + 0.5) / (double)n_avg;
-			v = SpPhys_GetBfunc(ray, s, zone);
+		for(size_t j = 0; j < n_avg; j++) {
+			double s = s_0 + (s_1 - s_0) * ((double)j + 0.5) / (double)n_avg;
+			GeVec3_d v = SpPhys_GetBfunc(ray, s, zone);
 			GeVec3_X(v_field,0) += GeVec3_X(v,0);
 			GeVec3_X(v_field,1) += GeVec3_X(v,1);
 			GeVec3_X(v_field,2) += GeVec3_X(v,2);
 		}
 	}
-	v_field = GeVec3_Scale(&v_field, 1./(n_avg*n_step));
+	v_field = GeVec3_Scale( &v_field, 1. / ( n_avg * n_step ));
 	//debug
 	#if 0
 		printf("zone=<%lu, %lu, %lu>, r=%g pc, dir=<%g, %g, %g>, v=%g km/s\n",
@@ -1140,13 +1114,8 @@ GeVec3_d SpPhys_GetVfac2(const GeRay *ray, double dt, const Zone *zone, int debu
 
 GeVec3_d SpPhys_GetBfac(const GeRay *ray, double dt, const Zone *zone, int debug)
 {
-	SpPhys *pp = zone->data;
-	size_t i, j, n_step, n_avg;
-	double s_0, s_1, s;
-	GeVec3_d b_0, b_1, b, b_field = GeVec3_INIT(0.,  0.,  0.);
-
-	
 	//debug
+        //SpPhys *pp = zone->data;
 	//return Num_GaussNormal(SpPhys_GetVfunc(ray, dt, v_los, zone), pp->width);
 
 	/* Number of steps is
@@ -1155,35 +1124,42 @@ GeVec3_d SpPhys_GetBfac(const GeRay *ray, double dt, const Zone *zone, int debug
 	 * where delta_v = |v_1 - v_1|
 	 *       width = local gaussian line width
 	 */
-	b_0 = SpPhys_GetBfunc(ray, 0.0, zone);
-	b_1 = SpPhys_GetBfunc(ray, dt, zone);
+	GeVec3_d b_0 = SpPhys_GetBfunc(ray, 0.0, zone);
+	GeVec3_d b_1 = SpPhys_GetBfunc(ray, dt, zone);
 
 // 	Deb_PRINT("dt=%g, v_0=%g, v_1=%g\n", dt, v_0, v_1);
-
-	n_step = Num_MAX((size_t)(GeVec3_Mag2(&b_1, &b_0) / (GeVec3_Mag(&b_0)*0.01)), 1);
+        
+        double B_Mag = GeVec3_Mag(&b_0);
+        size_t n_step;
+        if ( B_Mag == 0. )
+                n_step = 1;
+        else
+                n_step = Num_MAX((size_t)(GeVec3_Mag2(&b_1, &b_0) / ( B_Mag * 0.01 )), 1);
 
 // 	Deb_PRINT("n_step=%d\n", (int)n_step);
 
 	Deb_ASSERT(n_step > 0); /* Just in case */
 	//Deb_PRINT("n_step=%d\n", (int)n_step);
-
-	for(i = 0; i < n_step; i++) {
+        size_t n_avg;
+        GeVec3_d b_field = GeVec3_INIT(0.,  0.,  0.);
+	for(size_t i = 0; i < n_step; i++) {
 		/* Check for velocity differences within each step
 		 * in case there are large variations */
-		s_0 = dt * (double)i / (double)n_step;
-		s_1 = dt * (double)(i + 1) / (double)n_step;
+		double s_0 = dt * (double)i / (double)n_step;
+		double s_1 = dt * (double)(i + 1) / (double)n_step;
 		b_0 = SpPhys_GetBfunc(ray, s_0, zone);
 		b_1 = SpPhys_GetBfunc(ray, s_1, zone);
-		n_avg = Num_MAX((size_t)(GeVec3_Mag2(&b_1, &b_0) / (GeVec3_Mag(&b_0)*0.01)), 1);
-
+                B_Mag = GeVec3_Mag(&b_0);
+                if ( B_Mag == 0. )
+                        n_avg = 1;
+                else
+                        n_avg = Num_MAX((size_t)(GeVec3_Mag2(&b_1, &b_0) / (B_Mag * 0.01)), 1);
 		Deb_ASSERT(n_avg > 0); /* Just in case */
-
 		//Deb_PRINT("  n_avg=%d\n", (int)n_step);
-
 		/* Average line profile over n_avg */
-		for(j = 0; j < n_avg; j++) {
-			s = s_0 + (s_1 - s_0) * ((double)j + 0.5) / (double)n_avg;
-			b = SpPhys_GetBfunc(ray, s, zone);
+		for(size_t j = 0; j < n_avg; j++) {
+			double s = s_0 + (s_1 - s_0) * ((double)j + 0.5) / (double)n_avg;
+			GeVec3_d b = SpPhys_GetBfunc(ray, s, zone);
 			GeVec3_X(b_field,0) += GeVec3_X(b,0);
 			GeVec3_X(b_field,1) += GeVec3_X(b,1);
 			GeVec3_X(b_field,2) += GeVec3_X(b,2);
@@ -1228,10 +1204,8 @@ double SpPhys_CalcLineWidth(const SpPhys *pp)
 /* Calculate total line width accounting for both thermal and
  * turbulent motion, where V_t is the RMS turbulent velocity. */
 {
-	double V_th, V_t;
-
-	V_th = Phys_ThermLineWidth(pp->T_k, pp->mol->weight);
-	V_t = pp->V_t;
+	double V_th = Phys_ThermLineWidth(pp->T_k, pp->mol->weight);
+	double V_t = pp->V_t;
 
 	return sqrt(V_th * V_th + V_t * V_t);
 }
@@ -1243,8 +1217,6 @@ double SpPhys_CalcLineWidth(const SpPhys *pp)
 
 void SpPhys_PushPopsStack(double *stack, size_t nstack, double *pops, size_t nlev)
 {
-	size_t i, j, dest_id;
-
 	/* Stack:
 	 *
 	 *	1*	2	3
@@ -1255,9 +1227,9 @@ void SpPhys_PushPopsStack(double *stack, size_t nstack, double *pops, size_t nle
 	 *	14	24	34
 	 */
 
-	for(i = 0; i < nlev; i++) {
-		for(j = 0; j < nstack; j++) {
-			dest_id = (nstack - 1) - j;
+	for(size_t i = 0; i < nlev; i++) {
+		for(size_t j = 0; j < nstack; j++) {
+			size_t dest_id = (nstack - 1) - j;
 			if(dest_id == 0) {
 				STACK(dest_id, i) = pops[i];
 			}
@@ -1274,16 +1246,13 @@ void SpPhys_PushPopsStack(double *stack, size_t nstack, double *pops, size_t nle
 
 double SpPhys_CalcPopsDiff(const double *stack, size_t nstack, size_t nlev, double minpop)
 {
-	size_t i, j;
-	double *pops, *diffs, *max_diffs, mean, max_diff;
+	double *pops = Mem_CALLOC(nstack, pops);
+	double *diffs = Mem_CALLOC(nstack, diffs);
+	double *max_diffs = Mem_CALLOC(nlev, max_diffs);
 
-	pops = Mem_CALLOC(nstack, pops);
-	diffs = Mem_CALLOC(nstack, diffs);
-	max_diffs = Mem_CALLOC(nlev, max_diffs);
-
-	for(i = 0; i < nlev; i++) {
-		mean = 0;
-		for(j = 0; j < nstack; j++) {
+	for(size_t i = 0; i < nlev; i++) {
+		double mean = 0;
+		for(size_t j = 0; j < nstack; j++) {
 			/* Load pops for sorting */
 			pops[j] = STACK(j, i);
 
@@ -1299,7 +1268,7 @@ double SpPhys_CalcPopsDiff(const double *stack, size_t nstack, size_t nlev, doub
 			mean /= (double)nstack;
 
 			/* Variance is relative difference from mean */
-			for(j = 0; j < nstack; j++) {
+			for(size_t j = 0; j < nstack; j++) {
 				diffs[j] = fabs(STACK(j, i) - mean) / mean;
 			}
 			Num_Qsort_d(diffs, nstack);
@@ -1310,7 +1279,7 @@ double SpPhys_CalcPopsDiff(const double *stack, size_t nstack, size_t nlev, doub
 	}
 	/* Find Maximum variance of entire stack */
 	Num_Qsort_d(max_diffs, nlev);
-	max_diff = max_diffs[nlev - 1];
+	double max_diff = max_diffs[nlev - 1];
 	
 	free(pops);
 	free(diffs);
