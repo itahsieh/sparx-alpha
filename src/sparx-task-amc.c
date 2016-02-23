@@ -100,6 +100,7 @@ int SpTask_Amc(void)
 	if(!sts) sts = SpPy_GetInput_dbl("tolerance", &glb.tolerance);
 	if(!sts) sts = SpPy_GetInput_dbl("snr", &glb.snr);
 	if(!sts) sts = SpPy_GetInput_dbl("minpop", &glb.minpop);
+        
         PyObject *o;
 	sts = SpPy_GetInput_PyObj("amc", &o);
 	PyObject *popsobj = PyObject_GetAttrString(o, "popsold");
@@ -108,8 +109,6 @@ int SpTask_Amc(void)
 	glb.overlap = Sp_PYINT(overlapj);
 	overlapj = PyObject_GetAttrString(o, "overlap_vel");
 	glb.overlap_vel = Sp_PYINT(overlapj);
-
-
 	
 	if( glb.popsold ){
 		if(!sts) sts = SpPy_GetInput_model("source","pops", &glb.model);
@@ -144,23 +143,19 @@ int SpTask_Amc(void)
 		glb.rng[i] = gsl_rng_alloc(gsl_rng_ranlux);
 		gsl_rng_set(glb.rng[i], glb.seed);
 	}
+	
 	/* Init model */
-
 	if(!sts)
 		sts = InitModel();
 	
-
-	
-	/*
-	 * Calculate excitation
-	 */
+	/* Calculate excitation */
 	if(!sts)
 		sts = CalcExc();
+        
 	/* Write model to file */
 	if(Sp_MPIRANK == 0) {
 		if(!sts)
 			sts = SpIO_FwriteModel(glb.outf, glb.model);
-
 		if(!sts)
 			Sp_PRINT("Wrote output model to `%s'\n", glb.outf->name);
 	}
