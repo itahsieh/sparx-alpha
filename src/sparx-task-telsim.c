@@ -375,9 +375,8 @@ int SpTask_Telsim(void)
 		
 	}
 
-	
+#if 0	
 	// calculate three moments and output to VTK file
-	/*
 	if(!glb.cont){
 	
 	double *mean_int,*mean_vel,*mean_dev,dv,tempINT;
@@ -483,7 +482,7 @@ int SpTask_Telsim(void)
 	fclose(fp);
 	
 	}
-	*/
+#endif
 	if(glb.cont){
 		char filename[32];
 		sprintf(filename,"stokesIQU_%s.vtk",glb.xyv_imgf->name);
@@ -521,7 +520,7 @@ int SpTask_Telsim(void)
 		}
 		fclose(fp);
 
-		/*
+#if 0
 		sprintf(filename,"stokesI_%s.dat",glb.xyv_imgf->name);
 		fp=fopen(filename,"w");	
 		for(iy = 0; iy < glb.y.n; iy++) {
@@ -549,7 +548,7 @@ int SpTask_Telsim(void)
 			fprintf(fp,"\n");
 		}
 		fclose(fp);
-		*/
+#endif
 		sprintf(filename,"vector_%s.dat",glb.xyv_imgf->name);
 		fp=fopen(filename,"w");		
 		for(iy = 0; iy < glb.y.n; iy++) {
@@ -816,7 +815,6 @@ static int CalcImage(void)
 static void *CalcImageThreadLine(void *tid_p)
 {
 	size_t tid = *((size_t *)tid_p);
-	double dx, dy, *I_sub, *I_nu, *tau_sub, *tau_nu;
 
         /* pix_id is used for distributing work to threads */
         size_t pix_id = 0;
@@ -829,19 +827,20 @@ static void *CalcImageThreadLine(void *tid_p)
                         size_t nsub = Init_nsub( ix, iy);
 
 			/* I_nu is the brightness for all channels at pixel (ix, iy) */
-			I_nu = Mem_CALLOC(glb.v.n, I_nu);
+			double *I_nu = Mem_CALLOC(glb.v.n, I_nu);
 			/* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
-			tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
+			double *tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
 
 			/* Loop through sub-resolution positions */
 			for(size_t isub = 0; isub < nsub; isub++) {
 			 for(size_t jsub = 0; jsub < nsub; jsub++) {
+                                double dx, dy;
 				/* Calculate sub-pixel position */
                                 InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
 						
                                 /* I_sub is the brightness for all channels at each sub-resolution */
-				I_sub = Mem_CALLOC(glb.v.n, I_sub);
-				tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
+				double *I_sub = Mem_CALLOC(glb.v.n, I_sub);
+				double *tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
 
 				/* Calculate radiative transfer for this sub-los */
                                 if(glb.overlap)
@@ -887,8 +886,6 @@ static void *CalcImageThreadLine(void *tid_p)
 static void *CalcImageThreadZeeman(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
-        double dx, dy, *V_sub, *V_nu, *tau_sub, *tau_nu;
-
         /* pix_id is used for distributing work to threads */
         size_t pix_id = 0;
         for(size_t ix = 0; ix < glb.x.n; ix++) {
@@ -899,17 +896,18 @@ static void *CalcImageThreadZeeman(void *tid_p)
                         /* check sub-sampling region */
                         size_t nsub = Init_nsub( ix, iy);
                         /* I_nu is the brightness for all channels at pixel (ix, iy) */
-                        V_nu = Mem_CALLOC(glb.v.n, V_nu);
+                        double *V_nu = Mem_CALLOC(glb.v.n, V_nu);
                         /* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
-                        tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
+                        double *tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
                         /* Loop through sub-resolution positions */
                         for(size_t isub = 0; isub < nsub; isub++) {
                          for(size_t jsub = 0; jsub < nsub; jsub++) {
+                                double dx, dy;
                                 /* Calculate sub-pixel position */
                                 InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
                                 /* V_sub is Stokes V for all channels at each sub-resolution */
-                                V_sub = Mem_CALLOC(glb.v.n, V_sub);
-                                tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
+                                double *V_sub = Mem_CALLOC(glb.v.n, V_sub);
+                                double *tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
                                 /* Calculate radiative transfer for this sub-los (Zeeman) */
                                 RadiativeXferZeeman(dx, dy, V_sub, tau_sub);
                                 /* Add I_sub to I_nu */
@@ -951,12 +949,10 @@ static void *CalcImageThreadColdens(void *tid_p)
            glb.v.n = 1                                     */
         
         size_t tid = *((size_t *)tid_p);
-        double dx, dy, *CD_sub, *CD;
-
         /* pix_id is used for distributing work to threads */
         size_t pix_id = 0;
-        CD_sub = Mem_CALLOC( 1, CD_sub);
-        CD = Mem_CALLOC( 1, CD);
+        double *CD_sub = Mem_CALLOC( 1, CD_sub);
+        double *CD = Mem_CALLOC( 1, CD);
         for(size_t ix = 0; ix < glb.x.n; ix++) {
          for(size_t iy = 0; iy < glb.y.n; iy++) {
                 if(pix_id % Sp_NTHREAD == tid) {
@@ -968,6 +964,7 @@ static void *CalcImageThreadColdens(void *tid_p)
                         /* Loop through sub-resolution positions */
                         for(size_t isub = 0; isub < nsub; isub++) {
                          for(size_t jsub = 0; jsub < nsub; jsub++) {
+                                double dx, dy;
                                 /* Calculate sub-pixel position */
                                 InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
                                 /* Column density tracer */
@@ -994,12 +991,6 @@ static void *CalcImageThreadColdens(void *tid_p)
 static void *CalcImageThreadCont(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
-        double dx, dy, 
-                *I_sub, *I_nu, *tau_sub, *tau_nu,
-                *Q_sub, *U_sub, *Q_nu, *U_nu, 
-                *sigma2, *sigma2_sub;
-        
-        double alpha=0.15; // polarized efficiency
 
          /* pix_id is used for distributing work to threads */
         size_t pix_id = 0;
@@ -1012,24 +1003,25 @@ static void *CalcImageThreadCont(void *tid_p)
                         size_t nsub = Init_nsub( ix, iy);
 
                         /* I_nu is the brightness for all channels at pixel (ix, iy) */
-                        I_nu = Mem_CALLOC(glb.v.n, I_nu);
-                        Q_nu = Mem_CALLOC(glb.v.n, Q_nu);
-                        U_nu = Mem_CALLOC(glb.v.n, U_nu);
-                        sigma2 = Mem_CALLOC(glb.v.n, sigma2);
+                        double *I_nu = Mem_CALLOC(glb.v.n, I_nu);
+                        double *Q_nu = Mem_CALLOC(glb.v.n, Q_nu);
+                        double *U_nu = Mem_CALLOC(glb.v.n, U_nu);
+                        double *sigma2 = Mem_CALLOC(glb.v.n, sigma2);
                         /* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
-                        tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
+                        double *tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
 
                         /* Loop through sub-resolution positions */
                         for(size_t isub = 0; isub < nsub; isub++) {
                          for(size_t jsub = 0; jsub < nsub; jsub++) {
+                                double dx, dy;
                                 /* Calculate sub-pixel position */
                                 InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
                                 /* I_sub is the brightness for all channels at each sub-resolution */
-                                I_sub = Mem_CALLOC(glb.v.n, I_sub);
-                                Q_sub = Mem_CALLOC(glb.v.n, Q_sub);
-                                U_sub = Mem_CALLOC(glb.v.n, U_sub);
-                                sigma2_sub = Mem_CALLOC(glb.v.n, sigma2_sub);
-                                tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
+                                double *I_sub = Mem_CALLOC(glb.v.n, I_sub);
+                                double *Q_sub = Mem_CALLOC(glb.v.n, Q_sub);
+                                double *U_sub = Mem_CALLOC(glb.v.n, U_sub);
+                                double *sigma2_sub = Mem_CALLOC(glb.v.n, sigma2_sub);
+                                double *tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
                                 /* Calculate radiative transfer for this sub-los */
                                 RadiativeXferCont(dx, dy, I_sub, Q_sub, U_sub, sigma2_sub, tau_sub);
                                 /* Add I_sub to I_nu */
@@ -1051,6 +1043,7 @@ static void *CalcImageThreadCont(void *tid_p)
                         /* Save averaged I_nu to map */
                         double DnsubSquare = 1. / (double)(nsub * nsub);
                         for(size_t iv = 0; iv < glb.v.n; iv++) {
+                                static const double alpha=0.15; // polarized efficiency
                                 MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = I_nu[iv] * DnsubSquare;
                                 MirImg_PIXEL(*glb.stokesq, iv, ix, iy) = alpha * Q_nu[iv] * DnsubSquare;
                                 MirImg_PIXEL(*glb.stokesu, iv, ix, iy) = alpha * U_nu[iv] * DnsubSquare;
@@ -1080,9 +1073,8 @@ static void *CalcImageThreadCont(void *tid_p)
 static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu)
 {
 	GeRay ray;
-	SpPhys *pp;
 	size_t side;
-	Zone *zp, *root = glb.model.grid;
+	Zone *root = glb.model.grid;
         double t;
 
 	InitRay( &dx, &dy, &ray);
@@ -1094,14 +1086,14 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 		/* Calculate intersection */
 		ray = GeRay_Inc(&ray, t);
 		/* Locate starting leaf zone according to intersection */
-		zp = Zone_GetLeaf(root, side, &ray.e, &ray);
+		Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
 		/* Keep going until there's no next zone to traverse to */
 		while(zp) {
 			/* Calculate path to next boundary */
 			GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
 // 			Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
 			/* Pointer to physical parameters associated with this zone */
-			pp = zp->data;
+			SpPhys *pp = zp->data;
 			/* Do radiative transfer only if gas is present in this zone */
 			if(pp->non_empty_leaf) {
 				/* Do calculations on all channels at this pixel. Try to minimize the 
@@ -1192,9 +1184,8 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
 {
         GeRay ray;
         double t;
-        SpPhys *pp;
         size_t side;
-        Zone *zp, *root = glb.model.grid;
+        Zone *root = glb.model.grid;
 
         InitRay( &dx, &dy, &ray);
 
@@ -1205,14 +1196,14 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
                 /* Calculate intersection */
                 ray = GeRay_Inc(&ray, t);
                 /* Locate starting leaf zone according to intersection */
-                zp = Zone_GetLeaf(root, side, &ray.e, &ray);
+                Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
                 /* Keep going until there's no next zone to traverse to */
                 while(zp) {
                         /* Calculate path to next boundary */
                         GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
 //                      Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
                         /* Pointer to physical parameters associated with this zone */
-                        pp = zp->data;
+                        SpPhys *pp = zp->data;
                         /* Do radiative transfer only if gas is present in this zone */
                         if(pp->non_empty_leaf) {
                                 /* Do calculations on all channels at this pixel. Try to minimize the 
@@ -1296,12 +1287,9 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
 {
         GeRay ray;
         double t;
-
         Zone *root = glb.model.grid;
-        
-        GeVec3_d z,n,e;
-
         InitRay( &dx, &dy, &ray);
+        GeVec3_d z,n,e;
         InitLOSCoord( &dx, &dy, &ray, &z, &n, &e);
 
         /* Reset tau for all channels */
@@ -1652,12 +1640,9 @@ static size_t Init_nsub(size_t ix, size_t iy)
 }
 
 /*----------------------------------------------------------------------------*/
-static void InitSubPixel( double *dx, 
-                          double *dy, 
-                          size_t ix, 
-                          size_t iy, 
-                          size_t isub, 
-                          size_t jsub, 
+static void InitSubPixel( double *dx, double *dy, 
+                          size_t ix, size_t iy, 
+                          size_t isub,size_t jsub, 
                           size_t nsub)
 {
         /* Determine sub-resolution angular offsets from the pointing center */
@@ -1676,42 +1661,34 @@ write out VTK file of the excitation temperature for the nested Cartesian Cell i
 */
 static void visualization(void)
 {
-	Zone *zp, *zp1, *zp2, *zp3, *root = glb.model.grid;
-	FILE *fp, *fp2;
-	size_t ix,iy,iz, izone;
-	size_t ix1,iy1,iz1, izone1;
-	size_t ix2,iy2,iz2, izone2;
-	char filename[22];
-	double Tex;
-	SpPhys *pp;
+	Zone *root = glb.model.grid;
 	static double k = PHYS_CONST_MKS_BOLTZK;
-	MolTrRad *trans;
 	double n_u, n_l, g_u, g_l, E_u, E_l;
 	size_t up, lo;
 	
 	
-	fp=fopen("vis.pvd","w");
+	FILE *fp=fopen("vis.pvd","w");
 	fprintf(fp,"<?xml version=\"1.0\"?>\n");
 	fprintf(fp,"<VTKFile type=\"Collection\" version=\"0.1\" byte_order=\"LittleEndian\" compressor=\"vtkZLibDataCompressor\">\n");
 	fprintf(fp,"  <Collection>\n");
 	mkdir("multiblock", S_IRWXU | S_IRWXG | S_IRWXO);
 	
-	zp1 = root;
-	for(ix1=0; ix1 < zp1->naxes.x[0]; ix1++){
-	 for(iy1=0; iy1 < zp1->naxes.x[1]; iy1++){
-	  for(iz1=0; iz1 < zp1->naxes.x[2]; iz1++){
-		izone1 = iz1 + iy1*(zp1->naxes.x[2]) + ix1*(zp1->naxes.x[2])*(zp1->naxes.x[1]);
-		zp2 = zp1->children[izone1];
-		for(ix2=0; ix2 < zp2->naxes.x[0]; ix2++){
-		 for(iy2=0; iy2 < zp2->naxes.x[1]; iy2++){
-		  for(iz2=0; iz2 < zp2->naxes.x[2]; iz2++){
-			izone2 = iz2 + iy2*(zp2->naxes.x[2]) + ix2*(zp2->naxes.x[2])*(zp2->naxes.x[1]);
-			zp3 = zp2->children[izone2];
-			
+	Zone *zp1 = root;
+	for(size_t ix1=0; ix1 < zp1->naxes.x[0]; ix1++){
+	 for(size_t iy1=0; iy1 < zp1->naxes.x[1]; iy1++){
+	  for(size_t iz1=0; iz1 < zp1->naxes.x[2]; iz1++){
+		size_t izone1 = iz1 + iy1*(zp1->naxes.x[2]) + ix1*(zp1->naxes.x[2])*(zp1->naxes.x[1]);
+		Zone *zp2 = zp1->children[izone1];
+		for(size_t ix2=0; ix2 < zp2->naxes.x[0]; ix2++){
+		 for(size_t iy2=0; iy2 < zp2->naxes.x[1]; iy2++){
+		  for(size_t iz2=0; iz2 < zp2->naxes.x[2]; iz2++){
+			size_t izone2 = iz2 + iy2*(zp2->naxes.x[2]) + ix2*(zp2->naxes.x[2])*(zp2->naxes.x[1]);
+			Zone *zp3 = zp2->children[izone2];
+			char filename[22];
 			sprintf(filename,"multiblock/block%2.2zu%2.2zu.vtr",izone1,izone2);
 			fprintf(fp,"    <DataSet group=\"%zu\" dataset=\"0\" file=\"%22s\"/>\n",izone1*8+izone2,filename);
 			
-			fp2=fopen(filename,"w");
+			FILE *fp2=fopen(filename,"w");
 			fprintf(fp2,"<?xml version=\"1.0\"?>\n");
 			fprintf(fp2,"<VTKFile type=\"RectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
 			fprintf(fp2,"<RectilinearGrid WholeExtent=\"%d %d %d %d %d %d\">\n",0,64,0,64,0,32);
@@ -1719,25 +1696,25 @@ static void visualization(void)
 			fprintf(fp2,"      <Coordinates>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"X_COORDINATES\" NumberOfComponents=\"1\">\n");
 			fprintf(fp2," %12.6e",zp3->voxel.min.x[0]);
-			for(ix=0; ix < zp3->naxes.x[0]; ix++){
-				izone = ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
-				zp = zp3->children[izone];
+			for(size_t ix=0; ix < zp3->naxes.x[0]; ix++){
+				size_t izone = ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
+				Zone *zp = zp3->children[izone];
 				fprintf(fp2," %12.6e",zp->voxel.max.x[0]);
 			}
 			fprintf(fp2,"\n        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"Y_COORDINATES\" NumberOfComponents=\"1\">\n");
 			fprintf(fp2," %12.6e",zp3->voxel.min.x[1]);
-			for(iy=0; iy < zp3->naxes.x[1]; iy++){
-				izone = iy*(zp3->naxes.x[2]);
-				zp = zp3->children[izone];
+			for(size_t iy=0; iy < zp3->naxes.x[1]; iy++){
+				size_t izone = iy*(zp3->naxes.x[2]);
+				Zone *zp = zp3->children[izone];
 				fprintf(fp2," %12.6e",zp->voxel.max.x[1]);
 			}
 			fprintf(fp2,"\n        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"Z_COORDINATES\" NumberOfComponents=\"1\">\n");
 			fprintf(fp2," %12.6e",zp3->voxel.min.x[2]);
-			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-				izone = iz;
-				zp = zp3->children[izone];
+			for(size_t iz=0; iz < zp3->naxes.x[2]; iz++){
+				size_t izone = iz;
+				Zone *zp = zp3->children[izone];
 				fprintf(fp2," %12.6e",zp->voxel.max.x[2]);
 			}
 			fprintf(fp2,"\n        </DataArray>\n");
@@ -1745,26 +1722,26 @@ static void visualization(void)
 			fprintf(fp2,"      <CellData>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"Tex*\" NumberOfComponents=\"1\">\n");
 			
-			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
-				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
-				zp = zp3->children[izone];
-				pp = zp->data;
+			for(size_t iz=0; iz < zp3->naxes.x[2]; iz++){
+			 for(size_t iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(size_t ix=0; ix < zp3->naxes.x[0]; ix++){
+				size_t izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
+				Zone *zp = zp3->children[izone];
+				SpPhys *pp = zp->data;
 				if(pp->X_mol == 0.0){
 					fprintf(fp2,"0.0\n");
 				}
 				else{
-					trans = pp->mol->rad[glb.line];
-					up = trans->up;
-					lo = trans->lo;
-					n_u = pp->pops[0][up];
-					n_l = pp->pops[0][lo];
-					E_u = pp->mol->lev[up]->E;
-					E_l = pp->mol->lev[lo]->E;
-					g_u = pp->mol->lev[up]->g;
-					g_l = pp->mol->lev[lo]->g;
-					Tex = (E_l-E_u)/(k*log((n_u*g_l)/(n_l*g_u))); 
+					MolTrRad *trans = pp->mol->rad[glb.line];
+					size_t up = trans->up;
+					size_t lo = trans->lo;
+					double n_u = pp->pops[0][up];
+					double n_l = pp->pops[0][lo];
+					double E_u = pp->mol->lev[up]->E;
+					double E_l = pp->mol->lev[lo]->E;
+					double g_u = pp->mol->lev[up]->g;
+					double g_l = pp->mol->lev[lo]->g;
+					double Tex = (E_l-E_u)/(k*log((n_u*g_l)/(n_l*g_u))); 
 					fprintf(fp2,"%12.6e\n",Tex/(pp->T_k));
 				}
 			  }
@@ -1773,12 +1750,12 @@ static void visualization(void)
 			fprintf(fp2,"        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"Tk\" NumberOfComponents=\"1\">\n");
 			
-			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
-				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
-				zp = zp3->children[izone];
-				pp = zp->data;
+			for(size_t iz=0; iz < zp3->naxes.x[2]; iz++){
+			 for(size_t iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(size_t ix=0; ix < zp3->naxes.x[0]; ix++){
+				size_t izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
+				Zone *zp = zp3->children[izone];
+				SpPhys *pp = zp->data;
 				fprintf(fp2,"%12.6e\n",pp->T_k);
 			  }
 			 }
@@ -1786,12 +1763,12 @@ static void visualization(void)
 			fprintf(fp2,"        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"N_h2\" NumberOfComponents=\"1\">\n");
 			
-			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
-				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
-				zp = zp3->children[izone];
-				pp = zp->data;
+			for(size_t iz=0; iz < zp3->naxes.x[2]; iz++){
+			 for(size_t iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(size_t ix=0; ix < zp3->naxes.x[0]; ix++){
+				size_t izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
+				Zone *zp = zp3->children[izone];
+				SpPhys *pp = zp->data;
 				fprintf(fp2,"%12.6e\n",pp->n_H2);
 			  }
 			 }
@@ -1799,26 +1776,26 @@ static void visualization(void)
 			fprintf(fp2,"        </DataArray>\n");
 			fprintf(fp2,"        <DataArray type=\"Float32\" Name=\"contribution\" NumberOfComponents=\"1\">\n");
 			
-			for(iz=0; iz < zp3->naxes.x[2]; iz++){
-			 for(iy=0; iy < zp3->naxes.x[1]; iy++){
-			  for(ix=0; ix < zp3->naxes.x[0]; ix++){
-				izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
-				zp = zp3->children[izone];
-				pp = zp->data;
+			for(size_t iz=0; iz < zp3->naxes.x[2]; iz++){
+			 for(size_t iy=0; iy < zp3->naxes.x[1]; iy++){
+			  for(size_t ix=0; ix < zp3->naxes.x[0]; ix++){
+				size_t izone = iz + iy*(zp3->naxes.x[2]) + ix*(zp3->naxes.x[2])*(zp3->naxes.x[1]);
+				Zone *zp = zp3->children[izone];
+				SpPhys *pp = zp->data;
 				if(pp->X_mol == 0.0){
 					fprintf(fp2,"0.0\n");
 				}
 				else{
-					trans = pp->mol->rad[glb.line];
-					up = trans->up;
-					lo = trans->lo;
-					n_u = pp->pops[0][up];
-					n_l = pp->pops[0][lo];
-					E_u = pp->mol->lev[up]->E;
-					E_l = pp->mol->lev[lo]->E;
-					g_u = pp->mol->lev[up]->g;
-					g_l = pp->mol->lev[lo]->g;
-					Tex = (E_l-E_u)/(k*log((n_u*g_l)/(n_l*g_u))); 
+					MolTrRad *trans = pp->mol->rad[glb.line];
+					size_t up = trans->up;
+					size_t lo = trans->lo;
+					double n_u = pp->pops[0][up];
+					double n_l = pp->pops[0][lo];
+					double E_u = pp->mol->lev[up]->E;
+					double E_l = pp->mol->lev[lo]->E;
+					double g_u = pp->mol->lev[up]->g;
+					double g_l = pp->mol->lev[lo]->g;
+					double Tex = (E_l-E_u)/(k*log((n_u*g_l)/(n_l*g_u))); 
 					fprintf(fp2,"%12.6e\n", Tex * pp->n_H2 * pp->X_mol);
 				}
 			  }
