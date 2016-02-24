@@ -24,6 +24,7 @@
 |       gsl/1.5_ic11.0 \
 |       HDFView/2.1 \
 |       libtool/2.4 \
+|       miriad/2011.7_gfortran
 |       icc/11.0 \
 |       lam/7.1.4_ic11.0 \
 |       python/2.5.6 \
@@ -34,18 +35,19 @@
 | PATH=$PATH:$HOME/opt/sparx/bin
 | export PYTHONPATH=$HOME/opt/sparx/lib/python2.5/site-packages:$PYTHONPATH
 |======================================================
-| ## If you are using ubuntu, must install miriad first... then
-| #sudo apt-get install 
+| ## If you are using ubuntu 14.04, 
+| sudo apt-get install libhdf5-openmpi-7 libhdf5-openmpi-7-dev libgsl0-dev libtool libfftw3-dev libcfitsio3-dev
+| python setup.py install --prefix=~/opt/sparx --with-include=/usr/lib/openmpi/include/-lib=LIB_PATH
 #======================================================
 #
 # download and extract the source code
 wget https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/alpha-2.3.0.tar.gz -O- | tar -xz
-# enter the directory and install
+# enter the directory and install 
 cd pysparx
 ./install
 
 ##############################################
-# If you are just the user for the application purpose on TIARA
+# If you are just the user for the applicational purpose on TIARA
 # try to load the SPARX module directly 
 # then just modify the preprocessor script to what you want 
 module add sparx
