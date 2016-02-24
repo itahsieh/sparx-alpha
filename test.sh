@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # configure SPARX command
-sparx_version=`which sparx-dev`
+sparx_version=`which sparx`
 
 # the color label
 LIGHTBLUE='\033[1;34m'
