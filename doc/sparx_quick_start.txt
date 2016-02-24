@@ -18,28 +18,28 @@
 | ## If you are the user/developer on TIARA's cluster
 | # load the modules (add to .bashrc)
 | module add \
-|	autoconf/2.68 \
-|	automake/1.11.1 \
-|	HDF/5-1.8.10_ic13.0_lam_7.1.4 \
-|	miriad/2011.7_gfortran \
-|	gsl/1.5_ic11.0 \
-|	HDFView/2.1 \
-|	libtool/2.4 \
-|	icc/11.0 \
-|	lam/7.1.4_ic11.0 \
-|	python/2.5.6 \
-|	torque/2.5.3 \
-|	fftw/3.3_ic11.0
+|       autoconf/2.68 \
+|       automake/1.11.1 \
+|       HDF/5-1.8.10_ic13.0_lam_7.1.4 \
+|       gsl/1.5_ic11.0 \
+|       HDFView/2.1 \
+|       libtool/2.4 \
+|       icc/11.0 \
+|       lam/7.1.4_ic11.0 \
+|       python/2.5.6 \
+|       torque/2.5.3 \
+|       fftw/3.3_ic11.0 \
+|       cfitsio/3.181
 | # append the binary and python library path in .bashrc
 | PATH=$PATH:$HOME/opt/sparx/bin
 | export PYTHONPATH=$HOME/opt/sparx/lib/python2.5/site-packages:$PYTHONPATH
 |======================================================
-| ## If you are using ubuntu/fedora, must install miriad first... then
-| #sudo apt-get/yum install ....
+| ## If you are using ubuntu, must install miriad first... then
+| #sudo apt-get install 
 #======================================================
 #
 # download and extract the source code
-wget https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/sparx-alpha-2.tar.gz -O- | tar -xz
+wget https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/alpha-2.3.0.tar.gz -O- | tar -xz
 # enter the directory and install
 cd pysparx
 ./install
@@ -52,7 +52,7 @@ module add sparx
 ##############################################
 
 # test SPARX
-sparx
+./test.sh
 
 
 #########################################################################

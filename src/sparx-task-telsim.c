@@ -288,15 +288,12 @@ int SpTask_Telsim(void)
 	if(!sts){
 		char filename[32];
 		sprintf(filename,"%s.fits", glb.xyv_imgf->name);
-                
-                // output column density image
-		if(glb.coldens) 
+
+		if(glb.coldens) // output column density image
 			FITSoutput( filename, glb.unit->name, 1e-7, 0);
-		// output dust emission and its polarization image
-                else if(glb.cont)
+                else if(glb.cont) // output dust emission and its polarization image
 			FITSoutput( filename, glb.unit->name, glb.I_norm/glb.ucon, 1);
-                // output line emission or zeeman effect (stokes V) image
-                else
+                else // output line emission or zeeman effect (stokes V) image
                         FITSoutput( filename, glb.unit->name, glb.I_norm/glb.ucon, 0);
 		Sp_PRINT("Wrote FITS image to `%s'\n", filename);		
 		// output tau image
@@ -1326,7 +1323,7 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                          costheta = zproduct / B_Mag;
                                  
                                  static const double g = 2.18/1.4;
-                                 double dnu = 1.4e6 * g * GeVec3_Mag(&B);
+                                 double dnu = 1.4e6 * g * B_Mag;
                                  double deltav = dnu * PHYS_CONST_MKS_LIGHTC / glb.freq;
                                  //printf("delta V = %e %e %e %e\n",deltav,dnu,PHYS_CONST_MKS_LIGHTC,glb.freq);
 
@@ -1370,7 +1367,12 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                         tau_nu[iv] += dtau_nu;
                                 }
                         }
-                }
+                        /* Calculate next position */
+                        ray = GeRay_Inc(&ray, t);
+                        //Deb_PRINT("checkpoint: GeRay_Inc\n");
+                        /* Get next zone to traverse to */
+                        zp = Zone_GetNext(zp, &side, &ray);
+                } 
         }
 
         return;

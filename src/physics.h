@@ -23,7 +23,8 @@
 #define PHYS_CONST_CGS_LIGHTC	    3.00e10 /* speed of light [ cm s^-1 ] */
 
 /* constants in units common to both MKS and CGS */
-#define PHYS_CONST_PI		    3.14159265
+#define PHYS_CONST_PI \
+        3.14159265358979323846264338327950288419716939937510
 #define PHYS_CONST_TWOPI	    6.28318530
 #define PHYS_CONST_2S2L2	    2.35482 /* Factor to convert from Gaussian 1 sigma width to FWHM */
 #define PHYS_CONST_TCMB		    2.725 /* CMB temperature [K] (see Mather et al. (1999), ApJ 512 511) */

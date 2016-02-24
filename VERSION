@@ -15,10 +15,12 @@ alpha-2.2.1   JAN  2016   fix kappa-LTE-lineobs bug and multi-thread telsim memo
 alpha-2.2.2   JAN  2016   improving readability of task_telsim & enable I_bb in telsim
         TODO : to test various tracer(coldens/line/zeeman/overlap/cont)
 alpha-2.2.3   FEB  2016   improving the readability of AMC
-        
-## STATUS : PENDING
-alpha-2.2.4               compiling unit tests
+alpha-2.2.4   FEB  2016   compiling unit tests
+alpha-2.2.5   FEB  2016   fixing B-free-cont bug in SPH1D & dev-version friendly support
+alpha-2.3.0   FEB  2016   complete all the unit tests of telsim and realease
 
+## STATUS : PENDING
+alpha-2.4.0               consistency of the intialization for molecule with HDF format and data
 
 ###########################
 # THE PLANS               #

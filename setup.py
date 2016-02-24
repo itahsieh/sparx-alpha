@@ -2,7 +2,7 @@
 # Python Distutils setup script for SPARX
 
 # Version of SPARX
-Version = '2.2.4'
+Version = '2.3.0'
 dev = 1
 # MIRIAD support option
 MIRSUPPORT = 1   

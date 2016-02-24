@@ -20,18 +20,18 @@ mkdir -p tmp; cd tmp
 rm -f test.log
 
 # testing preprocessor
-#source ../grid/sph1d/test | tee -a test.log
+source ../grid/sph1d/test | tee -a test.log
 
 # testing AMC
-#source ../amc/test  | tee -a test.log
+source ../amc/test  | tee -a test.log
 
 # testing postprocessor
-#source ../telsim/line/test     | tee -a test.log
-#source ../telsim/coldens/test  | tee -a test.log
+source ../telsim/line/test     | tee -a test.log
+source ../telsim/coldens/test  | tee -a test.log
 source ../telsim/cont/test     | tee -a test.log
-#source ../telsim/zeeman/test   | tee -a test.log
-#source ../telsim/overlap/test  | tee -a test.log
-#source ../telsim/lte/test      | tee -a test.log
+source ../telsim/zeeman/test   | tee -a test.log
+source ../telsim/overlap/test  | tee -a test.log
+source ../telsim/lte/test      | tee -a test.log
 
 
 cd ../..
