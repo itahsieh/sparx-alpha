@@ -1,0 +1,27 @@
+!MOLECULE
+2lev-SiO
+!MOLECULAR WEIGHT
+44.1
+!NUMBER OF ENERGY LEVELS
+2
+!LEVEL + ENERGIES(cm^-1) + WEIGHT + J
+    1       0.0000     1.0     0
+    2       1.4485     3.0     1
+!NUMBER OF RADIATIVE TRANSITIONS
+1
+!TRANS + UP + LOW + EINSTEINA(s^-1) + FREQ(GHz) + E_u(K)
+    1     2     1   3.0490e-06      43.4237600      2.08
+!NUMBER OF COLL PARTNERS
+1
+!COLLISIONS BETWEEN
+1 SiO-H2 from Turner et al. (1992) + extrapolation
+!NUMBER OF COLL TRANS
+1
+!NUMBER OF COLL TEMPS
+11
+!COLL TEMPS
+   20.0   40.0   70.0  100.0  150.0  200.0  250.0  300.0  500.0 1000.0 2000.0
+!TRANS + UP + LOW + COLLRATES(cm^3 s^-1)
+    1     2     1  3.7e-11 2.9e-11 2.3e-11 1.9e-11 1.6e-11 1.4e-11 1.3e-11 1.2e-11 1.2e-11 1.3e-11 1.3e-11
+!NOTES:
+!Energy levels, transition frequencies and Einstein A coefficients from CDMS

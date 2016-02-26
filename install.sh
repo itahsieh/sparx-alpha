@@ -1,6 +1,6 @@
 #! /bin/bash
 
-dev=0
+dev=1
 
 if [ $dev == 1 ]; then
   destination=$HOME/opt/sparx-dev

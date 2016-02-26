@@ -3,9 +3,9 @@
 
 # Version of SPARX
 Version = '2.3.0'
-dev = 0
+dev = 1
 # MIRIAD support option
-MIRSUPPORT = 0  
+MIRSUPPORT = 1  
 # number of Thread using in per job
 NumberOfThread = 24 
 
