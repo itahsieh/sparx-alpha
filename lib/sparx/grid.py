@@ -4,7 +4,9 @@
 ##
 SPH1D = "sph1d"
 REC3D = "rec3d"
-GEOM_DICT = {SPH1D: 0, REC3D: 1}
+SPH3D = "sph3d"
+CYL3D = "cyl3d"
+GEOM_DICT = {SPH1D: 0, REC3D: 1, SPH3D: 2, CYL3D: 3}
 
 # Some necessary imports
 from math import sqrt
@@ -32,7 +34,8 @@ class Grid(object):
 		# Sanity checks
 		if geom == SPH1D:
 			assert shape[0] > 0 and shape[1] == 1 and shape[2] == 1
-		elif geom == REC3D:
+		#elif geom == REC3D:
+		else:
 			assert shape[0] * shape[1] * shape[2] > 0
 
 		# Grid shape and dimensions

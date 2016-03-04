@@ -1876,9 +1876,9 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
         sprintf(cellscal,"1/F     ");
         
         double 
-	crpix1 = (double) (naxe[0]/2 +1),
-	crpix2 = (double) (naxe[1]/2 +1),
-	crpix3 = (double) naxes[2]/2.+1.,
+	crpix1 = (double) (naxes[0] / 2 +1),
+	crpix2 = (double) (naxes[1] / 2 +1),
+	crpix3 = (double) naxes[2] / 2.+1.,
 	crpix4 = 1.,
 	cdelt1 = 180. / M_PI * glb.x.delt,
 	cdelt2 = 180. / M_PI * glb.y.delt,
@@ -1919,7 +1919,8 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
 	fits_write_key(fptr,TDOUBLE,"BMIN",&beam,"Minor beam axis ",&status);
 	fits_write_key(fptr,TDOUBLE,"BPA",&beam,"PA",&status);
 	fits_write_key(fptr,TDOUBLE,"BSCALE",&bscale,"",&status);
-	fits_write_key(fptr,TDOUBLE,"BZERO",&bzero,"",&status);   	fits_write_key(fptr,TDOUBLE,"RESTFREQ",&restfreq,"",&status);
+	fits_write_key(fptr,TDOUBLE,"BZERO",&bzero,"",&status);
+        fits_write_key(fptr,TDOUBLE,"RESTFREQ",&restfreq,"",&status);
 	fits_write_key(fptr,TSTRING,"BUNIT",bunit,"",&status);
 	fits_write_key(fptr,TSTRING,"CELLSCAL",&cellscal,"",&status);
         Deb_ASSERT(status == 0);

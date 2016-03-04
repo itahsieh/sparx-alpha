@@ -9,15 +9,15 @@ alpha-2       Jul  2014   summer wrap-up
 alpha-2.0.1   May  2015   fix subres position bug
 alpha-2.1.0   Dec  2015   add FITS output
 alpha-2.1.1   Dec  2015   get rid of MIRIAD dependancy
-alpha-2.2.0   JAN  2016   implement cylindrical coordinate (GEOM : CYL3D)
+alpha-2.2.0   Jan  2016   implement cylindrical coordinate (GEOM : CYL3D)
         TODO : a test case of nested CYL3D model
-alpha-2.2.1   JAN  2016   fix kappa-LTE-lineobs bug and multi-thread telsim memory conflict
-alpha-2.2.2   JAN  2016   improving readability of task_telsim & enable I_bb in telsim
+alpha-2.2.1   Jan  2016   fix kappa-LTE-lineobs bug and multi-thread telsim memory conflict
+alpha-2.2.2   Jan  2016   improving readability of task_telsim & enable I_bb in telsim
         TODO : to test various tracer(coldens/line/zeeman/overlap/cont)
-alpha-2.2.3   FEB  2016   improving the readability of AMC
-alpha-2.2.4   FEB  2016   compiling unit tests
-alpha-2.2.5   FEB  2016   fixing B-free-cont bug in SPH1D & dev-version friendly support
-alpha-2.3.0   FEB  2016   complete all the unit tests of telsim and realease
+alpha-2.2.3   Feb  2016   improving the readability of AMC
+alpha-2.2.4   Feb  2016   compiling unit tests
+alpha-2.2.5   Feb  2016   fixing B-free-cont bug in SPH1D & dev-version friendly support
+alpha-2.3.0   Feb  2016   complete all the unit tests of telsim and realease
 
 ## STATUS : PENDING
 alpha-2.4.0               consistency of the intialization for molecule with HDF format and data

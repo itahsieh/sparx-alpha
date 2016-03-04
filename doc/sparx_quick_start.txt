@@ -2,7 +2,7 @@
 # |                  The Quick Guidance for SPARX                         |
 # |  https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/sparx_quick_start.txt |
 # |                           I-Ta Hsieh                                  |
-# |                         < 2014.2.24 >                                 |
+# |                         < 2016.2.24 >                                 |
 # =========================================================================
 
 
