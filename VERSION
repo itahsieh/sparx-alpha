@@ -26,13 +26,24 @@ alpha-2.4.0               consistency of the intialization for molecule with HDF
 # THE PLANS               #
 ###########################
 - Short-term :
+        * Validation between Ratran             (High / 1 week)
+        * Quasi-Monte-Carlo (upgrade to first-order accuracy)
+                                                (High / 2 weeks)
+        * Visualization / contribution chart    (High / 2 ~ 4 weeks)
+        
+        * Application of line-fitting           (Medium-to-High)
+        * Infrared pumping                      (Medium)
         * consistency of the intialization for molecule with HDF format and data structures
+                                                (Medium-Low)
+        * 1-D solver could be simplified        (Low)
+        
+        
         * (automatic converged mapping)
         * (arbitrary bounday / painter's algorithm -- for user's flexibility)
-
+        
 - Mid-term :
         * "pre-sparx" project -- integrated preprocessor
         * capability of unstructured grid solvers
 
 - Long-term :
-        * angular high-order scheme
+        * angular high-order scheme (upgrade to second-order accuracy)

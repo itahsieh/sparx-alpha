@@ -43,7 +43,7 @@
 # download and extract the source code
 wget https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/sparx-alpha-2.3.0.tar.gz -O- | tar -xz
 # enter the directory and install 
-cd pysparx
+cd sparx-alpha
 ./install
 
 ##############################################
