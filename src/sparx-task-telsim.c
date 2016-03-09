@@ -1876,9 +1876,9 @@ static void FITSoutput( char *FileName, const char *bunit, double scale, int Sto
         sprintf(cellscal,"1/F     ");
         
         double 
-	crpix1 = (double) (naxes[0] / 2 +1),
-	crpix2 = (double) (naxes[1] / 2 +1),
-	crpix3 = (double) naxes[2] / 2.+1.,
+	crpix1 = (double) (naxes[0] / 2 + 1),// should be (double) naxes[0] / 2.+ 1 
+	crpix2 = (double) (naxes[1] / 2 + 1),// should be (double) naxes[1] / 2.+ 1
+	crpix3 = (double) naxes[2] / 2.+ 1., // should be (double) naxes[2] / 2.+ 0.5
 	crpix4 = 1.,
 	cdelt1 = 180. / M_PI * glb.x.delt,
 	cdelt2 = 180. / M_PI * glb.y.delt,

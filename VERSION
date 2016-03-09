@@ -5,45 +5,58 @@ SPARX VERSION : alpha-2.3.0
 ###########################
 
 ## STATUS : DONE
-alpha-2       Jul  2014   summer wrap-up
-alpha-2.0.1   May  2015   fix subres position bug
-alpha-2.1.0   Dec  2015   add FITS output
-alpha-2.1.1   Dec  2015   get rid of MIRIAD dependancy
-alpha-2.2.0   Jan  2016   implement cylindrical coordinate (GEOM : CYL3D)
-        TODO : a test case of nested CYL3D model
-alpha-2.2.1   Jan  2016   fix kappa-LTE-lineobs bug and multi-thread telsim memory conflict
-alpha-2.2.2   Jan  2016   improving readability of task_telsim & enable I_bb in telsim
-        TODO : to test various tracer(coldens/line/zeeman/overlap/cont)
-alpha-2.2.3   Feb  2016   improving the readability of AMC
-alpha-2.2.4   Feb  2016   compiling unit tests
-alpha-2.2.5   Feb  2016   fixing B-free-cont bug in SPH1D & dev-version friendly support
-alpha-2.3.0   Feb  2016   complete all the unit tests of telsim and realease
+alpha-2         Jul 2014        summer wrap-up
+alpha-2.0.1     May 2015        fix subres position bug
+alpha-2.1.0     Dec 2015        add FITS output
+alpha-2.1.1     Dec 2015        get rid of MIRIAD dependancy
+alpha-2.2.0     Jan 2016        implement cylindrical coordinate (GEOM : CYL3D)
+                                TODO : a test case of nested CYL3D model
+alpha-2.2.1     Jan 2016        fix kappa-LTE-lineobs bug and multi-thread telsim memory conflict
+alpha-2.2.2     Jan 2016        improving readability of task_telsim & enable I_bb in telsim
+                                Done in 2.3.0 : test various tracer(coldens/line/zeeman/overlap/cont)
+alpha-2.2.3     Feb 2016        improving the readability of AMC
+alpha-2.2.4     Feb 2016        compiling unit tests
+alpha-2.2.5     Feb 2016        fixing B-free-cont bug in SPH1D & dev-version friendly support
+alpha-2.3.0     Feb 2016        complete all the unit tests of telsim and realease
 
 ## STATUS : PENDING
-alpha-2.4.0               consistency of the intialization for molecule with HDF format and data
+alpha-2.4.0                     Visualization / contribution chart
+alpha-2.5.0                     Algorithm update : QMC and SOR
+
+
 
 ###########################
 # THE PLANS               #
 ###########################
 - Short-term :
-        * Validation between Ratran             (High / 1 week)
-        * Quasi-Monte-Carlo (upgrade to first-order accuracy)
-                                                (High / 2 weeks)
         * Visualization / contribution chart    (High / 2 ~ 4 weeks)
-        
+        * Algorithm : Quasi-Monte-Carlo method (upgrade to first-order accuracy)
+                                                (High / 2 weeks)
+                      Successive-and-Over Relaxation method in ALI (optimize stability of ALI)
+                                                (High / 2 weeks)
+
         * Application of line-fitting           (Medium-to-High)
         * Infrared pumping                      (Medium)
         * consistency of the intialization for molecule with HDF format and data structures
                                                 (Medium-Low)
         * 1-D solver could be simplified        (Low)
         
-        
         * (automatic converged mapping)
         * (arbitrary bounday / painter's algorithm -- for user's flexibility)
+        * (synthetic cube off-center : crpix may have bug)
         
 - Mid-term :
         * "pre-sparx" project -- integrated preprocessor
+                To make the gridding efficient and reliable (show the limitation)
+                feature : 1. warning of excessive velocity gradient
+                          2. output of the error of mass
+        
+        * Validation : 1. compile benchmark in 2002
+                       2. validation over all coordinate systems 
+                - 
         * capability of unstructured grid solvers
 
 - Long-term :
         * angular high-order scheme (upgrade to second-order accuracy)
+        
+        
