@@ -12,10 +12,9 @@ static struct glb {
 	DatINode *unit;
 	double ucon, overlap_vel;
 	MirImg_Axis x, y, v;
-	MirImg *xyv_img, *stokesv, *stokesq, *stokesu, *sigma2, *tau_img;
+        MirFile *imgf, *StxQf, *StxUf, *StxVf, *tau_imgf;
+        MirImg *image, *StokesQ, *StokesU, *StokesV, *sigma2, *tau_img;
 	double dist, rotate[3], I_norm, I_cmb;
-	char *imgname;
-	MirFile *xyv_imgf, *tau_imgf, *stokesvf, *stokesqf, *stokesuf;
 	SpModel model;
 	size_t line;
 	double lamb, freq;
@@ -85,7 +84,6 @@ static void InitSubPixel( double *dx,
                           size_t jsub, 
                           size_t nsub
                         );
-static void FITSoutput( char *FileName, const char *bunit, double scale, int Stokes);
 static void visualization(void);
 /*----------------------------------------------------------------------------*/
 
@@ -225,23 +223,18 @@ int SpTask_Telsim(void)
 	if(!sts){
 		if(glb.coldens) glb.v.n=1;
 
-		sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.xyv_imgf);
-		
-		char tempchar1[64],tempchar2[64];
-// 		if(glb.zeeman){
-// 			sprintf(tempchar1,"stokesv_%s",glb.xyv_imgf->name);
-// 			glb.stokesvf = MirXY_Open_new(tempchar1, glb.x.n, glb.y.n, glb.v.n);
-// 		}
-// 		else{
+		sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
+
 #if Sp_MIRSUPPORT
-			if(glb.cont){
-				sprintf(tempchar1,"stokesq_%s",glb.xyv_imgf->name);
-				sprintf(tempchar2,"stokesu_%s",glb.xyv_imgf->name);
-				glb.stokesqf = MirXY_Open_new(tempchar1, glb.x.n, glb.y.n, glb.v.n);
-				glb.stokesuf = MirXY_Open_new(tempchar2, glb.x.n, glb.y.n, glb.v.n);
-			}
+		if(glb.cont){
+                        char SQFName[64],SUFName[64];
+			sprintf( SQFName, "stokesq_%s", glb.imgf->name);
+			sprintf( SUFName, "stokesu_%s", glb.imgf->name);
+			glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
+			glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
+		}
 #endif
-// 		}
+
 	}
 	/* tau (optional) */
 	if(!sts && SpPy_CheckOptionalInput("tau")) {
@@ -259,23 +252,18 @@ int SpTask_Telsim(void)
 	 * Synthesize image
 	 */
 	if(!sts) {
-		/* Allocate image */	
-// 		if(glb.zeeman){
-// 			glb.stokesv = MirImg_Alloc(glb.x, glb.y, glb.v);
-// 			glb.stokesv->restfreq = glb.freq;
-// 		}
-// 		else{
-			glb.xyv_img = MirImg_Alloc(glb.x, glb.y, glb.v);
-			glb.xyv_img->restfreq = glb.freq;
-			if(glb.cont){
-				glb.stokesq = MirImg_Alloc(glb.x, glb.y, glb.v);
-				glb.stokesu = MirImg_Alloc(glb.x, glb.y, glb.v);
-				glb.sigma2 = MirImg_Alloc(glb.x, glb.y, glb.v);
-				glb.stokesq->restfreq = glb.freq;
-				glb.stokesu->restfreq = glb.freq;
-				glb.sigma2->restfreq = glb.freq;
-			}
-// 		}
+		/* Allocate image */
+		glb.image = MirImg_Alloc(glb.x, glb.y, glb.v);
+		glb.image->restfreq = glb.freq;
+		if(glb.cont){
+			glb.StokesQ = MirImg_Alloc(glb.x, glb.y, glb.v);
+			glb.StokesU = MirImg_Alloc(glb.x, glb.y, glb.v);
+			glb.sigma2 = MirImg_Alloc(glb.x, glb.y, glb.v);
+			glb.StokesQ->restfreq = glb.freq;
+			glb.StokesU->restfreq = glb.freq;
+			glb.sigma2->restfreq = glb.freq;
+		}
+
 		if(glb.tau_imgf)
 			glb.tau_img = MirImg_Alloc(glb.x, glb.y, glb.v);
 		/* Calculate image */
@@ -286,21 +274,16 @@ int SpTask_Telsim(void)
 
         /* OUTPUT */
 	if(!sts){
-		char filename[32];
-		sprintf(filename,"%s.fits", glb.xyv_imgf->name);
-
 		if(glb.coldens) // output column density image
-			FITSoutput( filename, glb.unit->name, 1e-7, 0);
+			FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, 1e-7, 0);
                 else if(glb.cont) // output dust emission and its polarization image
-			FITSoutput( filename, glb.unit->name, glb.I_norm/glb.ucon, 1);
+			FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, glb.I_norm/glb.ucon, 1);
                 else // output line emission or zeeman effect (stokes V) image
-                        FITSoutput( filename, glb.unit->name, glb.I_norm/glb.ucon, 0);
-		Sp_PRINT("Wrote FITS image to `%s'\n", filename);		
+                        FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, glb.I_norm/glb.ucon, 0);
+		Sp_PRINT("Wrote FITS image to `%s'\n", glb.imgf->name);		
 		// output tau image
-                if(glb.tau_imgf){
-			sprintf(filename,"%s.fits", glb.tau_imgf->name);
-			FITSoutput( filename, "Optical depth", 1, 0);
-		}
+                if(glb.tau_imgf)
+			FITSoutput( glb.tau_imgf, glb.tau_img, glb.StokesQ, glb.StokesU, "Optical depth", 1., 0);
 		
 		#if Sp_MIRSUPPORT
 		/* writing out MIRIAD file */
@@ -309,22 +292,22 @@ int SpTask_Telsim(void)
                 
                 // output column density image
                 if(glb.coldens){
-                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, 1e-7);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
+                        MirImg_WriteXY( glb.imgf, glb.image, glb.unit->name, 1e-7);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
                 }
                 // output dust emission and its polarization image
                 else if(glb.cont){
-                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
-                        MirImg_WriteXY(glb.stokesqf, glb.stokesq, glb.unit->name, glb.I_norm/glb.ucon);
-                        MirImg_WriteXY(glb.stokesuf, glb.stokesu, glb.unit->name, glb.I_norm/glb.ucon);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesqf->name);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.stokesuf->name);
+                        MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
+                        MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, glb.I_norm/glb.ucon);
+                        MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, glb.I_norm/glb.ucon);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxQf->name);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxUf->name);
                 }
                 // output line emission or zeeman effect (stokes V) image
                 else {
-                        MirImg_WriteXY(glb.xyv_imgf, glb.xyv_img, glb.unit->name, glb.I_norm/glb.ucon);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.xyv_imgf->name);
+                        MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
+                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
                 }
                 // output tau image
                 if(glb.tau_imgf){
@@ -345,7 +328,7 @@ int SpTask_Telsim(void)
 	/* column density map to VTK */
 	if(glb.coldens && !glb.cont){
 		char filename[32];
-		sprintf(filename,"%s.vtk",glb.xyv_imgf->name);
+		sprintf(filename,"%s.vtk",glb.imgf->name);
 		fp=fopen(filename,"w");
 	
 		fprintf(fp,"# vtk DataFile Version 3.0\n");
@@ -362,7 +345,7 @@ int SpTask_Telsim(void)
 		iv=0;
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e\n",MirImg_PIXEL(*glb.xyv_img, iv, ix, iy));
+				fprintf(fp,"%11.4e\n",MirImg_PIXEL(*glb.image, iv, ix, iy));
 			}	
 		}
 	
@@ -386,7 +369,7 @@ int SpTask_Telsim(void)
 			MEAN_VEL(ix,iy)=0.0;
 			MEAN_DEV(ix,iy)=0.0;
 			for(iv = 0; iv < glb.v.n; iv++) {
-				tempINT = (MirImg_PIXEL(*glb.xyv_img, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
+				tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
 				MEAN_INT(ix,iy) += tempINT;
 				MEAN_VEL(ix,iy) += tempINT * ((double)iv - glb.v.crpix) * glb.v.delt;
 			}
@@ -398,7 +381,7 @@ int SpTask_Telsim(void)
 				MEAN_VEL(ix,iy) /= MEAN_INT(ix,iy) * (double)glb.v.n;
 			}
 			for(iv = 0; iv < glb.v.n; iv++) {
-				tempINT = (MirImg_PIXEL(*glb.xyv_img, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
+				tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
 			 	dv = ((double)iv - glb.v.crpix) * glb.v.delt - MEAN_VEL(ix,iy);
 				MEAN_DEV(ix,iy) += tempINT*dv*dv;
 			}
@@ -415,7 +398,7 @@ int SpTask_Telsim(void)
 	char filename[32];
 	
         size_t iz;
-	sprintf(filename,"0thmov_%5s.vtk",glb.xyv_imgf->name);
+	sprintf(filename,"0thmov_%5s.vtk",glb.imgf->name);
 	fp=fopen(filename,"w");
 	fprintf(fp,"# vtk DataFile Version 3.0\n");
 	fprintf(fp,"0thmov\n");
@@ -435,7 +418,7 @@ int SpTask_Telsim(void)
 		}
 	}
 	fclose(fp);
-	sprintf(filename,"1stmov_%5s.vtk",glb.xyv_imgf->name);
+	sprintf(filename,"1stmov_%5s.vtk",glb.imgf->name);
 	fp=fopen(filename,"w");
 	fprintf(fp,"# vtk DataFile Version 3.0\n");
 	fprintf(fp,"1stmov\n");
@@ -455,7 +438,7 @@ int SpTask_Telsim(void)
 		}
 	}
 	fclose(fp);
-	sprintf(filename,"2ndmov_%5s.vtk",glb.xyv_imgf->name);
+	sprintf(filename,"2ndmov_%5s.vtk",glb.imgf->name);
 	fp=fopen(filename,"w");
 	fprintf(fp,"# vtk DataFile Version 3.0\n");
 	fprintf(fp,"2ndmov\n");
@@ -480,7 +463,7 @@ int SpTask_Telsim(void)
 #endif
 	if(glb.cont){
 		char filename[32];
-		sprintf(filename,"stokesIQU_%s.vtk",glb.xyv_imgf->name);
+		sprintf(filename,"stokesIQU_%s.vtk",glb.imgf->name);
 		fp=fopen(filename,"w");
 		fprintf(fp,"# vtk DataFile Version 3.0\n");
 		fprintf(fp,"Stokes parameters\n");
@@ -494,7 +477,7 @@ int SpTask_Telsim(void)
 		fprintf(fp,"LOOKUP_TABLE default\n");
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.xyv_img, 0, ix, iy));
+				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.image, 0, ix, iy));
 			}
 		}
 		fprintf(fp,"\n");
@@ -502,7 +485,7 @@ int SpTask_Telsim(void)
 		fprintf(fp,"LOOKUP_TABLE default\n");
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.stokesq, 0, ix, iy));
+				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
 			}
 		}
 		fprintf(fp,"\n");
@@ -510,71 +493,69 @@ int SpTask_Telsim(void)
 		fprintf(fp,"LOOKUP_TABLE default\n");
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.stokesu, 0, ix, iy));
+				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
 			}
 		}
 		fclose(fp);
 
 #if 0
-		sprintf(filename,"stokesI_%s.dat",glb.xyv_imgf->name);
+		sprintf(filename,"stokesI_%s.dat",glb.imgf->name);
 		fp=fopen(filename,"w");	
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.xyv_img, 0, ix, iy));
+				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.image, 0, ix, iy));
 			}
 			fprintf(fp,"\n");
 		}
 		fclose(fp);
-		sprintf(filename,"stokesQ_%s.dat",glb.xyv_imgf->name);
+		sprintf(filename,"stokesQ_%s.dat",glb.imgf->name);
 		fp=fopen(filename,"w");	
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.stokesq, 0, ix, iy));
+				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
 			}
 			fprintf(fp,"\n");
 		}
 		fclose(fp);
-		sprintf(filename,"stokesU_%s.dat",glb.xyv_imgf->name);
+		sprintf(filename,"stokesU_%s.dat",glb.imgf->name);
 		fp=fopen(filename,"w");	
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.stokesu, 0, ix, iy));
+				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
 			}
 			fprintf(fp,"\n");
 		}
 		fclose(fp);
 #endif
-		sprintf(filename,"vector_%s.dat",glb.xyv_imgf->name);
+		sprintf(filename,"vector_%s.dat",glb.imgf->name);
 		fp=fopen(filename,"w");		
 		for(iy = 0; iy < glb.y.n; iy++) {
 			for(ix = 0; ix < glb.x.n; ix++) {
-				double pd,xi,vecx,vecy;
-				pd=sqrt( MirImg_PIXEL(*glb.stokesq, 0, ix, iy)*MirImg_PIXEL(*glb.stokesq, 0, ix, iy)+ \
-				         MirImg_PIXEL(*glb.stokesu, 0, ix, iy)*MirImg_PIXEL(*glb.stokesu, 0, ix, iy) )\
-				   /(MirImg_PIXEL(*glb.xyv_img, 0, ix, iy) - MirImg_PIXEL(*glb.sigma2, 0, ix, iy));
+                                double StxI = MirImg_PIXEL(*glb.image, 0, ix, iy);
+                                double StxQ = MirImg_PIXEL(*glb.StokesQ, 0, ix, iy);
+                                double StxU = MirImg_PIXEL(*glb.StokesU, 0, ix, iy);
+                                double Sigma2 = MirImg_PIXEL(*glb.sigma2, 0, ix, iy);
+				double pd = sqrt( StxQ*StxQ + StxU*StxU ) / (StxI - Sigma2);
 				
-// 				if (MirImg_PIXEL(*glb.stokesq, 0, ix, iy)==0.0){
-//                   			if(MirImg_PIXEL(*glb.stokesu, 0, ix, iy)>0) 
-//                   				xi=0.5*M_PI;
-//                                         else xi=-0.5*M_PI;
+// 				if (StxQ==0.0){
+//                   			if(StxU>0) xi = 0.5 * M_PI;
+//                                      else xi = -0.5 * M_PI;
 // 				}
 //                                else{
-// 					xi=atan(MirImg_PIXEL(*glb.stokesu, 0, ix, iy)/MirImg_PIXEL(*glb.stokesq, 0, ix, iy));
+// 					xi=atan(StxU/StxQ);
 // 				} 
-// 				if (MirImg_PIXEL(*glb.stokesq, 0, ix, iy)<0){
+// 				if (StxQ<0){
 // 					xi=xi+M_PI;
 // 				}
 // 				else if (xi<0){ 
 // 					xi=xi+2*M_PI;
 // 				}
 				   
-				xi=atan2(MirImg_PIXEL(*glb.stokesu, 0, ix, iy),MirImg_PIXEL(*glb.stokesq, 0, ix, iy));
-				
-				xi = 0.5 * xi;
-				vecx=-pd*sin(xi);
-				vecy=pd*cos(xi);
-// 				vecx=pd*cos(xi);
-// 				vecy=pd*sin(xi);
+				double xi=atan2(StxU,StxQ); xi = 0.5 * xi;
+				double vecx=-pd*sin(xi);
+				double vecy=pd*cos(xi);
+// 				double vecx=pd*cos(xi);
+// 				double vecy=pd*sin(xi);
 				
 				fprintf(fp,"%5zu %5zu %11.4e %11.4e %11.4e %11.4e\n",ix,iy,vecx,vecy,pd,xi);
 			}
@@ -589,24 +570,16 @@ int SpTask_Telsim(void)
 	/*
 	 * Cleanup
 	 */
-	if(glb.xyv_img)
-		MirImg_Free(glb.xyv_img);
- 
-	if(glb.stokesv)
-		MirImg_Free(glb.stokesv);
-	if(glb.stokesu)
-		MirImg_Free(glb.stokesu);
-        if(glb.stokesq)
-		MirImg_Free(glb.stokesq);
+	if(glb.image)
+		MirImg_Free(glb.image);
+        if(glb.StokesQ)
+                MirImg_Free(glb.StokesQ);
+        if(glb.StokesU)
+                MirImg_Free(glb.StokesU);
         if(glb.sigma2)
 		MirImg_Free(glb.sigma2);
-	
-	
 	if(glb.tau_img)
 		MirImg_Free(glb.tau_img);
-
-	if(glb.imgname)
-		free(glb.imgname);
 
 	if(glb.subres)
 		free(glb.subres);
@@ -616,15 +589,15 @@ int SpTask_Telsim(void)
 	
 #if Sp_MIRSUPPORT
 	/* Miriad images must always be closed! */
-	if(glb.xyv_imgf)
-		MirXY_Close(glb.xyv_imgf);
+	if(glb.imgf)
+		MirXY_Close(glb.imgf);
 	
-	if(glb.stokesvf)
-		MirXY_Close(glb.stokesvf);
-	if(glb.stokesuf)
-		MirXY_Close(glb.stokesuf);
-	if(glb.stokesqf)
-		MirXY_Close(glb.stokesqf);
+	if(glb.StxQf)
+		MirXY_Close(glb.StxQf);
+	if(glb.StxUf)
+		MirXY_Close(glb.StxUf);
+	if(glb.StxVf)
+		MirXY_Close(glb.StxVf);
 
 	if(glb.tau_imgf)
 		MirXY_Close(glb.tau_imgf);
@@ -858,7 +831,7 @@ static void *CalcImageThreadLine(void *tid_p)
 			/* Save averaged I_nu to map */
                         double DnsubSquare = 1. / (double)(nsub * nsub);
 			for(size_t iv = 0; iv < glb.v.n; iv++) {
-				MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = I_nu[iv] * DnsubSquare;
+				MirImg_PIXEL(*glb.image, iv, ix, iy) = I_nu[iv] * DnsubSquare;
 				if(glb.tau_img)
 					MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
 			}
@@ -918,7 +891,7 @@ static void *CalcImageThreadZeeman(void *tid_p)
                         /* Save averaged I_nu to map */
                         double DnsubSquare = 1. / (double)(nsub * nsub);
                         for(size_t iv = 0; iv < glb.v.n; iv++) {
-                                MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = V_nu[iv] / (double)(nsub * nsub);
+                                MirImg_PIXEL(*glb.image, iv, ix, iy) = V_nu[iv] / (double)(nsub * nsub);
                                 if(glb.tau_img)
                                         MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
                         }
@@ -971,7 +944,7 @@ static void *CalcImageThreadColdens(void *tid_p)
                         }
                         double DnsubSquare = 1. / (double)(nsub * nsub);
                         /* Save averaged I_nu to map */
-                        MirImg_PIXEL(*glb.xyv_img, 0, ix, iy) = (*CD) * DnsubSquare;
+                        MirImg_PIXEL(*glb.image, 0, ix, iy) = (*CD) * DnsubSquare;
                 }
          /* Increment pix_id */
          pix_id += 1;
@@ -1039,9 +1012,9 @@ static void *CalcImageThreadCont(void *tid_p)
                         double DnsubSquare = 1. / (double)(nsub * nsub);
                         for(size_t iv = 0; iv < glb.v.n; iv++) {
                                 static const double alpha=0.15; // polarized efficiency
-                                MirImg_PIXEL(*glb.xyv_img, iv, ix, iy) = I_nu[iv] * DnsubSquare;
-                                MirImg_PIXEL(*glb.stokesq, iv, ix, iy) = alpha * Q_nu[iv] * DnsubSquare;
-                                MirImg_PIXEL(*glb.stokesu, iv, ix, iy) = alpha * U_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.image, iv, ix, iy) = I_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.StokesQ, iv, ix, iy) = alpha * Q_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.StokesU, iv, ix, iy) = alpha * U_nu[iv] * DnsubSquare;
                                 MirImg_PIXEL(*glb.sigma2, iv, ix, iy) = 0.5 * alpha * sigma2[iv] * DnsubSquare;
                                 if(glb.tau_img)
                                         MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
@@ -1833,149 +1806,7 @@ static void visualization(void)
         return;
 }
 
-/*----------------------------------------------------------------------------*/
-static void FITSoutput( char *FileName, const char *bunit, double scale, int Stokes)
-{
-	/* output FITS file  */
-	int status = 0;
-	fitsfile *fptr;       /* pointer to the FITS file; defined in fitsio.h */
-	
-	/* createing new FITS file  */
-        // if the file exist, remove it.
-        if(access( FileName, F_OK ) != -1){ 
-                fits_delete_file( fptr, &status);
-                status = 0;
-        }
- 	fits_create_file(&fptr, FileName, &status);   /* create new file */
-	Deb_ASSERT(status == 0);
 
-	long naxis;
-	if (Stokes) naxis = 4;
-	else naxis =3;
-	
-	long naxes[naxis];
-	
-	naxes[0] = (long) glb.x.n;
-	naxes[1] = (long) glb.y.n;
-	naxes[2] = (long) glb.v.n;
-	if(Stokes) naxes[3] = (long) 3;
-	long nelements = 1;
-	for (int i = 0; i < naxis; i++)
-		nelements *= naxes[i];
-
-        char 
-        ctype1[32],
-        ctype2[32],
-        ctype3[32],
-        ctype4[32],
-        cellscal[32];
-        sprintf(ctype1,"RA---SIN");
-        sprintf(ctype2,"DEC--SIN");
-        sprintf(ctype3,"VELO-LSR");
-        sprintf(ctype4,"STOKES");
-        sprintf(cellscal,"1/F     ");
-        
-        double 
-	crpix1 = glb.xyv_img->x.crpix + 1. ,
-	crpix2 = glb.xyv_img->y.crpix + 1. ,
-	crpix3 = glb.xyv_img->v.crpix + 1. , 
-	crpix4 = 1.,
-	cdelt1 = 180. / M_PI * glb.x.delt,
-	cdelt2 = 180. / M_PI * glb.y.delt,
-	cdelt3 = 0.001 * glb.v.delt,
-	cdelt4 = 1.,
-	crval = 0.0,
-	crval4 = 1.,
-	beam = 0.0,
-	bscale = 1.,
-	bzero = 0.,
-	restfreq = glb.freq;
-
-	double *array = Mem_CALLOC(nelements, array);;
-	
-	fits_create_img(fptr, FLOAT_IMG, naxis, naxes, &status);
-	Deb_ASSERT(status == 0);
-	    /* Write a keyword; must pass the ADDRESS of the value */
-	 
-	fits_write_key(fptr,TSTRING,"CTYPE1",&ctype1,"Type of first axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CRPIX1",&crpix1,"Reference of first axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CDELT1",&cdelt1,"Increment value of first axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CRVAL1",&crval,"Offset of first axis ",&status);
-	fits_write_key(fptr,TSTRING,"CTYPE2",&ctype2,"Type of second axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CRPIX2",&crpix2,"Reference of second axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CDELT2",&cdelt2,"Increment value of second axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CRVAL2",&crval,"Offset of second axis ",&status);
-	fits_write_key(fptr,TSTRING,"CTYPE3",&ctype3,"Type of third axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CRPIX3",&crpix3,"Reference of third axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CDELT3",&cdelt3,"Increment value of third axis",&status);
-	fits_write_key(fptr,TDOUBLE,"CRVAL3",&crval,"Offset of third axis ",&status);
-	if(Stokes){
-		fits_write_key(fptr,TSTRING,"CTYPE4",&ctype4,"Type of third axis",&status);
-		fits_write_key(fptr,TINT,"CRPIX4",&crpix4,"Reference of third axis",&status);
-		fits_write_key(fptr,TINT,"CDELT4",&cdelt4,"Increment value of third axis",&status);
-		fits_write_key(fptr,TINT,"CRVAL4",&crval4,"Offset of third axis ",&status);
-	}
-	fits_write_key(fptr,TDOUBLE,"BMAJ",&beam,"Major beam axis",&status);
-	fits_write_key(fptr,TDOUBLE,"BMIN",&beam,"Minor beam axis ",&status);
-	fits_write_key(fptr,TDOUBLE,"BPA",&beam,"PA",&status);
-	fits_write_key(fptr,TDOUBLE,"BSCALE",&bscale,"",&status);
-	fits_write_key(fptr,TDOUBLE,"BZERO",&bzero,"",&status);
-        fits_write_key(fptr,TDOUBLE,"RESTFREQ",&restfreq,"",&status);
-	fits_write_key(fptr,TSTRING,"BUNIT",bunit,"",&status);
-	fits_write_key(fptr,TSTRING,"CELLSCAL",&cellscal,"",&status);
-        Deb_ASSERT(status == 0);
-	
-	
-	if(Stokes) {
-		for (int iv = 0; iv < naxes[2]; iv++) 
-                 for (int iy = 0; iy < naxes[1]; iy++)      
-                  for (int ix = 0; ix < naxes[0]; ix++) {
-			int idx = ( ( 0 * naxes[2] + iv) * naxes[1] + iy) * naxes[0] + ix;
-			array[idx] = scale * MirImg_PIXEL(*glb.xyv_img, iv, ix, iy);
-		}
-		for (int iv = 0; iv < naxes[2]; iv++) 
-                 for (int iy = 0; iy < naxes[1]; iy++) 
-                  for (int ix = 0; ix < naxes[0]; ix++) {
-			
-			int idx = ( ( 1 * naxes[2] + iv) * naxes[1] + iy) * naxes[0] + ix;
-			array[idx] = scale * MirImg_PIXEL(*glb.stokesq, iv, ix, iy);
-		}
-		for (int iv = 0; iv < naxes[2]; iv++) 
-                 for (int iy = 0; iy < naxes[1]; iy++) 
-                  for (int ix = 0; ix < naxes[0]; ix++) {
-			int idx = ( ( 2 * naxes[2] + iv) * naxes[1] + iy) * naxes[0] + ix;
-			array[idx] = scale * MirImg_PIXEL(*glb.stokesu, iv, ix, iy);
-		}
-	}
-	else{
-		for (int iv = 0; iv < naxes[2]; iv++)
-		 for (int iy = 0; iy < naxes[1]; iy++)
-		  for (int ix = 0; ix < naxes[0]; ix++) {
-			int idx = (iv * naxes[1] + iy) * naxes[0] + ix;
-			array[idx] = scale * MirImg_PIXEL(*glb.xyv_img, iv, ix, iy);
-		}
-	}
-	
-	Deb_ASSERT(status == 0);
-        long *fpixel;
-        if (Stokes){
-                fpixel = Mem_CALLOC( 4, fpixel);
-                fpixel[0] = fpixel[1] = fpixel[2] = fpixel[3] = 1;
-        }
-        else{
-                fpixel = Mem_CALLOC( 3, fpixel);
-                fpixel[0] = fpixel[1] = fpixel[2] = 1;
-        }
-        
-	fits_write_pix(fptr, TDOUBLE, fpixel, nelements, array, &status);
-	free(fpixel);
-        fits_close_file(fptr, &status);            /* close the file */
-	Deb_ASSERT(status == 0);
-	
-	free(array);
-
-	return;
-}
 
 
 

@@ -54,7 +54,7 @@
 /* Error handling is done through an in-house api. See the source files
  * for more details */
 #include "error.h"
-#include "miriad-wrappers.h"
+#include "fits-and-miriad-wrappers.h"
 
 #if Sp_MIRSUPPORT
 #include "cpgplot-wrappers.h"
@@ -69,7 +69,7 @@
 #include "physics.h"
 #include "molec.h"
 #include "kappa.h"
-#include "fitsio.h"
+
 
 /* Globally useful constants */
 #define PI Num_PI

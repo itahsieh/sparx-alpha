@@ -188,7 +188,7 @@ sources_base = [
 	'src/python-wrappers.c',
 	'src/zone.c',
 	'src/zone-hdf5.c',
-	'src/miriad-wrappers.c'
+	'src/fits-and-miriad-wrappers.c',
 ]
 
 if MIRSUPPORT:
@@ -204,7 +204,7 @@ depends_base = [
 	'src/geometry.h',
 	'src/kappa.h',
 	'src/memory.h',
-	'src/miriad-wrappers.h',
+	'src/fits-and-miriad-wrappers.h',
 	'src/molec.h',
 	'src/numerical.h',
 	'src/physics.h',
