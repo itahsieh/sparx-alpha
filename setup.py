@@ -2,7 +2,7 @@
 # Python Distutils setup script for SPARX
 
 # Version of SPARX
-Version = '2.3.0'
+Version = '2.3.1'
 dev = 1
 # MIRIAD support option
 MIRSUPPORT = 1  
@@ -30,7 +30,7 @@ fo.close()
 
 ##
 ## Gather information for setting up the package
-##
+##                              
 # Some necessary imports
 import os, glob
 from os.path import exists, realpath, expanduser
