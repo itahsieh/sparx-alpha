@@ -355,7 +355,7 @@ MirFile *MirXY_Open_old(const char *name, size_t *nx, size_t *ny, size_t *nv)
 	MirFile *fp;
 
 	xyopen_c(&tno, name, "old", 3, nsize);
-
+	
 	*nx = (size_t)nsize[0];
 	*ny = (size_t)nsize[1];
 	*nv = (size_t)nsize[2];
@@ -804,7 +804,7 @@ void MirImg_UVResamp(MirImg *image, MirFile *uvin, MirFile *uvout)
 	return;
 }
 
-
+#endif
 
 void FITSoutput( MirFile *fp, MirImg *image, MirImg *StokesQ, MirImg *StokesU, const char *bunit, double scale, int Stokes)
 {
@@ -954,5 +954,5 @@ void FITSoutput( MirFile *fp, MirImg *image, MirImg *StokesQ, MirImg *StokesU, c
 }
 
 
-#endif
+
 
