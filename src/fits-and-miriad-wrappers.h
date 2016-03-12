@@ -3,6 +3,7 @@
 
 #include "fitsio.h"
 
+
 enum {
 	MirWr_NEW,
 	MirWr_OLD

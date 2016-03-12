@@ -5,7 +5,7 @@
 Version = '2.3.1'
 dev = 1
 # MIRIAD support option
-MIRSUPPORT = 1  
+MIRSUPPORT = 0  
 # number of Thread using in per job
 NumberOfThread = 24 
 
