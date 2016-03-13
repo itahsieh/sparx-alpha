@@ -63,7 +63,13 @@ source=model \
 out=pops molec='hco+' lte='True' snr=20 tolerance=5e-3
 
 # making the image
-sparx run task_lineobs source=pops out=map line=0 dist='1kpc' cell="['1asec','1asec']" npix="[128,128]"
+sparx run task_lineobs \
+source=pops \
+out=map \
+line=0 \
+dist='1kpc' \
+cell="['1asec','1asec']" \
+npix="[128,128]"
 
 
 
