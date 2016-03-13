@@ -1,20 +1,13 @@
 #! /bin/env python
+
 # Python Distutils setup script for SPARX
 
-# Version of SPARX
-Version = '2.3.1'
-dev = 1
+# VERSION_NUMBER of SPARX
+VERSION_NUMBER = '2.3.1'
 # MIRIAD support option
 MIRSUPPORT = 0  
 # number of Thread using in per job
 NumberOfThread = 24 
-
-# Define macros
-macros = [
-        ('NTHREAD', str(NumberOfThread)),
-        ('MIRSUPPORT',MIRSUPPORT),
-        ('DEV_VERSION',dev)
-]
 
 
 # Test for MPI by checking whether mpicc can be called
@@ -25,7 +18,7 @@ import time
 p = Popen("svnversion", shell=True, stdout=PIPE)
 REV = p.communicate()[0].strip()
 fo = file("lib/sparx/VERSION", "w")
-fo.write("%s (r%s, %s)"%(Version,REV, time.asctime()))
+fo.write("%s (r%s, %s)"%(VERSION_NUMBER,REV, time.asctime()))
 fo.close()
 
 ##
@@ -62,6 +55,8 @@ if MIRSUPPORT:
 
 
 # Check for additional search paths specified by user
+SPARXVERSION='sparx'
+SPARX_VERSION='sparx'
 USER_INCLUDE = []
 USER_LIB = []
 args = sys.argv[:]
@@ -82,7 +77,18 @@ for arg in args:
 	elif arg.find('--mpich') == 0:
 		mpi_libs = ['mpich', 'pgc', 'pgftnrtl', 'pgftnrtl', 'nspgc', 'pgc', 'rt']
 		sys.argv.remove(arg)
+	elif arg.find('--version') == 0:
+                SPARXVERSION += '-'+expanduser(arg.split('=')[1])
+                SPARX_VERSION += '_'+expanduser(arg.split('=')[1])
+                sys.argv.remove(arg)
 
+# Define macros
+macros = [
+        ('NTHREAD', str(NumberOfThread)),
+        ('MIRSUPPORT', MIRSUPPORT),
+        ('SPARXVERSION', '\"' + SPARXVERSION + '\"' ),
+        ('SPARX_VERSION', '\"' + SPARX_VERSION + '\"' ),
+]
 
 if not HAVE_MPI:
 	print\
@@ -250,7 +256,7 @@ if HAVE_MPI:
 
 # Definition for the _sparx extension module
 
-ext_sparx = Extension('sparx._sparx' if dev==0 else 'sparxdev._sparx',
+ext_sparx = Extension('sparx._sparx',
 	sources = sources_base+sources_sparx+[
 		'src/sparx-pyext-_sparx.c',
 		'src/sparx-task-amc.c',
@@ -269,14 +275,14 @@ ext_sparx = Extension('sparx._sparx' if dev==0 else 'sparxdev._sparx',
 # The main setup call
 setup(
 	name = 'sparx',
-	version = Version,
+	version = VERSION_NUMBER,
 	author = 'Eric Chung & I-Ta Hsieh',
 	author_email = 'schung@asiaa.sinica.edu.tw / ita.hsieh@gmail.com',
 	url = 'http://esclab.tw/wiki/index.php/Category:SPARX',
 	description = 'SPARX Platform for Astrophysical Radiative Xfer',
-	packages = ['sparx' if dev==0 else 'sparxdev'],
-	package_dir = {'sparx' if dev==0 else 'sparxdev': "lib/sparx"},
-	package_data = {'sparx' if dev==0 else 'sparxdev': [
+	packages = [SPARX_VERSION],
+	package_dir = { SPARX_VERSION : "lib/sparx"},
+	package_data = { SPARX_VERSION : [
 		'data/molec/*.dat', # Molecular data files
 		'data/opacity/*.tab', # Opacity data files
 		'VERSION', # Program version

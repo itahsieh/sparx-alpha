@@ -1,115 +1,126 @@
-# =========================================================================
-# |                  The Quick Guidance for SPARX                         |
-# |  https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/sparx_quick_start.txt |
-# |                           I-Ta Hsieh                                  |
-# |                         < 2016.2.24 >                                 |
-# =========================================================================
+# =====================================================
+# |          The Quick Guidance for SPARX             |
+# |                   I-Ta Hsieh                      |
+# |                 < 2016.3.12 >                     |
+# =====================================================
 
 
-############################ INSTALLATION ############################
-#
-#==== LOADING THE LIBRARY AND DEPENDENT PACKAGES =====
-| ## If you are the user on IAA's cluster
-| # copy the script to load the dependency of SPARX
-| cp /asiaa/home/ithsieh/.SPARX_dependent  $HOME/.SPARX_dependent
-| # source the script (add the line to .bashrc)
-| source $HOME/.SPARX_dependent
-|=====================================================
-| ## If you are the user/developer on TIARA's cluster
-| # load the modules (add to .bashrc)
-| module add \
-|       autoconf/2.68 \
-|       automake/1.11.1 \
-|       HDF/5-1.8.10_ic13.0_lam_7.1.4 \
-|       gsl/1.5_ic11.0 \
-|       HDFView/2.1 \
-|       libtool/2.4 \
-|       miriad/2011.7_gfortran
-|       icc/11.0 \
-|       lam/7.1.4_ic11.0 \
-|       python/2.5.6 \
-|       torque/2.5.3 \
-|       fftw/3.3_ic11.0 \
-|       cfitsio/3.181
-| # append the binary and python library path in .bashrc
-| PATH=$PATH:$HOME/opt/sparx/bin
-| export PYTHONPATH=$HOME/opt/sparx/lib/python2.5/site-packages:$PYTHONPATH
-|======================================================
-| ## If you are using ubuntu 14.04, 
-| sudo apt-get install libhdf5-openmpi-7 libhdf5-openmpi-7-dev libgsl0-dev libtool libfftw3-dev libcfitsio3-dev
-| python setup.py install --prefix=~/opt/sparx --with-include=/usr/lib/openmpi/include/-lib=LIB_PATH
-#======================================================
-#
-# download and extract the source code
-wget https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/sparx-alpha-2.3.0.tar.gz -O- | tar -xz
-# enter the directory and install 
-cd sparx-alpha
-./install
+#######################################################
+#                    INSTALLATION                     #
+#######################################################
 
-##############################################
-# If you are just the user for the applicational purpose on TIARA
-# try to load the SPARX module directly 
-# then just modify the preprocessor script to what you want 
-module add sparx
-##############################################
+-- 1. DOWNLOAD THE SOURCE CODE
+      * # download the source code from 
+        https://github.com/itahsieh/sparx-alpha
+        
+      * # or just command
+        git init
+        git clone https://github.com/itahsieh/sparx-alpha.git
 
-# test SPARX
-./test.sh
+-- 2. LOADING THE LIBRARY AND DEPENDENT PACKAGES
+      THEN INSTALL
+
+    * If you are the user/developer on TIARA's cluster
+        # enter the directory and install 
+        cd sparx-alpha
+        ./tiara-install.sh
+
+    * If you are just the user for the applicational 
+      purpose on TIARA, try to load the SPARX module 
+      directly. Then just modify the preprocessor script
+      to what you want. 
+        # load sparx module
+        module add sparx
+        
+    * If you are the user on IAA's cluster
+        # enter the directory and install 
+        cd sparx-alpha
+        ./iaa-install.sh
+        
+    * If you are using ubuntu 14.04, 
+        # enter the directory and install 
+        cd sparx-alpha
+        ./ubuntu-install.sh
+  
+-- 3. TEST
+        ./test.sh
 
 
-#########################################################################
-
-
-######################### THE TUTORIAL ##################################
+#######################################################
+#                    THE TUTORIAL                     #
+#######################################################
 # PREPROCESSOR : build a Shu's collapsing cloud
-sparx run task_shu1d out=model n_max='1e12m^-3' ndiv=64 abundance=1e-9 Vin='0.1kms^-1'
+sparx run task_shu1d \
+out=model \
+n_max='1e12m^-3' \
+ndiv=64 \
+abundance=1e-9 \
+Vin='0.1kms^-1'
+
 # non-LTE molecular excitation solver : AMC
-sparx run task_amc source=model out=pops molec='hco+' lte='True' snr=20 tolerance=5e-3
+sparx run task_amc \
+source=model \
+out=pops molec='hco+' lte='True' snr=20 tolerance=5e-3
+
 # making the image
 sparx run task_lineobs source=pops out=map line=0 dist='1kpc' cell="['1asec','1asec']" npix="[128,128]"
-#########################################################################
 
 
-################ HOW TO CREATE YOUR OWN SIMULATION ######################
+
+#######################################################
+#          HOW TO CREATE YOUR OWN SIMULATION          #
+#######################################################
+
 # create your own task into the tasks file (For creating 1D model)
-$HOME/pysparx/lib/sparx/tasks.py
+sparx-alpha/lib/sparx/tasks.py
+
 # A spherical 2D/3D preprocessor template
-https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/preprocess2D.py
+pre-sparx/SPH2D_preprocessor.py
+
 # A nested 3D Cartesian preprocessor template
-https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/nested3D.py
-# Full documentation 
-https://www.asiaa.sinica.edu.tw/~ithsieh/SPARX/SPARXmanual.pdf
-###########################################################################
+pre-sparx/nested3D.py
 
 
-##################### THINGS ABOUT THE NUMERICS ###########################
-#
-# - The most dominating numerical error in the scheme 
-#   * AMC -- Monte Carlo ray sampling 
-#         -- most computational demanding (0.5th order of accuracy in MC method)
-#         -- The other numerical errors could be eliminated easier 
-#
-# - How to determine and request the AMC error?
-#   * How large is the observational noise? -- set the numerical SNR over the instrumental SNR
-#   * "snr" flag -- typical value : 20
-#
-# - How are the other errors in the whole simulation?
-#   * preprocessor : 
-#     -- Error of FEM (Finite Element method)
-#     -- How many number of cell should we adopt?
-#        Suggestion : test the convergency of the total mass
-#                     make the error 1 order less than MC noise 
-#   * AMC solver : 
-#     -- MC noise : number of rays ('snr' flag) 
-#     -- ALI stopping criteria : iteration error ('tolerance' flag)
-#                                make the error 1 order less than MC noise
-#     -- Detailed balance loop : inner iteration error ('minpop' flag, typically 1e-6)
-#   * Image mapping : 
-#     --  How many resolution should be used when ray sampling?
-#         Suggestion : Twice finer than the ∆x in the grding of physical model
-#                      ('cell' flag to refine the pixel size)      
-#                      Could double the sampling to check if there's significant change on the emission
-#                      'subres' flag could be used for sub-level and specific region sampling
-# 
-#############################################################################
+#######################################################
+#               THINGS ABOUT NUMERICS                 #
+#######################################################
+
+ - The most dominating numerical error in the scheme 
+   * AMC -- Monte Carlo ray sampling 
+         -- most computational demanding 
+            (0.5th order of accuracy in MC method)
+         -- The other numerical errors could be eliminated easier 
+
+ - How to determine and request the AMC error?
+   * How large is the observational noise? 
+     -- set the numerical SNR over the instrumental SNR
+   * "snr" flag 
+     -- typical value : 20
+
+ - How are the other errors in the whole simulation?
+   * preprocessor : 
+     -- Error of FEM (Finite Element method)
+     -- How many number of cell should we adopt?
+        Suggestion : test the convergency of the total mass
+                     make the error 1 order less than MC noise 
+   * AMC solver : 
+     -- MC noise : number of rays ('snr' flag) 
+     -- ALI stopping criteria : 
+        iteration error ('tolerance' flag)
+        make the error 1 order less than MC noise
+     -- Detailed balance loop : 
+        inner iteration error 
+        ('minpop' flag, typically 1e-6)
+   
+   * Image mapping : 
+     --  How many resolution should be used when ray sampling?
+         Suggestion : 
+         Twice finer than the ∆x in the grding of physical model
+         ('cell' flag to refine the pixel size)      
+         Could double the sampling to check 
+         if there's significant change of the emission
+         'subres' flag could be used for sub-level and 
+         specific region sampling
+ 
+
 

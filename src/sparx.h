@@ -12,6 +12,10 @@
 	#define Sp_ROOT "./"
 #endif
 
+/* SPARX VERSION */
+#define Sp_SPARXVERSION SPARXVERSION
+#define Sp_SPARX_VERSION SPARX_VERSION
+
 /* Miriad support */
 #define Sp_MIRSUPPORT MIRSUPPORT
 
@@ -48,6 +52,7 @@
 #include <assert.h>
 #include <float.h>
 #include <time.h>
+#include <string.h>
 
 /* Other in-house routines */
 #include "memory.h"

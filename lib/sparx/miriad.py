@@ -1,3 +1,4 @@
+import sparx as sparx
 ##
 ## Interface to miriad data
 ##

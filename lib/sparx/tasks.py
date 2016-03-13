@@ -12,6 +12,12 @@
 # 5) Point self.cfunc to a proper C function if needed.
 # 6) All done!
 
+# rename sparx to point it to SPARXVERSION 
+import SPARXVERSION
+import sys
+sys.modules['sparx'] = SPARXVERSION
+import sparx
+
 # Some necessary imports
 from math import sqrt
 from sparx.utils import MESG as Mesg, MPI_SIZE, MPI_RANK

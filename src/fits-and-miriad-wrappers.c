@@ -204,14 +204,16 @@ void MirImg_Free(void *img_p)
 	free(img);
 }
 
-#if Sp_MIRSUPPORT
+
 /*----------------------------------------------------------------------------*/
 
 MirFile *MirXY_Open_new(const char *name, size_t nx, size_t ny, size_t nv)
 {
 	int nsize[3] = {(int)nx, (int)ny, (int)nv}, tno;
 	MirFile *fp;
+        #if Sp_MIRSUPPORT
 	xyopen_c(&tno, name, "new", 3, nsize);
+        #endif
 	fp = Mem_CALLOC(1, fp);
 	fp->name = Mem_STRDUP(name);
 	fp->tno = tno;
@@ -219,6 +221,7 @@ MirFile *MirXY_Open_new(const char *name, size_t nx, size_t ny, size_t nv)
 	return fp;
 }
 
+#if Sp_MIRSUPPORT
 /*----------------------------------------------------------------------------*/
 
 void MirVar_ListRead(MirVar vars[], MirFile *fp)
