@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 # CHECK if LOAD_MODULE_FILE exits
 if [ ! -e $LOAD_MODULE_FILE ];then
   cp load_tiara_module.sh $LOAD_MODULE_FILE
-  printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE${NC}\n"
+  printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
 fi
 
 
@@ -42,7 +42,7 @@ printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
 
 # REPLACE sparx_module in FILE to 'sparx_CLUSTERNAME' 
 FILE='__init__.py'
-if [ $CLUSTERNAME == 'xl' -o  $HOSTNAME == 'ashpc' ];then
+if [ "$CLUSTERNAME" == "xl" -o  "$HOSTNAME" == "ashpc" ];then
   PYTHON_NAME='python2.7'
 else
   PYTHON_NAME='python2.5'

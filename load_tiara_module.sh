@@ -8,9 +8,8 @@ CLUSTERNAME=${HOSTNAME:0:2}
 SPARXVERSION='sparx-'$CLUSTERNAME
 SPARX_VERSION='sparx_'$CLUSTERNAME
 
-
+#module add icc
 module add git
-module add icc
 module add torque
 module add cfitsio
 module add openmpi

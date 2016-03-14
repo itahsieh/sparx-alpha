@@ -76,7 +76,16 @@ PyMODINIT_FUNC init_sparx(void)
 	Sp_parm.mpi_size = 1;
 
 	/* Initialize module */
-        mod = Py_InitModule( strcat(Sp_SPARX_VERSION,"._sparx"), _SPARXMethods);
+        char static_library[7] = "._sparx";
+        char *static_library_path = 
+                (char *) malloc(
+                        1 + 
+                        strlen(Sp_SPARX_VERSION)+ 
+                        strlen(static_library) 
+                );
+        strcpy(static_library_path, Sp_SPARX_VERSION);
+        strcat(static_library_path, static_library);
+        mod = Py_InitModule( static_library_path, _SPARXMethods);
 
 	/* Necessary for NumPy */
 	import_array();

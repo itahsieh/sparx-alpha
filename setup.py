@@ -116,7 +116,7 @@ MPI support available
 # Compiler flags
 compiler_flags = [
 	'-std=c99',
-	'-pedantic',
+#	'-pedantic',
 	'-fshort-enums',
 	'-fno-common',
 	'-Dinline=',
@@ -126,7 +126,7 @@ compiler_flags = [
 	'-pthread',
 #	'-Werror',
 	'-Wall',
-	'-W',
+#	'-W',
 	'-Wmissing-prototypes',
 	'-Wstrict-prototypes',
 	'-Wpointer-arith',
