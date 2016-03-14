@@ -1,3 +1,13 @@
+#==========================================================#
+# This section is for renaming sparx to point it to 
+# $SPARXVERSION for installer  
+# It can be modify to different version of machine,
+#       e.g. sparx_oc/tc/px/xl
+import SPARX_VERSION
+import sys
+sys.modules['sparx'] = SPARX_VERSION
+#==========================================================#
+
 ##
 ## The main sparx module
 ##
@@ -5,6 +15,8 @@
 # Some necessary imports
 import os
 from math import sqrt, exp
+
+
 
 # Get root package directory
 ROOT_DIR = os.path.realpath(os.path.dirname(__file__))

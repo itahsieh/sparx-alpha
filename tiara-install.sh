@@ -1,8 +1,11 @@
 #! /bin/bash
 
 LOAD_MODULE_FILE=~/.load_sparx_module
-HOSTNAME=`hostname`
-CLUSTERNAME=${HOSTNAME:0:2}
+
+# LOAD MODULE AND DEFINE SPARXVERSION
+source $LOAD_MODULE_FILE
+printf "${YELLOW}LOAD MODULE${NC}\n"
+
 destination=$HOME/opt/$SPARXVERSION
 
 # the color label
@@ -13,16 +16,12 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 
-
 # CHECK if LOAD_MODULE_FILE exits
 if [ ! -e $LOAD_MODULE_FILE ];then
   cp load_tiara_module.sh $LOAD_MODULE_FILE
   printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE${NC}\n"
 fi
 
-# LOAD MODULE AND DEFINE SPARXVERSION
-source $LOAD_MODULE_FILE
-printf "${YELLOW}LOAD MODULE${NC}\n"
 
 # INSTALLATION
 rm -rf build/* $destination
@@ -40,30 +39,33 @@ python setup.py install \
 --with-lib=$CFITSIO_HOME/lib
 printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
 
+
+# REPLACE sparx_module in FILE to 'sparx_CLUSTERNAME' 
+FILE='__init__.py'
+if [ $CLUSTERNAME == 'xl' -o  $HOSTNAME == 'ashpc' ];then
+  PYTHON_NAME='python2.7'
+else
+  PYTHON_NAME='python2.5'
+fi
+ABS_INTI_PATH="$destination/lib/$PYTHON_NAME/site-packages/$SPARX_VERSION/$FILE"
+sed -e "s/SPARX_VERSION/$SPARX_VERSION/g" \
+        lib/sparx/$FILE > $ABS_INTI_PATH
+printf "${LIGHTBLUE}CREATE ${FILE}${NC}\n"
+
+
 # REPLACE the first 'sparx' occurrence in bin/sparx TO 'sparx-CLUSTERNAME'
 EXECUTABLE=$destination/bin/$SPARXVERSION
-sed -e "6s/sparx/$SPARX_VERSION/" bin/sparx > $EXECUTABLE
+sed -e "s/SPARX_VERSION/$SPARX_VERSION/g" \
+        bin/sparx > $EXECUTABLE
 chmod 755 $EXECUTABLE
 rm $destination/bin/sparx
 printf "${RED}CREATE bin/${SPARXVERSION}${NC}\n"
 
-# REPLACE LINE 1 'sparx' in FILE TO 'sparx-CLUSTERNAME' 
-for FILE in tasks.py inputs.py miriad.py;do
-sed -e "1s/sparx/$SPARX_VERSION/" lib/sparx/$FILE \
-        > $destination/lib/python2.5/site-packages/$SPARX_VERSION/$FILE
-printf "${LIGHTBLUE}CREATE ${FILE}${NC}\n"
-done
 
-for FILE in grid.py models.py physics.py utils.py;do
-# REPLACE every 'sparx' in FILE to 'sparx-CLUSTERNAME' 
-sed -e "s/sparx/$SPARXVERSION/g" lib/sparx/$FILE \
-        > $destination/lib/python2.5/site-packages/$SPARX_VERSION/$FILE
-printf "${YELLOW}CREATE ${FILE}${NC}\n"
-done     
-
-mv $destination/lib/python2.5/site-packages/sparx/_sparx.so \
-        $destination/lib/python2.5/site-packages/$SPARX_VERSION/_sparx.so
-rm -rf $destination/lib/python2.5/site-packages/sparx
+mv $destination/lib/$PYTHON_NAME/site-packages/sparx/_sparx.so \
+        $destination/lib/$PYTHON_NAME/site-packages/$SPARX_VERSION/_sparx.so
+rm -rf $destination/lib/$PYTHON_NAME/site-packages/sparx
+        
         
 # check LOAD_MODULE_FILE to set SPARXVERSION's PATH
 if ! grep -q "# $SPARXVERSION PATH" $LOAD_MODULE_FILE; then
@@ -77,6 +79,7 @@ if ! grep -q "# $SPARXVERSION PATH" $LOAD_MODULE_FILE; then
         >> $LOAD_MODULE_FILE
   printf "${LIGHTCYAN}UPDATE $LOAD_MODULE_FILE${NC}\n"
 fi
+
 
 # check bashrc to source SPARX's module
 if ! grep -q "# SPARX ENVIROMENT" ~/.bashrc ; then

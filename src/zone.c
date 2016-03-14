@@ -441,7 +441,7 @@ Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt)
 	Zone *child = 0;
 	double *array;
 	double Rc, phi, Hz;
-	static pi = 4. * atan(1.);
+	static pi = 3.14159265358979323846264338327950288419716939937510;
 
 	/* If zone does not have children, zone is the leaf */
 	if(!zone->children)

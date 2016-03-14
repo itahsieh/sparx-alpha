@@ -1,1 +1,12 @@
+#!/bin/bash
 
+rm -rf model pops
+
+# generating P2A model
+printf "${LIGHTBLUE}GENERATING SPH1D GRID : AGB${NC}\n"
+$sparx_version run task_p2a out=model 
+$sparx_version run task_amc source=model \
+out=pops \
+molec=hco+ \
+snr=20 \
+tolerance=5e-3

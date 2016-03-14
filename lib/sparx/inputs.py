@@ -1,4 +1,3 @@
-import sparx as sparx
 ##
 ## This module handles most things related to sparx inputs
 ##
