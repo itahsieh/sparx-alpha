@@ -4,7 +4,7 @@ rm -rf map/ stokesq_map/ stokesu_map/ tau/ map.fits tau.fits
 
 printf "${LIGHTCYAN}START THE MAPPING OF CONTINUUM EMISSION ${NC}\n"
 
-$sparx_version run task_contobs \
+sparx run task_contobs \
 source=pops \
 out=map \
 wavelen='850um' \

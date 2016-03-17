@@ -1,6 +1,7 @@
 #include "sparx.h"
 #include "debug.h"
 #include <stdarg.h>
+#include <memory.h>
 
 #define PYMAIN\
 	PyImport_AddModule("__main__")
@@ -15,11 +16,24 @@ int SpPy_GetInput_PyObj(const char *name, PyObject **obj)
 	PyObject *inputs = NULL, *INP_DICT = NULL, *keyobj = NULL;
 	
 	/* Import sparx.inputs (new ref) */
-	if(!(inputs = PyImport_ImportModule("sparx.inputs"))) {
+        char static_library[] = ".inputs";
+        
+        char *static_library_path = 
+          malloc(1+ strlen(Sp_SPARX_VERSION) + strlen(static_library) );
+        //char static_library_path[16];
+        strcpy(static_library_path, Sp_SPARX_VERSION);
+        strcat(static_library_path, static_library);
+	if(!(inputs = PyImport_ImportModule(static_library_path))) {
 		PyWrErr_SetString(PyExc_Exception, "Error importing sparx.inputs");
 		sts = 1;
 	}
-
+#if 0
+printf("name=%s sts=%d\n", name, sts);
+printf("path=%s len=%d\n", static_library_path, strlen(static_library_path));
+printf("library=%s len=%d\n", static_library, strlen(static_library));
+printf("version=%s len=%d\n", Sp_SPARX_VERSION, strlen(Sp_SPARX_VERSION));
+#endif
+        free(static_library_path);
 	/* Get INP_DICT dictionary (new ref) */
 	if(!sts) {
 		INP_DICT = PyObject_GetAttrString(inputs, "INP_DICT");

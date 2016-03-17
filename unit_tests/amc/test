@@ -4,7 +4,7 @@ rm -rf pops
 # generating non-LTE level population
 printf "${YELLOW}RUNNING AMC${NC}\n"
 
-$sparx_version run task_amc source=model out=pops molec=hco+
+sparx run task_amc source=model out=pops molec=hco+
 
 # Generating CH3CN pops for overlap-emission test
 #$sparx_version run task_amc \

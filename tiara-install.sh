@@ -1,12 +1,5 @@
 #! /bin/bash
 
-LOAD_MODULE_FILE=~/.load_sparx_module
-
-# LOAD MODULE AND DEFINE SPARXVERSION
-source $LOAD_MODULE_FILE
-printf "${YELLOW}LOAD MODULE${NC}\n"
-
-destination=$HOME/opt/$SPARXVERSION
 
 # the color label
 LIGHTBLUE='\033[1;34m'
@@ -17,15 +10,23 @@ NC='\033[0m' # No Color
 
 
 # CHECK if LOAD_MODULE_FILE exits
+LOAD_MODULE_FILE=~/.load_sparx_module
 if [ ! -e $LOAD_MODULE_FILE ];then
   cp load_tiara_module.sh $LOAD_MODULE_FILE
   printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
 fi
 
 
+# LOAD MODULE AND DEFINE SPARXVERSION
+source $LOAD_MODULE_FILE
+#destination=$HOME/opt/$SPARXVERSION
+destination=$HOME/opt/sparx
+printf "${YELLOW}LOAD MODULE${NC}\n"
+
+
 # INSTALLATION
-rm -rf build/* $destination
-python setup.py install \
+rm -rf build/* 
+CC=icc python setup.py install \
 --prefix=$destination \
 --version=$CLUSTERNAME \
 --with-include=$FFTW_HOME/include/ \
@@ -35,45 +36,40 @@ python setup.py install \
 --with-lib=$GSL_HOME/lib \
 --with-lib=$FFTW_HOME/lib \
 --with-lib=$HDF5_HOME/lib \
---with-lib=$LAM_HOME/lib \
+--with-lib=$OPENMPI_HOME/lib \
 --with-lib=$CFITSIO_HOME/lib
 printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
 
 
-# REPLACE sparx_module in FILE to 'sparx_CLUSTERNAME' 
-FILE='__init__.py'
-if [ "$CLUSTERNAME" == "xl" -o  "$HOSTNAME" == "ashpc" ];then
-  PYTHON_NAME='python2.7'
-else
-  PYTHON_NAME='python2.5'
-fi
-ABS_INTI_PATH="$destination/lib/$PYTHON_NAME/site-packages/$SPARX_VERSION/$FILE"
-sed -e "s/SPARX_VERSION/$SPARX_VERSION/g" \
-        lib/sparx/$FILE > $ABS_INTI_PATH
-printf "${LIGHTBLUE}CREATE ${FILE}${NC}\n"
 
 
 # REPLACE the first 'sparx' occurrence in bin/sparx TO 'sparx-CLUSTERNAME'
 EXECUTABLE=$destination/bin/$SPARXVERSION
-sed -e "s/SPARX_VERSION/$SPARX_VERSION/g" \
+sed -e "s/import sparx/import $SPARX_VERSION/" \
+    -e "s/from sparx/from $SPARX_VERSION/" \
         bin/sparx > $EXECUTABLE
 chmod 755 $EXECUTABLE
 rm $destination/bin/sparx
 printf "${RED}CREATE bin/${SPARXVERSION}${NC}\n"
 
 
-mv $destination/lib/$PYTHON_NAME/site-packages/sparx/_sparx.so \
-        $destination/lib/$PYTHON_NAME/site-packages/$SPARX_VERSION/_sparx.so
-rm -rf $destination/lib/$PYTHON_NAME/site-packages/sparx
-        
-        
-# check LOAD_MODULE_FILE to set SPARXVERSION's PATH
-if ! grep -q "# $SPARXVERSION PATH" $LOAD_MODULE_FILE; then
-  echo "# $SPARXVERSION PATH" \
+# REPLACE sparx_module in FILE to 'sparx_CLUSTERNAME' 
+PYTHONPATH=$destination/lib/python2.7/site-packages
+for FILE in `ls lib/sparx | grep .py`;do
+  sed -e "s/import sparx/import $SPARX_VERSION/" \
+      -e "s/from sparx/from $SPARX_VERSION/" \
+          lib/sparx/$FILE > $PYTHONPATH/$SPARX_VERSION/$FILE
+  printf "${LIGHTBLUE}CREATE $SPARX_VERSION/$FILE${NC}\n"
+done
+
+
+# check LOAD_MODULE_FILE to set SPARX's PATH
+if ! grep -q "# SPARX PATH" $LOAD_MODULE_FILE; then
+  echo "# SPARX PATH" \
         >> $LOAD_MODULE_FILE
-  echo 'PATH=$PATH:$HOME/opt/'$SPARXVERSION'/bin' \
+  echo 'PATH=$PATH:$HOME/opt/sparx/bin' \
         >> $LOAD_MODULE_FILE
-  echo 'export PYTHONPATH=$PYTHONPATH:'$HOME'/opt/'$SPARXVERSION'/lib/python2.5/site-packages/' \
+  echo 'export PYTHONPATH=$PYTHONPATH:'$PYTHONPATH \
         >> $LOAD_MODULE_FILE
   echo 'alias sparx=$SPARXVERSION' \
         >> $LOAD_MODULE_FILE

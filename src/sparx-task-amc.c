@@ -143,12 +143,12 @@ int SpTask_Amc(void)
 		glb.rng[i] = gsl_rng_alloc(gsl_rng_ranlux);
 		gsl_rng_set(glb.rng[i], glb.seed);
 	}
-	
+
 	/* Init model */
 	if(!sts)
 		sts = InitModel();
 	
-	/* Calculate excitation */
+	/* Calculate excitation */       
 	if(!sts)
 		sts = CalcExc();
         
@@ -337,7 +337,7 @@ static void *InitModelThread(void *tid_p)
 
 		/* Pointer to physical parameters */
 		//zp = glb.zones[zone_id];
-		SpPhys *pp = zp->data;
+		SpPhys *pp = zp->data;printf("OK \n",);exit(0);
 
 		/* Init RT parameters only if there's gas here */
 		if(pp->non_empty_leaf) {

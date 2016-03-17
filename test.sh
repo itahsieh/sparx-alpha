@@ -7,9 +7,6 @@
 ###########################
 CASE=${1} 
 
-# configure SPARX command
-sparx_version=`which sparx`
-
 # the color label
 LIGHTBLUE='\033[1;34m'
 YELLOW='\033[1;33m'

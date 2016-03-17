@@ -12,7 +12,7 @@ static struct glb {
 int SpTask_PyGrid(void)
 {
 	int sts = 0, geom=0;
-	double gas_to_dust=0, T_cmb=0;
+	double gas_to_dust=0., T_cmb=0.;
 	size_t i, j, k, l, m;
 	GeVec3_d min, max;
 	GeVec3_s ndiv;

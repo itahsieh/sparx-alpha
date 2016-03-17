@@ -7,7 +7,7 @@ VERSION_NUMBER = '2.3.1'
 # MIRIAD support option
 MIRSUPPORT = 0  
 # number of Thread using in per job
-NumberOfThread = 24 
+NumberOfThread = 24
 
 
 # Test for MPI by checking whether mpicc can be called
@@ -256,7 +256,7 @@ if HAVE_MPI:
 
 # Definition for the _sparx extension module
 
-ext_sparx = Extension('sparx._sparx',
+ext_sparx = Extension( SPARX_VERSION + '._sparx'  ,
 	sources = sources_base+sources_sparx+[
 		'src/sparx-pyext-_sparx.c',
 		'src/sparx-task-amc.c',
@@ -278,8 +278,9 @@ setup(
 	version = VERSION_NUMBER,
 	author = 'Eric Chung & I-Ta Hsieh',
 	author_email = 'schung@asiaa.sinica.edu.tw / ita.hsieh@gmail.com',
-	url = 'http://esclab.tw/wiki/index.php/Category:SPARX',
-	description = 'SPARX Platform for Astrophysical Radiative Xfer',
+	#url = 'http://esclab.tw/wiki/index.php/Category:SPARX',
+        url = 'https://github.com/itahsieh/sparx-alpha',
+        description = 'SPARX Platform for Astrophysical Radiative Xfer',
 	packages = [SPARX_VERSION],
 	package_dir = { SPARX_VERSION : "lib/sparx"},
 	package_data = { SPARX_VERSION : [

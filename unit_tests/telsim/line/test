@@ -4,7 +4,7 @@ rm -rf map/ tau/ map.fits tau.fits
 
 printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
 
-$sparx_version run task_lineobs \
+sparx run task_lineobs \
 source=pops \
 out=map \
 line=1 \

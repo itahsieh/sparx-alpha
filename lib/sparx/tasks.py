@@ -179,6 +179,7 @@ class Task(object):
 def install_task(task):
 	import sys
 	mod = sys.modules[__name__]
+
 	if not hasattr(mod, task.name):
 		setattr(mod, task.name, task)
 		TASK_DICT[task.name] = task
