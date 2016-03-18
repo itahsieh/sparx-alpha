@@ -7,8 +7,8 @@ libhdf5-openmpi-7-dev \
 libgsl0-dev \
 libtool \
 libfftw3-dev \
-libcfitsio3-dev \ 
-git
+libcfitsio3-dev \
+libhdf5-mpich2-dev 
 
 destination=$HOME/opt/sparx
 rm -rf build/* $destination

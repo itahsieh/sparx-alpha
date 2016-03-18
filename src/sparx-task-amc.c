@@ -337,7 +337,7 @@ static void *InitModelThread(void *tid_p)
 
 		/* Pointer to physical parameters */
 		//zp = glb.zones[zone_id];
-		SpPhys *pp = zp->data;printf("OK \n",);exit(0);
+		SpPhys *pp = zp->data;//printf("OK \n");exit(0);
 
 		/* Init RT parameters only if there's gas here */
 		if(pp->non_empty_leaf) {

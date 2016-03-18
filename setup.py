@@ -7,8 +7,9 @@ VERSION_NUMBER = '2.3.1'
 # MIRIAD support option
 MIRSUPPORT = 0  
 # number of Thread using in per job
-NumberOfThread = 24
-
+import multiprocessing
+NumberOfThread = 2 * multiprocessing.cpu_count()
+print 'NumberOfThread=',NumberOfThread
 
 # Test for MPI by checking whether mpicc can be called
 from subprocess import call, Popen, PIPE
