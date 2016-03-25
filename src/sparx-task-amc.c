@@ -749,7 +749,7 @@ static void *CalcExcThread(void *tid_p)
 		
 		// restore
 		for(size_t i = 0; i < NLEV; i++) {
-			     	popsold[i]=pp->pops[tid][i];
+                        popsold[i]=pp->pops[tid][i];
 		}
 
 		/* Buffers for calculating excitation */
@@ -763,10 +763,10 @@ static void *CalcExcThread(void *tid_p)
 			if(!glb.fully_random)
 				gsl_rng_set(glb.rng[tid], glb.seed);
 
-			if(1) {
+                        #if 1
 				CalcRays(tid, zp, ds0, vfac0, intensity, tau);
-			}
-			else {
+			
+                        #else 
 				#define XI()\
 					gsl_rng_uniform(glb.rng[tid])
 				for(size_t i = 0; i < pp->nray; i++) {
@@ -775,7 +775,7 @@ static void *CalcExcThread(void *tid_p)
 					vfac0[i] = Num_GaussNormal(vel, pp->width);
 				}
 				#undef XI
-			}
+                        #endif
 			CalcDetailedBalance(tid, pp, ds0, vfac0, intensity, tau);
 
 			if(glb.stage == STAGE_RAN){

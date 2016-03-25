@@ -77,6 +77,7 @@
 
 
 /* Globally useful constants */
+#define M_PI 3.14159265358979323846264338327950288419716939937510
 #define PI Num_PI
 #define TWOPI Num_TWOPI
 #define T_CMB 2.728

@@ -25,8 +25,10 @@ printf "${YELLOW}LOAD MODULE${NC}\n"
 
 
 # INSTALLATION
-rm -rf build/* 
-CC=icc python setup.py install \
+rm -rf build/*
+export CC=icc
+CC=icc \
+python setup.py install \
 --prefix=$destination \
 --version=$CLUSTERNAME \
 --with-include=$FFTW_HOME/include/ \
@@ -37,7 +39,7 @@ CC=icc python setup.py install \
 --with-lib=$FFTW_HOME/lib \
 --with-lib=$HDF5_HOME/lib \
 --with-lib=$OPENMPI_HOME/lib \
---with-lib=$CFITSIO_HOME/lib
+--with-lib=$CFITSIO_HOME/lib 
 printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
 
 
