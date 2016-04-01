@@ -162,6 +162,9 @@ GeVec3_d GeVec3_Rotate_y(const GeVec3_d *vec, double phi);
 GeVec3_d GeVec3_Rotate_z(const GeVec3_d *vec, double phi);
 GeVec3_d GeVec3_Rotate(const GeVec3_d *vec, const GeCam *cam);
 
+GeVec3_d * GeVec3_Sph2Cart( double, double, double);
+GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *);
+
 int point_in_voxel2(const GeVec3_d *pt, const GeVox *voxel, size_t axis);
 int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis);
 

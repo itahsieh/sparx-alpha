@@ -21,7 +21,7 @@ mkdir -p $PBS_O_WORKDIR
 cd $PBS_O_WORKDIR
 
 ###### Load modules to setup environment ######
-source ~/../ydhsieh/.load_sparx_module
+source ~/.load_sparx_module
 
 
 ###### Run parallel jobs ######

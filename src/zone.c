@@ -237,7 +237,7 @@ Zone *Zone_AscendTree(Zone *zone)
 
 /*----------------------------------------------------------------------------*/
 
-Zone *Zone_GetLeaf(Zone *zone, size_t side, const GeVec3_d *pt, GeRay *ray)
+Zone *Zone_GetLeaf(Zone *zone, size_t side, const GeVec3_d *pt, const GeRay *ray)
 {
 	Zone *leaf = NULL;
 
@@ -286,7 +286,7 @@ Zone *Zone_GetLeaf_sph1d(Zone *zone, size_t side)
 }
 
 /*----------------------------------------------------------------------------*/
-Zone *Zone_GetLeaf_sph3d(Zone *zone, size_t side, const GeVec3_d *pt, GeRay *ray)
+Zone *Zone_GetLeaf_sph3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRay *ray)
 /* Locate leaf zone on side containing pt */
 {
 	size_t i, j;
@@ -441,7 +441,7 @@ Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt)
 	Zone *child = 0;
 	double *array;
 	double Rc, phi, Hz;
-	static pi = 3.14159265358979323846264338327950288419716939937510;
+	static double pi = 3.14159265358979323846264338327950288419716939937510;
 
 	/* If zone does not have children, zone is the leaf */
 	if(!zone->children)
@@ -528,7 +528,7 @@ Zone *Zone_GetNext_sph1d(Zone *zone, size_t side)
 }
 
 /*----------------------------------------------------------------------------*/
-Zone *Zone_GetNext_sph3d(Zone *zone, size_t *side, GeVec3_d *pt, GeRay *ray)
+Zone *Zone_GetNext_sph3d(Zone *zone, size_t *side, const GeVec3_d *pt, const GeRay *ray)
 /* Given face and point of intersection, locate next zone to enter */
 {
 	size_t axis = *side / 2; /* driving axis */
@@ -623,7 +623,7 @@ Zone *Zone_GetNext_rec3d(Zone *zone, size_t side, const GeVec3_d *pt)
 
 /*----------------------------------------------------------------------------*/
 
-Zone *Zone_GetNext_cyl3d(Zone *zone, size_t *side, GeVec3_d *pt)
+Zone *Zone_GetNext_cyl3d(Zone *zone, size_t *side, const GeVec3_d *pt)
 /* Given face and point of intersection, locate next zone to enter */
 {
 	size_t axis = *side / 2; /* driving axis */
@@ -655,19 +655,19 @@ Zone *Zone_GetNext_cyl3d(Zone *zone, size_t *side, GeVec3_d *pt)
 		}
 	}
 	// no parent, root zone
-	else if(axis==0){ 
-		if(side==0)
+	else if( axis == 0 ){ 
+		if( *side == 0 )
 			return Zone_GetLeaf_cyl3d(zone, 0, pt );
-		else if(side==1)
+		else if( *side == 1 )
 			/* Outermost zone reached, no next-zone */
 // 			Deb_PRINT("getting out!\n");
 			return NULL;
 	}
-	else if(axis==1){
+	else if( axis == 1 ){
 		*side = (*side % 2 == 0) ? *side + 1 : *side - 1;
 		return Zone_GetLeaf_cyl3d(zone, *side, pt );
 	}
-	else if(axis==2){
+	else if( axis == 2 ){
 		NULL;
 	}
 
@@ -716,7 +716,7 @@ Zone *Zone_GetNext(Zone *zone, size_t *side, const GeRay *ray)
 			break;
 			
 		case GEOM_CYL3D:
-			next = Zone_GetNext_cyl3d(zone, *side, &(ray->e));
+			next = Zone_GetNext_cyl3d(zone, side, &(ray->e));
 			break;
 
 		default: /* Shouldn't happen */

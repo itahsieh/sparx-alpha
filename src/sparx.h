@@ -77,7 +77,6 @@
 
 
 /* Globally useful constants */
-#define M_PI 3.14159265358979323846264338327950288419716939937510
 #define PI Num_PI
 #define TWOPI Num_TWOPI
 #define T_CMB 2.728
@@ -253,6 +252,7 @@ double SpPhys_Zfunc(const Molec *mol, double T_k);
 double SpPhys_BoltzPops(const Molec *mol, size_t lev, double T_k);
 void SpPhys_GetMoljk(size_t tid, const SpPhys *pp, size_t tr, double vfac, double *j_nu, double *k_nu);
 GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone);
+GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone);
 GeVec3_d SpPhys_GetVfunc(const GeRay *ray, double dt, const Zone *zone);
 GeVec3_d SpPhys_GetBfunc(const GeRay *ray, double dt, const Zone *zone);
 

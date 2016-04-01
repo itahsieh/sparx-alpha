@@ -351,6 +351,51 @@ Rotation matrix about z:
 	return GeVec3_MatOp(vec, &matrix);
 }
 
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d * GeVec3_Sph2Cart( double R, double theta, double phi){
+        GeVec3_d *Cartesian = Mem_CALLOC( 1, Cartesian);
+        // x-ordinate
+        Cartesian->x[0] = R * sin(theta) * cos(phi); 
+        // y-ordiante
+        Cartesian->x[1] = R * sin(theta) * sin(phi); 
+        // z-ordinate
+        Cartesian->x[2] = R * cos(theta);
+        
+        return Cartesian;
+}
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
+        double x = Cartesian->x[0];
+        double y = Cartesian->x[1];
+        double z = Cartesian->x[2];
+        
+        double R = sqrt( x * x + y * y + z * z );
+        // R must be maximum!
+        R = ( R < x ) ? x : ( R < y ) ? y : ( R < z ) ? z : R;
+        GeVec3_d *Spherical = Mem_CALLOC( 1, Spherical);
+        
+        // R-ordinate
+        Spherical->x[0] = R;
+        // theta-ordinate
+        Spherical->x[1] = ( R == 0. ) ?
+                0. :
+                acos( z / Spherical->x[0] );
+        // phi-ordinate
+        double Rc = sqrt( x * x + y * y);
+        // Rc must be maximum!
+        Rc = ( Rc < x ) ? x : ( Rc < y ) ? y : Rc;
+        Spherical->x[2] = ( Rc == 0. ) ?
+                0. : ( y >= 0.) ? 
+                        acos( x / Rc ) : 
+                        2. * M_PI - acos( x / Rc );
+        
+        return Spherical;
+}
+
 /*----------------------------------------------------------------------------*/
 
 GeRay GeRay_Init(double ex, double ey, double ez, double dx, double dy, double dz)
@@ -1016,25 +1061,25 @@ Side 4&5: lower/upper phi
 	}
 	
 	double t20, t21;
-	if( theta_in < half_pi || fabs(theta_in-half_pi)<1e-16 ){ 
+	if( theta_in < half_pi || fabs(theta_in-half_pi) < 1e-16 ){ 
 		//printf("upper semi-sphere %g %g\n",fabs(half_pi-theta_out),fabs(half_pi-theta_in));
 		if( oldside == 2 )
 			t2 = HUGE_VAL;
 		else{
 			GeRay_IntersectTheta(ray, theta_in, &t20, &t21);
 			t2 = Num_MIN(t20,t21);
-			if(t2<=0.0) t2=HUGE_VAL;
+			if(t2 <= 0.0) t2 = HUGE_VAL;
 		}
 	}
 	else{
 		GeRay_IntersectTheta(ray, theta_in, &t20, &t21);
 		if( oldside == 2 ){
 			t2 = Num_MAX(t20,t21);
-			if(t2<=0.0) t2=HUGE_VAL;
+			if(t2 <= 0.0) t2 = HUGE_VAL;
 		}
 		else{
-			if(t20<=0.0) t20=HUGE_VAL;
-			if(t21<=0.0) t21=HUGE_VAL;
+			if(t20 <= 0.0) t20 = HUGE_VAL;
+			if(t21 <= 0.0) t21 = HUGE_VAL;
 			t2 = Num_MIN(t20,t21);
 		}
 	}
@@ -1284,7 +1329,7 @@ Side 2&3: minimum/maximum phi
 Side 4&5: lower/upper Height
 */
 {
-	double t[4],
+	double t[6],
 	       Rc_in = GeVec3_X(voxel->min, 0), 
 	       Rc_out = GeVec3_X(voxel->max, 0),
 	       Phi_min = GeVec3_X(voxel->min, 1),
