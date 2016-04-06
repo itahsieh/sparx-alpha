@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -rf map/ tau/ map.fits tau.fits
+rm -rf map/ tau/ map.fits tau.fits vis.vtk
 
 printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
 
@@ -9,6 +9,6 @@ source=../pops_storage/1Dpops/pops \
 out=map \
 line=1 \
 tau=tau \
-npix="[31,31]" \
-chan="[31,'0.1kms^-1']" \
+npix="[32,32]" \
+chan="[32,'0.1kms^-1']" \
 subres="[['-10asec','-10asec','10asec','10asec',4]]"
