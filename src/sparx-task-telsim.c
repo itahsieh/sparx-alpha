@@ -1846,24 +1846,11 @@ void generic_vtk(int geom){
 /*----------------------------------------------------------------------------*/
 
 void vtk_sph1d( Zone *root, size_t nvelo){
-        // open VTK file
-        FILE *fp;
-        char filename[32];
-        sprintf(filename,"vis.vtk");
-        fp=fopen(filename,"w");
+        // Dimension of the visualized resolution
+        size_t nr = root->nchildren, nt = 45, np = 90;
+        size_t nelement =  nr * np * nt;
         
-        // write the header
-        fprintf(fp,"# vtk DataFile Version 3.0\n");
-        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
-        fprintf(fp,"ASCII\n");
-        
-        // define the type of the gridding
-        fprintf(fp,"DATASET STRUCTURED_GRID\n");
-        size_t nr = root->nchildren,
-               nt = 45,
-               np = 90;
-        fprintf(fp,"DIMENSIONS %zu %zu %zu\n", np+1, nt+1, nr+1);
-        fprintf(fp,"POINTS %zu float\n", (nr+1) * (nt+1) * (np+1) );
+        // construct the expanding SPH3D mesh
         double * radius = Mem_CALLOC( nr+1, radius);
         double * theta = Mem_CALLOC( nt+1, theta);
         double * phi = Mem_CALLOC( np+1, phi);
@@ -1878,20 +1865,8 @@ void vtk_sph1d( Zone *root, size_t nvelo){
         phi[0] = 0.;
         for (size_t k = 1; k < np+1; k ++)
                 phi[k] = phi[k-1] + delta_phi;
-        for( size_t i = 0; i < nr + 1; i++)
-         for( size_t j = 0; j < nt + 1; j++)
-          for( size_t k = 0; k < np + 1; k++){
-                double x = radius[i] * sin(theta[j]) * cos(phi[k]);
-                double y = radius[i] * sin(theta[j]) * sin(phi[k]);
-                double z = radius[i] * cos(theta[j]);
-                fprintf(fp,"%E %E %E\n", x, y, z);
-          }
-        // write the artributes
-        size_t nelement =  nr * np * nt;
-        fprintf(fp,"CELL_DATA %zu\n", nelement );
-        fprintf(fp,"FIELD CONTRIBUTION&TAU 3\n");
-        // write the contribution of the cells
-        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
+        
+        // calculate the contribution of the cells
         double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
         double * tau = Mem_CALLOC( nelement * nvelo, tau);
         double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
@@ -1911,10 +1886,6 @@ void vtk_sph1d( Zone *root, size_t nvelo){
                         
                                 size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
                                 Contribution_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone);
-                                for ( size_t l = 0; l < nvelo; l++){
-                                        fprintf(fp,"%E ", contrib[ idx + l ]);
-                                }
-                                fprintf(fp,"\n");
                                 
                                 #if 1
                                 printf("zone pos = %zu %zu %zu\n",i,j,k);
@@ -1925,7 +1896,45 @@ void vtk_sph1d( Zone *root, size_t nvelo){
                                 #endif
                         }
                 }
-                
+        }
+        
+        
+        // open VTK file
+        FILE *fp;
+        char filename[32];
+        sprintf(filename,"vis.vtk");
+        fp=fopen(filename,"w");
+        
+        // write the header
+        fprintf(fp,"# vtk DataFile Version 3.0\n");
+        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
+        fprintf(fp,"ASCII\n");
+        
+        // define the type of the gridding
+        fprintf(fp,"DATASET STRUCTURED_GRID\n");
+        fprintf(fp,"DIMENSIONS %zu %zu %zu\n", np+1, nt+1, nr+1);
+        fprintf(fp,"POINTS %zu float\n", (nr+1) * (nt+1) * (np+1) );
+        for( size_t i = 0; i < nr + 1; i++)
+         for( size_t j = 0; j < nt + 1; j++)
+          for( size_t k = 0; k < np + 1; k++){
+                double x = radius[i] * sin(theta[j]) * cos(phi[k]);
+                double y = radius[i] * sin(theta[j]) * sin(phi[k]);
+                double z = radius[i] * cos(theta[j]);
+                fprintf(fp,"%E %E %E\n", x, y, z);
+          }
+        // write the artributes
+        fprintf(fp,"CELL_DATA %zu\n", nelement );
+        fprintf(fp,"FIELD CONTRIBUTION&TAU 3\n");
+
+        // write the contribution of the cells
+        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
+        for( size_t i = 0; i < nr; i++)
+         for( size_t j = 0; j < nt; j++)
+           for( size_t k = 0; k < np; k++){
+                size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
+                for ( size_t l = 0; l < nvelo; l++)
+                        fprintf(fp,"%E ", contrib[ idx + l ]);
+                fprintf(fp,"\n");
         }
         
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
@@ -1945,15 +1954,17 @@ void vtk_sph1d( Zone *root, size_t nvelo){
                 for ( size_t l = 0; l < nvelo; l++)
                         fprintf(fp,"%E ", tau_dev[ idx + l ]);
                 fprintf(fp,"\n");
-        } 
+        }
+        fclose(fp);
+        printf("wrote %s\n",filename);
+        
         free(contrib);
         free(tau);
         free(tau_dev);
         free(radius);
         free(theta);
         free(phi);
-        fclose(fp);
-        printf("wrote %s\n",filename);
+        
         
         return;
 }
@@ -2270,56 +2281,56 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         double phi_out = voxel->max.x[2];
         
         GeRay ray2;
-        GeVec3_d *Ray2PosSph;
+        GeVec3_d *RaySphPos;
         
-        
-        double t_Tin1, t_Tin2;
-        GeRay_IntersectTheta(ray, theta_in, &t_Tin1, &t_Tin2);
-        double t_Tin;
+        // t_Tl : distance to lower theta
+        double t_Tl1, t_Tl2;
+        GeRay_IntersectTheta(ray, theta_in, &t_Tl1, &t_Tl2);
+        double t_Tl;
         if ( theta_in < half_pi || fabs(theta_in-half_pi) > 1e-10 ){
-                t_Tin = Num_MAX(t_Tin1,t_Tin2);
-                if(t_Tin <= 0.0) t_Tin = HUGE_VAL;
+                t_Tl = Num_MAX(t_Tl1,t_Tl2);
+                if(t_Tl <= 0.0) t_Tl = HUGE_VAL;
         }
         else{
-                if ( t_Tin1 <= 0.0 ) t_Tin1 = HUGE_VAL;
-                if ( t_Tin2 <= 0.0 ) t_Tin2 = HUGE_VAL;
-                t_Tin = Num_MIN(t_Tin1,t_Tin2);
+                if ( t_Tl1 <= 0.0 ) t_Tl1 = HUGE_VAL;
+                if ( t_Tl2 <= 0.0 ) t_Tl2 = HUGE_VAL;
+                t_Tl = Num_MIN(t_Tl1,t_Tl2);
         }
-        ray2 = GeRay_Inc(ray, t_Tin);
-        Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
-        if( ( Ray2PosSph->x[0] > R_out   ) ||
-            ( Ray2PosSph->x[0] < R_in    ) ||
-            ( Ray2PosSph->x[2] < phi_in  ) ||
-            ( Ray2PosSph->x[2] > phi_out )    )
-                t_Tin = HUGE_VAL;
+        ray2 = GeRay_Inc(ray, t_Tl);
+        RaySphPos = GeVec3_Cart2Sph(&ray2.e);
+        if( ( RaySphPos->x[0] > R_out   ) ||
+            ( RaySphPos->x[0] < R_in    ) ||
+            ( RaySphPos->x[2] < phi_in  ) ||
+            ( RaySphPos->x[2] > phi_out )    )
+                t_Tl = HUGE_VAL;
         
-        
-                double t_Tout1, t_Tout2;
-        GeRay_IntersectTheta(ray, theta_out, &t_Tout1, &t_Tout2);
-        double t_Tout;
+        // t_Tu : distance to upper theta
+        double t_Tu1, t_Tu2;
+        GeRay_IntersectTheta(ray, theta_out, &t_Tu1, &t_Tu2);
+        double t_Tu;
         if ( theta_out < half_pi || fabs(theta_in-half_pi) < 1e-10 ){
-                if ( t_Tout1 <= 0.0 ) t_Tout1 = HUGE_VAL;
-                if ( t_Tout2 <= 0.0 ) t_Tout2 = HUGE_VAL;
-                t_Tout = Num_MIN(t_Tout1,t_Tout2);
+                if ( t_Tu1 <= 0.0 ) t_Tu1 = HUGE_VAL;
+                if ( t_Tu2 <= 0.0 ) t_Tu2 = HUGE_VAL;
+                t_Tu = Num_MIN(t_Tu1,t_Tu2);
         }
         else{
-                t_Tout = Num_MAX(t_Tout1,t_Tout2);
-                if ( t_Tout <= 0.0 ) t_Tout = HUGE_VAL;
+                t_Tu = Num_MAX(t_Tu1,t_Tu2);
+                if ( t_Tu <= 0.0 ) t_Tu = HUGE_VAL;
         }
-        ray2 = GeRay_Inc(ray, t_Tout);
-        Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
+        ray2 = GeRay_Inc(ray, t_Tu);
+        RaySphPos = GeVec3_Cart2Sph(&ray2.e);
         #if 0
         printf("x y z \t= %E %E %E\n", ray2.e.x[0], ray2.e.x[1], ray2.e.x[2]);
-        printf("R Theta Phi \t= %E %E %E\n", Ray2PosSph->x[0], Ray2PosSph->x[1], Ray2PosSph->x[2]);
+        printf("R Theta Phi \t= %E %E %E\n", RaySphPos->x[0], RaySphPos->x[1], RaySphPos->x[2]);
         printf("%E %E %E %E %E %E\n", R_in, R_out, theta_in, theta_out, phi_in, phi_out);
         #endif
-        if( ( Ray2PosSph->x[0] > R_out   ) ||
-            ( Ray2PosSph->x[0] < R_in    ) ||
-            ( Ray2PosSph->x[2] < phi_in  ) ||
-            ( Ray2PosSph->x[2] > phi_out )    )
-                t_Tout = HUGE_VAL;
+        if( ( RaySphPos->x[0] > R_out   ) ||
+            ( RaySphPos->x[0] < R_in    ) ||
+            ( RaySphPos->x[2] < phi_in  ) ||
+            ( RaySphPos->x[2] > phi_out )    )
+                t_Tu = HUGE_VAL;
 
-        
+        // t_Pin : distance to inner phi
         double t_Pin;
         if( -sin(phi_in) * ray->d.x[0] + cos(phi_in) * ray->d.x[1] < 0.0 ){
                 t_Pin = HUGE_VAL;
@@ -2327,15 +2338,15 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         else{
                 GeRay_IntersectPhi(ray, phi_in, &t_Pin);
                 ray2 = GeRay_Inc(ray, t_Pin);
-                Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
-                if( ( Ray2PosSph->x[0] > R_out  ) ||
-                    ( Ray2PosSph->x[0] < R_in   ) ||
-                    ( Ray2PosSph->x[1] < theta_in ) ||
-                    ( Ray2PosSph->x[1] > theta_out )   )
+                RaySphPos = GeVec3_Cart2Sph(&ray2.e);
+                if( ( RaySphPos->x[0] > R_out  ) ||
+                    ( RaySphPos->x[0] < R_in   ) ||
+                    ( RaySphPos->x[1] < theta_in ) ||
+                    ( RaySphPos->x[1] > theta_out )   )
                         t_Pin = HUGE_VAL;
         }
         
-        
+        // distance to outer phi
         double t_Pout;
         if( sin(phi_out) * ray->d.x[0] - cos(phi_out) * ray->d.x[1] < 0.0 ){
                 t_Pout=HUGE_VAL;
@@ -2343,11 +2354,11 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         else{
                 GeRay_IntersectPhi(ray, phi_out, &t_Pout);
                 ray2 = GeRay_Inc(ray, t_Pout);
-                Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
-                if( ( Ray2PosSph->x[0] > R_out  ) ||
-                    ( Ray2PosSph->x[0] < R_in   ) ||
-                    ( Ray2PosSph->x[1] < theta_in ) ||
-                    ( Ray2PosSph->x[1] > theta_out )   )
+                RaySphPos = GeVec3_Cart2Sph(&ray2.e);
+                if( ( RaySphPos->x[0] > R_out  ) ||
+                    ( RaySphPos->x[0] < R_in   ) ||
+                    ( RaySphPos->x[1] < theta_in ) ||
+                    ( RaySphPos->x[1] > theta_out )   )
                         t_Pout = HUGE_VAL;
         }
         
@@ -2355,12 +2366,12 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         /* Init tmin */
         *t = HUGE_VAL;
         /* Find minimal intersection  */
-        if( t_Tin < *t ){
-                *t = t_Tin;
+        if( t_Tl < *t ){
+                *t = t_Tl;
                 *side = 2;
         }
-        if( t_Tout < *t ){
-                *t = t_Tout;
+        if( t_Tu < *t ){
+                *t = t_Tu;
                 *side = 3;
         }
         if( t_Pin < *t ){
@@ -2373,7 +2384,7 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         }
 #if 0
 printf("side = %zu, t = %E\n", *side, *t);
-printf("t_Tin = %E, t_Tout = %E, t_Pin = %E, t_Pout = %E\n", t_Tin, t_Tout, t_Pin, t_Pout);
+printf("t_Tl = %E, t_Tu = %E, t_Pin = %E, t_Pout = %E\n", t_Tl, t_Tu, t_Pin, t_Pout);
 #endif
         
         return ( *t == HUGE_VAL ) ? 0 : 1;
