@@ -298,7 +298,7 @@ int SpTask_Telsim(void)
 		/* Calculate image */
 
 		sts = CalcImage();
-
+                
 	}
 
         /* OUTPUT */
@@ -1817,7 +1817,7 @@ static void visualization(void)
         return;
 }
 
-
+/*----------------------------------------------------------------------------*/
 
 void generic_vtk(int geom){
         Zone *root = glb.model.grid;
@@ -1842,6 +1842,8 @@ void generic_vtk(int geom){
         
         return;
 }
+
+/*----------------------------------------------------------------------------*/
 
 void vtk_sph1d( Zone *root, size_t nvelo){
         // open VTK file
@@ -1916,15 +1918,12 @@ void vtk_sph1d( Zone *root, size_t nvelo){
                                 
                                 #if 1
                                 printf("zone pos = %zu %zu %zu\n",i,j,k);
-                                printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
-                                if(j==1){                                
+                                //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
+                                if( j==25 && k==42){                                
                                         printf("OK\n");exit(0);
                                 }
                                 #endif
                         }
-                        
-
-                        
                 }
                 
         }
@@ -1959,19 +1958,28 @@ void vtk_sph1d( Zone *root, size_t nvelo){
         return;
 }
 
+/*----------------------------------------------------------------------------*/
+
 void vtk_sph3d( Zone *root, size_t nvelo){
         
         return;
 }
+
+/*----------------------------------------------------------------------------*/
+
 void vtk_rec3d( Zone *root, size_t nvelo){
         
         return;
 }
+
+/*----------------------------------------------------------------------------*/
+
 void vtk_cyl3d( Zone *root, size_t nvelo){
         
         return;
 }
 
+/*----------------------------------------------------------------------------*/
 
 void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone){
         // initialize numer of sampling
@@ -1980,7 +1988,7 @@ void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *Sam
         static double Devide_nSampCube;
         static double Devide_2nSamp1D;
         if (!nSamp_initialized) {
-                nSamp1D = 3;
+                nSamp1D = 1;
                 Devide_nSampCube = 1. / ((double) (nSamp1D * nSamp1D * nSamp1D));
                 Devide_2nSamp1D = 1. / ((double) (2 * nSamp1D));
                 nSamp_initialized = 1;
@@ -2066,6 +2074,8 @@ void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *Sam
         return;
 }
 
+/*----------------------------------------------------------------------------*/
+
 static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *SampZone, GeVec3_d *SampCartPos)
 {
         GeVox * SampVoxel = &SampZone->voxel;
@@ -2097,10 +2107,10 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
                         // see if the ray reach the target 1-D layer
                         if( zp->pos == SampZone->pos ){
                                 // the ordinates of the ray position
-                                GeVec3_d RayPosCart = ray.e;
-                                GeVec3_d *RayPosSph = GeVec3_Cart2Sph(&RayPosCart);
+                                GeVec3_d RayCartPos = ray.e;
+                                GeVec3_d *RaySphPos = GeVec3_Cart2Sph(&RayCartPos);
                                 
-                                #if 0
+                                #if 1
                                 // debugging
                                 //printf("dx \t= %E, dy = %E\n",dx,dy);
                                 printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
@@ -2109,43 +2119,43 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
                                 SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
                                 printf("VoxelMin \t= %E %E %E\n", 
                                 SampVoxel->min.x[0], SampVoxel->min.x[1], SampVoxel->min.x[2]);
-                                printf("RayPosSph \t= %E %E %E\n", 
-                                RayPosSph->x[0], RayPosSph->x[1], RayPosSph->x[2]);
+                                printf("RaySphPos \t= %E %E %E\n", 
+                                RaySphPos->x[0], RaySphPos->x[1], RaySphPos->x[2]);
                                 printf("VoxelMax \t= %E %E %E\n", 
                                 SampVoxel->max.x[0], SampVoxel->max.x[1], SampVoxel->max.x[2]);
                                 #endif
                                 //printf("OK\n");exit(0);
                                 
                                 // see if the photon reach the sampling cell
-                                int reached_zone = 1;
+                                int reached_cell = 1;
                                 for (size_t i = 0; i < 3; i++){
                                         size_t side_in = 2 * i;
                                         size_t side_out = side_in + 1;
                                         if ( side_in == side ){
-                                                reached_zone *= 
-                                                ( fabs( SampVoxel->min.x[i] - RayPosSph->x[i] ) < threshold) ? 
+                                                reached_cell *= 
+                                                ( fabs( SampVoxel->min.x[i] - RaySphPos->x[i] ) < threshold) ? 
                                                 1 : 0;
-                                                //printf("diff_in = %E\n",fabs( SampVoxel->min.x[i] - RayPosSph->x[i] ));
+                                                //printf("diff_in = %E\n",fabs( SampVoxel->min.x[i] - RaySphPos->x[i] ));
                                                 
                                         }else{
-                                                reached_zone *= 
-                                                (SampVoxel->min.x[i] <= RayPosSph->x[i]) ? 1 : 0;
+                                                reached_cell *= 
+                                                (SampVoxel->min.x[i] <= RaySphPos->x[i]) ? 1 : 0;
                                         }
                                         if ( side_out == side ){
-                                                reached_zone *= 
-                                                ( fabs( SampVoxel->max.x[i] - RayPosSph->x[i] ) < threshold ) ? 
+                                                reached_cell *= 
+                                                ( fabs( SampVoxel->max.x[i] - RaySphPos->x[i] ) < threshold ) ? 
                                                 1 : 0;
-                                                //printf("diff_out = %E\n",fabs( SampVoxel->max.x[i] - RayPosSph->x[i] ));
+                                                //printf("diff_out = %E\n",fabs( SampVoxel->max.x[i] - RaySphPos->x[i] ));
                                         }
                                         else{
-                                                reached_zone *= 
-                                                (SampVoxel->max.x[i] >= RayPosSph->x[i]) ? 1 : 0;
+                                                reached_cell *= 
+                                                (SampVoxel->max.x[i] >= RaySphPos->x[i]) ? 1 : 0;
                                         }
                                 }
                                 
-                                if( reached_zone ){
+                                if( reached_cell ){
                                         reached_sampling_zone = 1;
-                                        // calculate path to the sampling position
+                                        
                                         break;
                                 }
                                 // the ray is not inside the sampling voxel but inside the target zone
@@ -2200,6 +2210,7 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
         return;
 }
 
+/*----------------------------------------------------------------------------*/
 
 static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double *tau_nu)
 {       /* Pointer to physical parameters associated with this zone */
@@ -2243,9 +2254,12 @@ static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double
         return;
 }
 
+/*----------------------------------------------------------------------------*/
 
 static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_t *side)
 {
+        static const double half_pi = 0.5*3.1415926535897932384626433832795;
+        
         Deb_ASSERT( voxel->geom == GEOM_SPH3D );
         
         double R_in = voxel->min.x[0];
@@ -2255,42 +2269,56 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         double phi_in = voxel->min.x[2];
         double phi_out = voxel->max.x[2];
         
+        GeRay ray2;
+        GeVec3_d *Ray2PosSph;
+        
+        
         double t_Tin1, t_Tin2;
         GeRay_IntersectTheta(ray, theta_in, &t_Tin1, &t_Tin2);
-        double t_Tin = Num_MIN(t_Tin1,t_Tin2);
-        if(t_Tin <= 0.0){
+        double t_Tin;
+        if ( theta_in < half_pi || fabs(theta_in-half_pi) > 1e-10 ){
+                t_Tin = Num_MAX(t_Tin1,t_Tin2);
+                if(t_Tin <= 0.0) t_Tin = HUGE_VAL;
+        }
+        else{
+                if ( t_Tin1 <= 0.0 ) t_Tin1 = HUGE_VAL;
+                if ( t_Tin2 <= 0.0 ) t_Tin2 = HUGE_VAL;
+                t_Tin = Num_MIN(t_Tin1,t_Tin2);
+        }
+        ray2 = GeRay_Inc(ray, t_Tin);
+        Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
+        if( ( Ray2PosSph->x[0] > R_out   ) ||
+            ( Ray2PosSph->x[0] < R_in    ) ||
+            ( Ray2PosSph->x[2] < phi_in  ) ||
+            ( Ray2PosSph->x[2] > phi_out )    )
                 t_Tin = HUGE_VAL;
-        }
-        else{
-                GeRay ray2 = GeRay_Inc(ray, t_Tin);
-                GeVec3_d *Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
-                if( ( Ray2PosSph->x[0] > R_out   ) ||
-                    ( Ray2PosSph->x[0] < R_in    ) ||
-                    ( Ray2PosSph->x[2] < phi_in  ) ||
-                    ( Ray2PosSph->x[2] > phi_out )    )
-                        t_Tin = HUGE_VAL;
-        }
         
-        double t_Tout1, t_Tout2;
+        
+                double t_Tout1, t_Tout2;
         GeRay_IntersectTheta(ray, theta_out, &t_Tout1, &t_Tout2);
-        double t_Tout = Num_MIN(t_Tout1,t_Tout2);
-        if(t_Tout <= 0.0){
-                t_Tout = HUGE_VAL;
+        double t_Tout;
+        if ( theta_out < half_pi || fabs(theta_in-half_pi) < 1e-10 ){
+                if ( t_Tout1 <= 0.0 ) t_Tout1 = HUGE_VAL;
+                if ( t_Tout2 <= 0.0 ) t_Tout2 = HUGE_VAL;
+                t_Tout = Num_MIN(t_Tout1,t_Tout2);
         }
         else{
-                GeRay ray2 = GeRay_Inc(ray, t_Tout);
-                GeVec3_d *Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
-                #if 0
-                printf("x y z \t= %E %E %E\n", ray2.e.x[0], ray2.e.x[1], ray2.e.x[2]);
-                printf("R Theta Phi \t= %E %E %E\n", Ray2PosSph->x[0], Ray2PosSph->x[1], Ray2PosSph->x[2]);
-                printf("%E %E %E %E %E %E\n", R_in, R_out, theta_in, theta_out, phi_in, phi_out);
-                #endif
-                if( ( Ray2PosSph->x[0] > R_out   ) ||
-                    ( Ray2PosSph->x[0] < R_in    ) ||
-                    ( Ray2PosSph->x[2] < phi_in  ) ||
-                    ( Ray2PosSph->x[2] > phi_out )    )
-                        t_Tout = HUGE_VAL;
+                t_Tout = Num_MAX(t_Tout1,t_Tout2);
+                if ( t_Tout <= 0.0 ) t_Tout = HUGE_VAL;
         }
+        ray2 = GeRay_Inc(ray, t_Tout);
+        Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
+        #if 0
+        printf("x y z \t= %E %E %E\n", ray2.e.x[0], ray2.e.x[1], ray2.e.x[2]);
+        printf("R Theta Phi \t= %E %E %E\n", Ray2PosSph->x[0], Ray2PosSph->x[1], Ray2PosSph->x[2]);
+        printf("%E %E %E %E %E %E\n", R_in, R_out, theta_in, theta_out, phi_in, phi_out);
+        #endif
+        if( ( Ray2PosSph->x[0] > R_out   ) ||
+            ( Ray2PosSph->x[0] < R_in    ) ||
+            ( Ray2PosSph->x[2] < phi_in  ) ||
+            ( Ray2PosSph->x[2] > phi_out )    )
+                t_Tout = HUGE_VAL;
+
         
         double t_Pin;
         if( -sin(phi_in) * ray->d.x[0] + cos(phi_in) * ray->d.x[1] < 0.0 ){
@@ -2298,8 +2326,8 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         }
         else{
                 GeRay_IntersectPhi(ray, phi_in, &t_Pin);
-                GeRay ray2 = GeRay_Inc(ray, t_Pin);
-                GeVec3_d *Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
+                ray2 = GeRay_Inc(ray, t_Pin);
+                Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
                 if( ( Ray2PosSph->x[0] > R_out  ) ||
                     ( Ray2PosSph->x[0] < R_in   ) ||
                     ( Ray2PosSph->x[1] < theta_in ) ||
@@ -2307,20 +2335,22 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
                         t_Pin = HUGE_VAL;
         }
         
+        
         double t_Pout;
         if( sin(phi_out) * ray->d.x[0] - cos(phi_out) * ray->d.x[1] < 0.0 ){
                 t_Pout=HUGE_VAL;
         }
         else{
                 GeRay_IntersectPhi(ray, phi_out, &t_Pout);
-                GeRay ray2 = GeRay_Inc(ray, t_Pout);
-                GeVec3_d *Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
+                ray2 = GeRay_Inc(ray, t_Pout);
+                Ray2PosSph = GeVec3_Cart2Sph(&ray2.e);
                 if( ( Ray2PosSph->x[0] > R_out  ) ||
                     ( Ray2PosSph->x[0] < R_in   ) ||
                     ( Ray2PosSph->x[1] < theta_in ) ||
                     ( Ray2PosSph->x[1] > theta_out )   )
                         t_Pout = HUGE_VAL;
         }
+        
         
         /* Init tmin */
         *t = HUGE_VAL;
@@ -2348,6 +2378,8 @@ printf("t_Tin = %E, t_Tout = %E, t_Pin = %E, t_Pout = %E\n", t_Tin, t_Tout, t_Pi
         
         return ( *t == HUGE_VAL ) ? 0 : 1;
 }
+
+/*----------------------------------------------------------------------------*/
 
 static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *SampCartPos, double * contrib, double *tau_nu)
 {

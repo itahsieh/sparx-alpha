@@ -510,15 +510,17 @@ Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt)
 
 /*----------------------------------------------------------------------------*/
 
-Zone *Zone_GetNext_sph1d(Zone *zone, size_t side)
+Zone *Zone_GetNext_sph1d(Zone *zone, size_t *side)
 {
 	Zone *next = NULL;
 
-	if(side == 0) { /* Going inward */
+	if( *side == 0) { /* Going inward */
 		next = Zone_GetInner(zone);
+                *side = 1;
 	}
-	else if(side == 1) { /* Going outward */
+	else if( *side == 1) { /* Going outward */
 		next = Zone_GetOuter(zone);
+                *side = 0;
 	}
 	else { /* Shouldn't happen */
 		Deb_ASSERT(0);
@@ -704,7 +706,7 @@ Zone *Zone_GetNext(Zone *zone, size_t *side, const GeRay *ray)
 
 	switch(zone->voxel.geom) {
 		case GEOM_SPH1D:
-			next = Zone_GetNext_sph1d(zone, *side);
+			next = Zone_GetNext_sph1d(zone, side);
 			break;
 
 		case GEOM_SPH3D:

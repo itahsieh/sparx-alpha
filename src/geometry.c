@@ -983,7 +983,7 @@ Side 1: outer sphere
 
 	//Deb_PRINT("outer: t1=%g, t2=%g\n", t1, t2);
 
-	t_out = (t1 > t2 ? t1 : t2);
+	t_out = Num_MAX(t1,t2);
 
 	if(t_out <= 0)
 		t_out = HUGE_VAL;
@@ -994,7 +994,7 @@ Side 1: outer sphere
 
 		//Deb_PRINT("inner: t1=%g, t2=%g\n", t1, t2);
 
-		t_in = (t1 < t2 ? t1 : t2);
+		t_in = Num_MIN(t1,t2);
 
 		if(t_in <= 0)
 			t_in = HUGE_VAL;

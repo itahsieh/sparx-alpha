@@ -51,7 +51,7 @@ Zone *Zone_GetLeaf_sph3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRa
 Zone *Zone_GetLeaf_rec3d(Zone *zone, size_t side, const GeVec3_d *pt);
 Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt);
 
-Zone *Zone_GetNext_sph1d(Zone *zone, size_t side);
+Zone *Zone_GetNext_sph1d(Zone *zone, size_t *side);
 Zone *Zone_GetNext_sph3d(Zone *zone, size_t *side, const GeVec3_d *pt, const GeRay *ray);
 Zone *Zone_GetNext_rec3d(Zone *zone, size_t side, const GeVec3_d *pt);
 Zone *Zone_GetNext_cyl3d(Zone *zone, size_t *side, const GeVec3_d *pt);
