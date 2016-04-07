@@ -1961,11 +1961,11 @@ void vtk_sph1d( Zone *root, size_t nvelo){
         free(contrib);
         free(tau);
         free(tau_dev);
+        
         free(radius);
         free(theta);
         free(phi);
-        
-        
+
         return;
 }
 
