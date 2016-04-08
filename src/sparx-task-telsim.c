@@ -1870,26 +1870,26 @@ void vtk_sph1d(void)
         
         // Dimension of the visualized resolution
         size_t nr = glb.visual->sph3d->nr = root->nchildren;
-        size_t nt = glb.visual->sph3d->nt = 30;
-        size_t np = glb.visual->sph3d->np = 60;
+        size_t nt = glb.visual->sph3d->nt = 45;
+        size_t np = glb.visual->sph3d->np = 90;
 
         size_t nelement =  nr * np * nt;
         
-        // link to the global pointer
-        double * radius = &glb.visual->sph3d->radius;
-        double * theta = &glb.visual->sph3d->theta;
-        double * phi = &glb.visual->sph3d->phi;
-        double * contrib = &glb.visual->contrib;
-        double * tau = &glb.visual->tau;
-        double * tau_dev = &glb.visual->tau_dev;
-        
         // declare the memory
-        radius = Mem_CALLOC( nr+1, radius);
-        theta = Mem_CALLOC( nt+1, theta);
-        phi = Mem_CALLOC( np+1, phi);
-        contrib = Mem_CALLOC( nelement * nvelo, contrib);
-        tau = Mem_CALLOC( nelement * nvelo, tau);
-        tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
+        double * radius = Mem_CALLOC( nr+1, radius);
+        double * theta = Mem_CALLOC( nt+1, theta);
+        double * phi = Mem_CALLOC( np+1, phi);
+        double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
+        double * tau = Mem_CALLOC( nelement * nvelo, tau);
+        double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
+        
+        // link to the global pointer
+        glb.visual->sph3d->radius = radius;
+        glb.visual->sph3d->theta = theta;
+        glb.visual->sph3d->phi = phi;
+        glb.visual->contrib = contrib;
+        glb.visual->tau = tau;
+        glb.visual->tau_dev = tau_dev;
         
         // construct the expanding SPH3D mesh
         double delta_theta = M_PI / (double) nt;
@@ -1907,7 +1907,7 @@ void vtk_sph1d(void)
         
         
         /* paralized calculation of  the contribution of the cells */
-#define DEBUG 1
+#define DEBUG 0
         sts = SpUtil_Threads2( DEBUG ? 1 : Sp_NTHREAD, VtkContributionSph1dTread);
 #undef DEBUG        
         
@@ -2018,12 +2018,12 @@ void *VtkContributionSph1dTread(void *tid_p)
         size_t np = glb.visual->sph3d->np;
         
         // link to the global pointer
-        double * radius = &glb.visual->sph3d->radius;
-        double * theta = &glb.visual->sph3d->theta;
-        double * phi = &glb.visual->sph3d->phi;
-        double * contrib = &glb.visual->contrib;
-        double * tau = &glb.visual->tau;
-        double * tau_dev = &glb.visual->tau_dev;
+        double * radius = glb.visual->sph3d->radius;
+        double * theta = glb.visual->sph3d->theta;
+        double * phi = glb.visual->sph3d->phi;
+        double * contrib = glb.visual->contrib;
+        double * tau = glb.visual->tau;
+        double * tau_dev = glb.visual->tau_dev;
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
@@ -2042,8 +2042,8 @@ void *VtkContributionSph1dTread(void *tid_p)
                         // change the GEOM of the voxel to SPH3D
                         vp->geom = GEOM_SPH3D;
                         
-                        SampZone.index.x[1] = j;printf("OK %E\n",theta[1]);
-                        SampZone.index.x[2] = k;printf("OK %zu\n",glb.visual->sph3d->theta);exit(0);
+                        SampZone.index.x[1] = j;
+                        SampZone.index.x[2] = k;
                         vp->min.x[1] = theta[j];
                         vp->max.x[1] = theta[j+1];
                         vp->min.x[2] = phi[k];
@@ -2052,7 +2052,7 @@ void *VtkContributionSph1dTread(void *tid_p)
                         size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
                         Contribution_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
                         
-                        #if 1
+                        #if 0
                         printf("zone pos = %zu %zu %zu\n",i,j,k);
                         //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
                         if( j==3 && k==41){                                
