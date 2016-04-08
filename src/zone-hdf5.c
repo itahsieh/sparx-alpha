@@ -9,7 +9,14 @@
 static size_t record_size = sizeof(ZoneH5_Record);
 
 /* CHK when format change */
-#define NFIELDS ((hsize_t)26)
+
+#define B_FIELD_VERSION 1
+
+#if B_FIELD_VERSION
+        #define NFIELDS ((hsize_t)26)
+#else
+        #define NFIELDS ((hsize_t)25)
+#endif
 
 /* CHK when format change */
 /* Offsets of each field */
@@ -31,7 +38,9 @@ static size_t field_offsets[NFIELDS] = {
 	HOFFSET(ZoneH5_Record, V_t),
 	HOFFSET(ZoneH5_Record, vedge),
 	HOFFSET(ZoneH5_Record, v_cen),
+#if B_FIELD_VERSION
 	HOFFSET(ZoneH5_Record, b_cen),
+#endif
 	HOFFSET(ZoneH5_Record, ds),
 	HOFFSET(ZoneH5_Record, nchildren),
 	HOFFSET(ZoneH5_Record, naxes),
@@ -64,7 +73,9 @@ static size_t field_sizes[NFIELDS] = {
 	sizeof(dummy_record.V_t),
 	sizeof(dummy_record.vedge),
 	sizeof(dummy_record.v_cen),
+#if B_FIELD_VERSION
 	sizeof(dummy_record.b_cen),
+#endif
 	sizeof(dummy_record.ds),
 	sizeof(dummy_record.nchildren),
 	sizeof(dummy_record.naxes),
@@ -94,7 +105,9 @@ static const char *field_names[NFIELDS] = {
 	"V_t",
 	"V_edge",
 	"V_cen",
+#if B_FIELD_VERSION
 	"B_cen",
+#endif
 	"ds",
 	"NCHILDREN",
 	"NAXES",
@@ -145,6 +158,7 @@ int ZoneH5_FwriteTable(hid_t h5f_id, const char *name, const ZoneH5_Record *reco
 	field_types[14] = H5T_NATIVE_DOUBLE;
 	field_types[15] = vel_type;
 	field_types[16] = vec3d_type;
+#if B_FIELD_VERSION        
 	field_types[17] = vec3d_type;
 	field_types[18] = H5T_NATIVE_DOUBLE;
 	field_types[19] = H5T_NATIVE_LONG;
@@ -154,16 +168,16 @@ int ZoneH5_FwriteTable(hid_t h5f_id, const char *name, const ZoneH5_Record *reco
 	field_types[23] = H5T_NATIVE_DOUBLE;
 	field_types[24] = kapp_type;
 	field_types[25] = H5T_NATIVE_DOUBLE;
-
-// 	field_types[17] = H5T_NATIVE_DOUBLE;
-// 	field_types[18] = H5T_NATIVE_LONG;
-// 	field_types[19] = vec3s_type;
-// 	field_types[20] = H5T_NATIVE_DOUBLE;
-// 	field_types[21] = kapp_type;
-// 	field_types[22] = H5T_NATIVE_DOUBLE;
-// 	field_types[23] = kapp_type;
-// 	field_types[24] = H5T_NATIVE_DOUBLE;
-
+#else
+	field_types[17] = H5T_NATIVE_DOUBLE;
+	field_types[18] = H5T_NATIVE_LONG;
+	field_types[19] = vec3s_type;
+	field_types[20] = H5T_NATIVE_DOUBLE;
+	field_types[21] = kapp_type;
+	field_types[22] = H5T_NATIVE_DOUBLE;
+	field_types[23] = kapp_type;
+	field_types[24] = H5T_NATIVE_DOUBLE;
+#endif
 	/* Make the table */
 	hstatus = H5TBmake_table(
 		"Grid table",

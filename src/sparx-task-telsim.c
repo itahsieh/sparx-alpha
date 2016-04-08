@@ -23,6 +23,13 @@ static struct glb {
 		double blc_x, blc_y, trc_x, trc_y;
 		size_t nsub;
 	} *subres;
+        struct {
+                struct {
+                        size_t nr, nt, np;
+                        double *radius, *theta, *phi;
+                } *sph3d;
+                double *contrib, *tau, *tau_dev;
+        } *visual;
 } glb;
 
 enum {
@@ -103,14 +110,19 @@ DatINode VISUAL_TYPES[] = {
 };
 
 void generic_vtk(int);
-void vtk_sph1d(Zone *,size_t);
-void vtk_sph3d(Zone *,size_t);
-void vtk_rec3d(Zone *,size_t);
-void vtk_cyl3d(Zone *,size_t);
-void Contribution_sph3d(double *, double *, double *tau_dev, Zone *);
+
+void vtk_rec3d(void);
+void vtk_cyl3d(void);
+
+void vtk_sph1d(void);
+void *VtkContributionSph1dTread(void *tid_p);
+void vtk_sph3d(void);
+void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo);
 static void ContributionTracer_sph3d( double *, double *, Zone *, GeVec3_d *);
-static void CalcOpticalDepth( Zone *, const GeRay *, const double, double *);
 static int HitSph3dVoxel( const GeRay *, const GeVox *, double * t, size_t * side);
+
+static void CalcOpticalDepth( Zone *, const GeRay *, const double, double *);
+
 static void ContributionOfCell( Zone *, const GeRay *, const GeVec3_d *, double *, double *);
 
 
@@ -728,7 +740,8 @@ static int InitModel(void)
 
 static void *InitModelThread(void *tid_p)
 {
-	size_t tid = *((size_t *)tid_p), zone_id,j,k;
+	size_t tid = *((size_t *)tid_p);
+        size_t zone_id,j,k;
 	Zone *root = glb.model.grid, *zp;
 	SpPhys *pp;
         
@@ -1820,43 +1833,68 @@ static void visualization(void)
 
 /*----------------------------------------------------------------------------*/
 
-void generic_vtk(int geom){
-        Zone *root = glb.model.grid;
-        size_t nvelo = glb.v.n;
+void generic_vtk(int geom)
+{
+        glb.visual = Mem_CALLOC(1, glb.visual);
         switch (geom){
                 case GEOM_SPH1D:
-                        vtk_sph1d( root, nvelo);
+                        vtk_sph1d();
                         break;
                 case GEOM_SPH3D:
-                        vtk_sph3d( root, nvelo);
+                        vtk_sph3d();
                         break;
                 case GEOM_REC3D:
-                        vtk_rec3d( root, nvelo);
+                        vtk_rec3d();
                         break;
                 case GEOM_CYL3D:
-                        vtk_cyl3d( root, nvelo);
+                        vtk_cyl3d();
                         break;
                 default:
                         /* Should not happen */
                         Deb_ASSERT(0);
         }
+        free(glb.visual);
         
         return;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void vtk_sph1d( Zone *root, size_t nvelo){
+void vtk_sph1d(void)
+{
+        int sts = 0;
+        Zone * root = glb.model.grid;
+        size_t nvelo = glb.v.n;
+        
+        glb.visual->sph3d = Mem_CALLOC(1,glb.visual->sph3d);
+        
         // Dimension of the visualized resolution
-        size_t nr = root->nchildren, nt = 30, np = 60;
+        size_t nr = glb.visual->sph3d->nr = root->nchildren;
+        size_t nt = glb.visual->sph3d->nt = 30;
+        size_t np = glb.visual->sph3d->np = 60;
+
         size_t nelement =  nr * np * nt;
         
+        // link to the global pointer
+        double * radius = &glb.visual->sph3d->radius;
+        double * theta = &glb.visual->sph3d->theta;
+        double * phi = &glb.visual->sph3d->phi;
+        double * contrib = &glb.visual->contrib;
+        double * tau = &glb.visual->tau;
+        double * tau_dev = &glb.visual->tau_dev;
+        
+        // declare the memory
+        radius = Mem_CALLOC( nr+1, radius);
+        theta = Mem_CALLOC( nt+1, theta);
+        phi = Mem_CALLOC( np+1, phi);
+        contrib = Mem_CALLOC( nelement * nvelo, contrib);
+        tau = Mem_CALLOC( nelement * nvelo, tau);
+        tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
+        
         // construct the expanding SPH3D mesh
-        double * radius = Mem_CALLOC( nr+1, radius);
-        double * theta = Mem_CALLOC( nt+1, theta);
-        double * phi = Mem_CALLOC( np+1, phi);
         double delta_theta = M_PI / (double) nt;
         double delta_phi = 2. * M_PI / (double) np;
+        
         radius[0] = root->children[0]->voxel.min.x[0];
         for(size_t i = 1; i < nr+1; i++)
                 radius[i] = root->children[i-1]->voxel.max.x[0];
@@ -1867,40 +1905,11 @@ void vtk_sph1d( Zone *root, size_t nvelo){
         for (size_t k = 1; k < np+1; k ++)
                 phi[k] = phi[k-1] + delta_phi;
         
-        // calculate the contribution of the cells
-        double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
-        double * tau = Mem_CALLOC( nelement * nvelo, tau);
-        double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
-        for( size_t i = 0; i < nr; i++){
-                // copy grid i to sampling zone
-                Zone SampZone = *root->children[i];
-                // the voxel pointer
-                GeVox *vp = &SampZone.voxel;
-                // change the GEOM of the voxel to SPH3D
-                vp->geom = GEOM_SPH3D;
-                for( size_t j = 0; j < nt; j++){
-                        SampZone.index.x[1] = j;
-                        for( size_t k = 0; k < np; k++){
-                                SampZone.index.x[2] = k;
-                                vp->min.x[1] = theta[j];
-                                vp->max.x[1] = theta[j+1];
-                                vp->min.x[2] = phi[k];
-                                vp->max.x[2] = phi[k+1];
-                        
-                                size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
-                                Contribution_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone);
-                                
-                                #if 0
-                                printf("zone pos = %zu %zu %zu\n",i,j,k);
-                                //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
-                                if( j==3 && k==41){                                
-                                        //printf("OK\n");exit(0);
-                                }
-                                #endif
-                        }
-                }
-        }
         
+        /* paralized calculation of  the contribution of the cells */
+#define DEBUG 1
+        sts = SpUtil_Threads2( DEBUG ? 1 : Sp_NTHREAD, VtkContributionSph1dTread);
+#undef DEBUG        
         
         // open VTK file
         FILE *fp;
@@ -1968,34 +1977,99 @@ void vtk_sph1d( Zone *root, size_t nvelo){
         free(radius);
         free(theta);
         free(phi);
+        
+        free(glb.visual->sph3d);
 
         return;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void vtk_sph3d( Zone *root, size_t nvelo){
+void vtk_sph3d(void){
         
         return;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void vtk_rec3d( Zone *root, size_t nvelo){
+void vtk_rec3d(void){
         
         return;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void vtk_cyl3d( Zone *root, size_t nvelo){
+void vtk_cyl3d(void){
         
         return;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone){
+void *VtkContributionSph1dTread(void *tid_p)
+{
+        size_t tid = *((size_t *)tid_p);
+        Zone * root = glb.model.grid;
+        size_t nvelo = glb.v.n;
+        
+        // Dimension of the visualized resolution
+        size_t nr = glb.visual->sph3d->nr;
+        size_t nt = glb.visual->sph3d->nt;
+        size_t np = glb.visual->sph3d->np;
+        
+        // link to the global pointer
+        double * radius = &glb.visual->sph3d->radius;
+        double * theta = &glb.visual->sph3d->theta;
+        double * phi = &glb.visual->sph3d->phi;
+        double * contrib = &glb.visual->contrib;
+        double * tau = &glb.visual->tau;
+        double * tau_dev = &glb.visual->tau_dev;
+        
+        size_t cell_id = 0;
+        // calculate the contribution of the cells
+        for( size_t i = 0; i < nr; i++){
+          for( size_t j = 0; j < nt; j++){
+            for( size_t k = 0; k < np; k++){
+              if ( cell_id % Sp_NTHREAD == tid ){
+                        /* Check for thread termination */
+                        Sp_CHECKTERMTHREAD();
+                        
+                        // copy grid i to sampling zone
+                        Zone SampZone = *root->children[i];
+                        
+                        // the voxel pointer
+                        GeVox *vp = &SampZone.voxel;
+                        // change the GEOM of the voxel to SPH3D
+                        vp->geom = GEOM_SPH3D;
+                        
+                        SampZone.index.x[1] = j;printf("OK %E\n",theta[1]);
+                        SampZone.index.x[2] = k;printf("OK %zu\n",glb.visual->sph3d->theta);exit(0);
+                        vp->min.x[1] = theta[j];
+                        vp->max.x[1] = theta[j+1];
+                        vp->min.x[2] = phi[k];
+                        vp->max.x[2] = phi[k+1];
+                        
+                        size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
+                        Contribution_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
+                        
+                        #if 1
+                        printf("zone pos = %zu %zu %zu\n",i,j,k);
+                        //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
+                        if( j==3 && k==41){                                
+                                //printf("OK\n");exit(0);
+                        }
+                        #endif
+              }
+              cell_id += 1;
+            }
+          }
+        }
+        pthread_exit(NULL);
+}
+
+/*----------------------------------------------------------------------------*/
+
+void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo){
         // initialize numer of sampling
         static int nSamp_initialized;
         static int nSamp1D;
@@ -2018,9 +2092,9 @@ void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *Sam
         double theta_out = vp->max.x[1];
         double phi_in = vp->min.x[2];
         double phi_out = vp->max.x[2];
-        Mem_BZERO2(contrib, glb.v.n); 
-        Mem_BZERO2(tau, glb.v.n);
-        Mem_BZERO2(tau_dev, glb.v.n);
+        Mem_BZERO2(contrib, nvelo); 
+        Mem_BZERO2(tau, nvelo);
+        Mem_BZERO2(tau_dev, nvelo);
         for(int i = 0; i < nSamp1D; i++){
                 // radius position
                 double RFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
@@ -2044,8 +2118,8 @@ void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *Sam
                                 GeVec3_d *SampPosXYZ = GeVec3_Sph2Cart( R, theta, phi);
                                 
                                 // Call the contribution tracer
-                                double * contrib_sub = Mem_CALLOC( glb.v.n, contrib_sub); 
-                                double * tau_sub = Mem_CALLOC( glb.v.n, tau_sub);
+                                double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub); 
+                                double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
                                 
                                 switch(SampZone->voxel.geom ){
                                         case GEOM_SPH3D:
@@ -2056,7 +2130,7 @@ void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *Sam
                                 }
                                 
                                 // statistics : sum up
-                                for (size_t l = 0; l < glb.v.n; l++){
+                                for (size_t l = 0; l < nvelo; l++){
                                         contrib[l] += contrib_sub[l];
                                         tau[l] += tau_sub[l];
                                         tau_dev[l] += tau_sub[l] * tau_sub[l];
@@ -2069,7 +2143,7 @@ void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *Sam
         }
         
         
-        for (size_t l = 0; l < glb.v.n; l++){
+        for (size_t l = 0; l < nvelo; l++){
                 // average contrib, tau
                 contrib[l] *= Devide_nSampCube;
                 tau[l] *= Devide_nSampCube;

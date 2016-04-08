@@ -9,6 +9,7 @@ MIRSUPPORT = 0
 # number of Thread using in per job
 import multiprocessing
 NumberOfThread = 2 * multiprocessing.cpu_count()
+#NumberOfThread = 1
 print 'NumberOfThread=',NumberOfThread
 
 # Test for MPI by checking whether mpicc can be called
