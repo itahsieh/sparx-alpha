@@ -1,11 +1,18 @@
 #!/bin/bash
 
+
+if [ ! -f /tmp/foo.txt ]; then
+    echo "File not found!"
+fi
+
+
+
 rm -rf map/ tau/ map.fits tau.fits vis.vtk
 
 printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
 
 sparx run task_lineobs \
-source=../pops_storage/1Dpops/pops \
+source=../storage/1Dpops/pops \
 out=map \
 line=1 \
 tau=tau \

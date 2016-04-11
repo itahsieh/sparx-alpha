@@ -1413,21 +1413,26 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                         SpPhys *pp = zp->data;
                         /* Do radiative transfer only if gas is present in this zone */
                         if(pp->non_empty_leaf) {
-                                /* Do calculations on all channels at this pixel. Try to minimize the
-                                 * amount of operations in this loop, since everything here is repeated
-                                 * for ALL channels, and can significantly increase computation time.
-                                 */
-
+                                /* 
+                                   Do calculations on all channels at this pixel. Try to minimize the
+                                   amount of operations in this loop, since everything here is repeated
+                                   for ALL channels, and can significantly increase computation time.
+                                */
+                                
+                                /* 
+                                   Reference : ARTIST(DustPol) -- http://arxiv.org/pdf/1204.6668.pdf
+                                */
+                                
                                 GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
                                 double nproduct = GeVec3_DotProd(&n,&B);
                                 double eproduct = GeVec3_DotProd(&e,&B);
                                 double zproduct = GeVec3_DotProd(&z,&B);
                                 
-                                // psi is the angle between the projected B-field on p.o.s. and the north of the image
+                                // psi is the angle between the projected B-field on p.o.s. and the north of the image 
                                 double B_Mag = GeVec3_Mag(&B);
                                 double psi = atan2( -eproduct, nproduct); 
                                 // gamma ia the angle bettwen B-field an the plane of sky
-                                double cosgammasquare = 1.0 - zproduct * zproduct / ( GeVec3_X(B, 0)*GeVec3_X(B, 0) + GeVec3_X(B, 1)*GeVec3_X(B, 1) + GeVec3_X(B, 2)*GeVec3_X(B, 2) ); 
+                                double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B); 
  
                                 for(size_t iv = 0; iv < glb.v.n; iv++) {
                                         /* Reset emission and absorption coeffs */
@@ -1967,6 +1972,39 @@ void vtk_sph1d(void)
                         fprintf(fp,"%E ", tau_dev[ idx + l ]);
                 fprintf(fp,"\n");
         }
+        fprintf(fp,"SCALARS Tex float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
+        for( size_t i = 0; i < nr; i++){
+                Zone *zp = root->children[i];
+                SpPhys *pp = zp->data;
+                if(pp->X_mol == 0.0){
+                        for( size_t j = 0; j < nt; j++){
+                                for( size_t k = 0; k < np; k++){
+                                        fprintf(fp,"%E ", 0.0);
+                                }
+                        }
+                }
+                else{
+                        MolTrRad *trans = pp->mol->rad[glb.line];
+                        size_t up = trans->up;
+                        size_t lo = trans->lo;
+                        double n_u = pp->pops[0][up];
+                        double n_l = pp->pops[0][lo];
+                        double E_u = pp->mol->lev[up]->E;
+                        double E_l = pp->mol->lev[lo]->E;
+                        double g_u = pp->mol->lev[up]->g;
+                        double g_l = pp->mol->lev[lo]->g;
+                        double Tex = (E_l-E_u)
+                                / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
+                        for( size_t j = 0; j < nt; j++){
+                                for( size_t k = 0; k < np; k++){
+                                        fprintf(fp,"%E ", Tex/(pp->T_k));
+                                }
+                        }
+                }
+        }
+        fprintf(fp,"\n");
+        
         fclose(fp);
         printf("wrote %s\n",filename);
         

@@ -11,7 +11,7 @@ from math import *
 from scipy import optimize
 
 disk=1
-env=0
+env=1
 writevtk=1
 
 # unit converter
