@@ -49,9 +49,7 @@ alpha-2.5.0                     PRE-SPARX : integrated preprocessor
         * automatic converged mapping           (Low)
         * arbitrary bounday / painter's algorithm 
           -- for user's flexibility             (Low)
-          
-          
-        * default one channel in contobs 
+
         
 - Mid-term :
         * PRE-SPARX project -- integrated preprocessor

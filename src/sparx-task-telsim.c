@@ -2,17 +2,14 @@
 
 /* Global parameter struct */
 static struct glb {
-	int     test, 
-                cont,
-                overlap,
+	DatINode *task;
+        int     overlap,
                 lte,
-                coldens,
-                excit,
-                zeeman;
+                excit;
 	DatINode *unit;
 	double ucon, overlap_vel;
 	MirImg_Axis x, y, v;
-        MirFile *imgf, *StxQf, *StxUf, *StxVf, *tau_imgf;
+        MirFile *imgf, *StxQf, *StxUf, *tau_imgf;
         MirImg *image, *StokesQ, *StokesU, *StokesV, *sigma2, *tau_img;
 	double dist, rotate[3], I_norm, I_cmb;
 	SpModel model;
@@ -34,13 +31,32 @@ static struct glb {
 
 enum {
 	UNIT_K,
-	UNIT_JYPX
+	UNIT_JYPX,
+	UNIT_MKS,
+        UNIT_CGS,
 };
 
 static DatINode UNITS[] = {
 	{"K", UNIT_K},
 	{"JY/PIXEL", UNIT_JYPX},
+        {"MKS", UNIT_MKS},
+        {"CGS", UNIT_MKS},
 	{0, 0}
+};
+
+
+enum {
+        TASK_LINE,
+        TASK_ZEEMAN,
+        TASK_CONT,
+        TASK_COLDENS
+};
+static DatINode TASKS[] = {
+        {"line", TASK_LINE},
+        {"zeeman", TASK_ZEEMAN},
+        {"cont", TASK_CONT},
+        {"coldens", TASK_COLDENS},
+        {0, 0}
 };
 
 #define MEAN_INT(ix, iy)\
@@ -130,173 +146,198 @@ static void ContributionOfCell( Zone *, const GeRay *, const GeVec3_d *, double 
 
 int SpTask_Telsim(void)
 {
-	size_t i;
-	int sts = 0;
-        PyObject *o, *o1, *o2, *o3;
-
 	Mem_BZERO(&glb);
-	/* npix */
-	if(!sts && !(sts = SpPy_GetInput_PyObj("npix", &o))) {
-		glb.x.n = Sp_PYSIZE(Sp_PYLST(o, 0));
-		glb.x.crpix = MirWr_CRPIX(glb.x.n);
-		glb.y.n = Sp_PYSIZE(Sp_PYLST(o, 1));
-		glb.y.crpix = MirWr_CRPIX(glb.y.n);
-		SpPy_XDECREF(o);
-	}
-	/* cell */
-	if(!sts && !(sts = SpPy_GetInput_PyObj("cell", &o))) {
-		glb.x.delt = Sp_PYDBL(Sp_PYLST(o, 0));
-		glb.y.delt = Sp_PYDBL(Sp_PYLST(o, 1));
-		SpPy_XDECREF(o);
-	}
-	/* chan */
-	if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
-		glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
-		glb.v.crpix = MirWr_CRPIX(glb.v.n);
-		glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
-		SpPy_XDECREF(o);
-	}
-	/* rotate */
-	if(!sts && !(sts = SpPy_GetInput_PyObj("rotate", &o))) {
-		glb.rotate[0] = Sp_PYDBL(Sp_PYLST(o, 0));
-		glb.rotate[1] = Sp_PYDBL(Sp_PYLST(o, 1));
-		glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
-		SpPy_XDECREF(o);
-	}
-	/* subres */
-	if(!sts && !(sts = SpPy_GetInput_PyObj("subres", &o))) {
-		if(o != Py_None) {
-			/* Get number of boxes */
-			glb.nsubres = (size_t)PyList_Size(o);
-			glb.subres = Mem_CALLOC(glb.nsubres, glb.subres);
-			for(i = 0; i < glb.nsubres; i++) {
-				o1 = PyList_GetItem(o, (Py_ssize_t)i);
-				glb.subres[i].blc_x = Sp_PYDBL(PyList_GetItem(o1, (Py_ssize_t)0));
-				glb.subres[i].blc_y = Sp_PYDBL(PyList_GetItem(o1, (Py_ssize_t)1));
-				glb.subres[i].trc_x = Sp_PYDBL(PyList_GetItem(o1, (Py_ssize_t)2));
-				glb.subres[i].trc_y = Sp_PYDBL(PyList_GetItem(o1, (Py_ssize_t)3));
-				glb.subres[i].nsub = Sp_PYSIZE(PyList_GetItem(o1, (Py_ssize_t)4));
-			}
-		}
-		SpPy_XDECREF(o);
-	}
+        int sts = 0;
 
-	/* source */
-	if(!sts) {
-		sts = SpPy_GetInput_model("source","source", &glb.model);
-	}
+// 1. GET PARAMETERS FROM PYTHON
+        PyObject *o;
 
+/*    1.1 get the task-based parameters */
 	/* obs */
 	if(!sts && !(sts = SpPy_GetInput_PyObj("obs", &o))) {
-		o1 = PyObject_GetAttrString(o, "cont");
-		Deb_ASSERT(o1 != NULL);
-		glb.cont = Sp_PYINT(o1);
-                SpPy_XDECREF(o1);
+                PyObject *o_task;
+                /* task */
+                o_task = PyObject_GetAttrString(o, "task");
+                glb.task = Dat_IList_NameLookup(TASKS, Sp_PYSTR(o_task));
+                SpPy_XDECREF(o_task);	
                 
-                o2 = PyObject_GetAttrString(o, "coldens");
-                Deb_ASSERT(o2 != NULL);
-                glb.coldens = Sp_PYINT(o2);
-                SpPy_XDECREF(o2);
- 
-                // for continuum emission
-                if(glb.cont) {
-                        o1 = PyObject_GetAttrString(o, "wavelen");
-                        glb.lamb = Sp_PYDBL(o1);
-                        glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
-                        SpPy_XDECREF(o1);
-                }
-                // for column density tracer
-		else if(glb.coldens){
-                        //do nothing
-                } 
-                // for line/lte/zeeman/overlap
-		else{ 
-                        if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-			if(!sts){
-				if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
-			}
-			if(!sts) sts = SpPy_GetInput_bool("zeeman", &glb.zeeman);
-			Deb_ASSERT(glb.model.parms.mol != NULL);
-
-                        o1 = PyObject_GetAttrString(o, "line");
-			glb.line = Sp_PYSIZE(o1);
-                        glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
-			glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-			Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
-			
-                        o2 = PyObject_GetAttrString(o, "overlap_int");
-			glb.overlap = Sp_PYINT(o2);
-                        o3 = PyObject_GetAttrString(o, "overlap_vel");
-			glb.overlap_vel = Sp_PYDBL(o3);
+                PyObject *o_line;
+                PyObject *o1, *o2, *o3;
+                switch (glb.task->idx){
+                        // for task-contobs 
+                        case TASK_CONT:
+                                /* tau (optional) */
+                                if(!sts && SpPy_CheckOptionalInput("tau")) {
+                                        sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
+                                }
+                                PyObject *o_wavelen;
+                                o_wavelen = PyObject_GetAttrString(o, "wavelen");
+                                glb.lamb = Sp_PYDBL(o_wavelen);
+                                glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
+                                SpPy_XDECREF(o_wavelen);
+                                break;
                         
-                        SpPy_XDECREF(o1);
-                        SpPy_XDECREF(o2);
-                        SpPy_XDECREF(o3);
-				
-		}	
-		
+                        // for task-lineobs
+                        case TASK_ZEEMAN:
+                                // get line transition
+                                o_line = PyObject_GetAttrString(o, "line");
+                                glb.line = Sp_PYSIZE(o_line);
+                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
+                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
+                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+                                if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+                                if(!sts){
+                                        if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
+                                }
+                                Deb_ASSERT(glb.model.parms.mol != NULL);
+                                SpPy_XDECREF(o_line);
+                                break;
+                        // for task-lineobs
+                        case TASK_LINE:
+                                // get line transition
+                                o1 = PyObject_GetAttrString(o, "line");
+                                glb.line = Sp_PYSIZE(o1);
+                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
+                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
+                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+                                if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+                                if(!sts){
+                                        if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
+                                }
+                                Deb_ASSERT(glb.model.parms.mol != NULL);
+                                SpPy_XDECREF(o1);
+                                
+                                /* tau (optional) */
+                                if(!sts && SpPy_CheckOptionalInput("tau")) {
+                                        sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
+                                }
+
+                                // get overlap switch
+                                o2 = PyObject_GetAttrString(o, "overlap_int");
+                                glb.overlap = Sp_PYINT(o2);
+                                
+                                // get overlap velocity
+                                o3 = PyObject_GetAttrString(o, "overlap_vel");
+                                glb.overlap_vel = Sp_PYDBL(o3);
+                                SpPy_XDECREF(o2);
+                                SpPy_XDECREF(o3);
+                                
+                                /* excitation visualization */
+                                if(!sts) 
+                                        sts = SpPy_GetInput_bool("excit", &glb.excit);
+                                break;
+                        default: 
+                                /* Shouldn't reach here */
+                                Deb_ASSERT(0);
+                }
+	}
+	
+	/* unit */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("unit", &o))) {
+                glb.unit = Dat_IList_NameLookup(UNITS, Sp_PYSTR(o));
+                Deb_ASSERT(glb.unit != NULL);
+                if(glb.task->idx != TASK_COLDENS){
+                        switch (glb.unit->idx){
+                                case UNIT_K:
+                                        glb.ucon = Phys_RayleighJeans(glb.freq, 1.0);
+                                        break;
+                                case UNIT_JYPX:
+                                        glb.ucon = (PHYS_UNIT_MKS_JY / (glb.x.delt * glb.y.delt));
+                                        break;
+                                default:
+                                        Deb_ASSERT(0);
+                        }
+                        /* Sanity check */
+                        Deb_ASSERT((glb.ucon > 0) && (!Num_ISNAN(glb.ucon)) && (glb.ucon < HUGE_VAL));
+                        SpPy_XDECREF(o);
+                }
+        }
+	
+        /* chan */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
+                glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
+                glb.v.crpix = MirWr_CRPIX(glb.v.n);
+                glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
                 SpPy_XDECREF(o);
-	}
-	
+        }
         
-	if(!sts && !(sts = SpPy_GetInput_PyObj("unit", &o))) {
-		/* unit */
-		glb.unit = Dat_IList_NameLookup(UNITS, Sp_PYSTR(o));
-		Deb_ASSERT(glb.unit != NULL);
-		if(glb.unit->idx == UNIT_K)
-			glb.ucon = Phys_RayleighJeans(glb.freq, 1.0);
-		else if(glb.unit->idx == UNIT_JYPX)
-			glb.ucon = (PHYS_UNIT_MKS_JY / (glb.x.delt * glb.y.delt));
-		else
-			Deb_ASSERT(0);
-		/* Sanity check */
-		if(!glb.coldens){
-			Deb_ASSERT((glb.ucon > 0) && (!Num_ISNAN(glb.ucon)) && (glb.ucon < HUGE_VAL));
-			SpPy_XDECREF(o);
-		}
-		
-
-	}
-	/* dist */
-	if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.dist);
-	
-	/* out (mandatory) */
-	if(!sts){
-		if(glb.coldens) glb.v.n=1;
-
-		sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
-
-#if Sp_MIRSUPPORT
-		if(glb.cont){
+        
+        
+        /*    1.2 those are the general parameters */
+        /* source */
+        if(!sts) {
+                sts = SpPy_GetInput_model("source","source", &glb.model);
+        }
+        
+        /* out (mandatory) */
+        if(!sts){
+                sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
+                #if Sp_MIRSUPPORT
+                if(glb.task->idx == TASK_CONT){
                         char SQFName[64],SUFName[64];
-			sprintf( SQFName, "stokesq_%s", glb.imgf->name);
-			sprintf( SUFName, "stokesu_%s", glb.imgf->name);
-			glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
-			glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
-		}
-#endif
+                        sprintf( SQFName, "stokesq_%s", glb.imgf->name);
+                        sprintf( SUFName, "stokesu_%s", glb.imgf->name);
+                        glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
+                        glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
+                }
+                #endif
+        }
+        
+        
+        /* npix */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("npix", &o))) {
+                glb.x.n = Sp_PYSIZE(Sp_PYLST(o, 0));
+                glb.x.crpix = MirWr_CRPIX(glb.x.n);
+                glb.y.n = Sp_PYSIZE(Sp_PYLST(o, 1));
+                glb.y.crpix = MirWr_CRPIX(glb.y.n);
+                SpPy_XDECREF(o);
+        }
+        /* cell */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("cell", &o))) {
+                glb.x.delt = Sp_PYDBL(Sp_PYLST(o, 0));
+                glb.y.delt = Sp_PYDBL(Sp_PYLST(o, 1));
+                SpPy_XDECREF(o);
+        }
+        
+        /* dist */
+        if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.dist);
+        
+        /* rotate */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("rotate", &o))) {
+                glb.rotate[0] = Sp_PYDBL(Sp_PYLST(o, 0));
+                glb.rotate[1] = Sp_PYDBL(Sp_PYLST(o, 1));
+                glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
+                SpPy_XDECREF(o);
+        }
+        /* subres */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("subres", &o))) {
+                if(o != Py_None) {
+                        /* Get number of boxes */
+                        glb.nsubres = (size_t)PyList_Size(o);
+                        glb.subres = Mem_CALLOC(glb.nsubres, glb.subres);
+                        for(size_t i = 0; i < glb.nsubres; i++) {
+                                PyObject *o_sub;
+                                o_sub = PyList_GetItem(o, (Py_ssize_t)i);
+                                glb.subres[i].blc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)0));
+                                glb.subres[i].blc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)1));
+                                glb.subres[i].trc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)2));
+                                glb.subres[i].trc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)3));
+                                glb.subres[i].nsub = Sp_PYSIZE(PyList_GetItem(o_sub, (Py_ssize_t)4));
+                        }
+                }
+                SpPy_XDECREF(o);
+        }
 
-	}
-	/* tau (optional) */
-	if(!sts && SpPy_CheckOptionalInput("tau")) {
-		sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
-	}
-	/* excitation visualization */
-	if(!sts && !glb.coldens && !glb.cont) sts = SpPy_GetInput_bool("excit", &glb.excit);
 
-	/*
-	 * Initialize model
-	 */
+/* 2. Initialize model */
 	if(!sts) sts = InitModel();
 
-	/*
-	 * Synthesize image
-	 */
+/* 3. Synthesize image */
 	if(!sts) {
 		/* Allocate image */
 		glb.image = MirImg_Alloc(glb.x, glb.y, glb.v);
 		glb.image->restfreq = glb.freq;
-		if(glb.cont){
+		if(glb.task->idx == TASK_CONT){
 			glb.StokesQ = MirImg_Alloc(glb.x, glb.y, glb.v);
 			glb.StokesU = MirImg_Alloc(glb.x, glb.y, glb.v);
 			glb.sigma2 = MirImg_Alloc(glb.x, glb.y, glb.v);
@@ -304,61 +345,185 @@ int SpTask_Telsim(void)
 			glb.StokesU->restfreq = glb.freq;
 			glb.sigma2->restfreq = glb.freq;
 		}
-
 		if(glb.tau_imgf)
 			glb.tau_img = MirImg_Alloc(glb.x, glb.y, glb.v);
 		/* Calculate image */
-
 		sts = CalcImage();
-                
 	}
 
-        /* OUTPUT */
+/* 4. I/O : OUTPUT */
 	if(!sts){
-		if(glb.coldens) // output column density image
-			FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, 1e-7, 0);
-                else if(glb.cont) // output dust emission and its polarization image
-			FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, glb.I_norm/glb.ucon, 1);
-                else // output line emission or zeeman effect (stokes V) image
-                        FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, glb.I_norm/glb.ucon, 0);
-		Sp_PRINT("Wrote FITS image to `%s'\n", glb.imgf->name);		
+                double scale_factor;
+                int stokes;
+                switch(glb.task->idx){
+                  // output column density image
+                  case TASK_COLDENS:
+                          switch(glb.unit->idx){
+                                  case UNIT_CGS:
+                                          scale_factor = 1e-7;
+                                          break;
+                                  case UNIT_MKS:
+                                          scale_factor = 1.0;
+                                          break;
+                          }
+                          stokes = 0;
+                          
+                          char filename[32];
+                          sprintf(filename,"%s.vtk",glb.imgf->name);
+                          {
+                            FILE *fp=fopen(filename,"w");
+                            fprintf(fp,"# vtk DataFile Version 3.0\n");
+                            fprintf(fp,"Column density\n");
+                            fprintf(fp,"ASCII\n");
+                            fprintf(fp,"DATASET STRUCTURED_POINTS\n");
+                            fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
+                            fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,1);
+                            fprintf(fp,"SPACING %d %d %d\n",1,1,1);
+                            fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n );
+                            fprintf(fp,"SCALARS CD float 1\n");
+                            fprintf(fp,"LOOKUP_TABLE default\n");
+                            size_t iv=0;
+                            for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                    for(size_t ix = 0; ix < glb.x.n; ix++)
+                                            fprintf(fp,"%11.4e\n",MirImg_PIXEL(*glb.image, iv, ix, iy));
+                            
+                            fclose(fp);
+                          }
+                          #if Sp_MIRSUPPORT
+                          MirImg_WriteXY( glb.imgf, glb.image, glb.unit->name, scale_factor);
+                          Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                          #endif
+                          
+                          break;
+                  // output dust emission and its polarization image
+                  case TASK_CONT:
+                          scale_factor = glb.I_norm/glb.ucon;
+                          stokes = 1;
+                          #if Sp_MIRSUPPORT
+                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor;
+                          MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, scale_factor);
+                          MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, scale_factor);
+                          Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                          Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxQf->name);
+                          Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxUf->name);
+                          #endif
+                          {
+                            char filename[32];
+                            sprintf(filename,"stokesIQU_%s.vtk",glb.imgf->name);
+                            FILE *fp=fopen(filename,"w");
+                            fprintf(fp,"# vtk DataFile Version 3.0\n");
+                            fprintf(fp,"Stokes parameters\n");
+                            fprintf(fp,"ASCII\n");
+                            fprintf(fp,"DATASET STRUCTURED_POINTS\n");
+                            fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
+                            fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,0);
+                            fprintf(fp,"SPACING %11.4e %11.4e %d\n",glb.x.delt,glb.y.delt,1);
+                            fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n);
+                            fprintf(fp,"SCALARS Stokes_I float 1\n");
+                            fprintf(fp,"LOOKUP_TABLE default\n");
+                            for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                    for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                            fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.image, 0, ix, iy));
+                            fprintf(fp,"\n");
+                            fprintf(fp,"SCALARS Stokes_Q float 1\n");
+                            fprintf(fp,"LOOKUP_TABLE default\n");
+                            for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                    for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                            fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
+                            fprintf(fp,"\n");
+                            fprintf(fp,"SCALARS Stokes_U float 1\n");
+                            fprintf(fp,"LOOKUP_TABLE default\n");
+                            for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                    for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                            fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
+                            fclose(fp);
+                            
+                            
+                            sprintf(filename,"stokesI_%s.dat",glb.imgf->name);
+                            fp=fopen(filename,"w"); 
+                            for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                    for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                            fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.image, 0, ix, iy));
+                                    fprintf(fp,"\n");
+                            }
+                            fclose(fp);
+                            sprintf(filename,"stokesQ_%s.dat",glb.imgf->name);
+                            fp=fopen(filename,"w"); 
+                            for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                    for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                            fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
+                                    fprintf(fp,"\n");
+                            }
+                            fclose(fp);
+                            sprintf(filename,"stokesU_%s.dat",glb.imgf->name);
+                            fp=fopen(filename,"w"); 
+                            for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                    for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                            fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
+                                    fprintf(fp,"\n");
+                            }
+                            fclose(fp);
+                            
+                            sprintf(filename,"vector_%s.dat",glb.imgf->name);
+                            fp=fopen(filename,"w");         
+                            for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                    for(size_t ix = 0; ix < glb.x.n; ix++) {
+                                            double StxI = MirImg_PIXEL(*glb.image, 0, ix, iy);
+                                            double StxQ = MirImg_PIXEL(*glb.StokesQ, 0, ix, iy);
+                                            double StxU = MirImg_PIXEL(*glb.StokesU, 0, ix, iy);
+                                            double Sigma2 = MirImg_PIXEL(*glb.sigma2, 0, ix, iy);
+                                            double pd = sqrt( StxQ*StxQ + StxU*StxU ) / (StxI - Sigma2);
+                                            
+                                            double xi=atan2(StxU,StxQ); xi = 0.5 * xi;
+                                            double vecx=-pd*sin(xi);
+                                            double vecy=pd*cos(xi);
+                                            
+                                            fprintf(fp,"%5zu %5zu %11.4e %11.4e %11.4e %11.4e\n",ix,iy,vecx,vecy,pd,xi);
+                                    }
+                                    fprintf(fp,"\n");
+                            }
+                            fclose(fp);
+                          }
+                          
+                          break;
+                  // output line emission or zeeman effect (stokes V) image
+                  case TASK_LINE:
+                  case TASK_ZEEMAN:
+                          scale_factor = glb.I_norm/glb.ucon;
+                          stokes = 0;
+                          #if Sp_MIRSUPPORT
+                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
+                          Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                          #endif
+                          break;
+                  default:
+                          Deb_ASSERT(0);
+		}
+		FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, scale_factor, stokes);
+                Sp_PRINT("Wrote FITS image to `%s'\n", glb.imgf->name);
+			
 		// output tau image
-                if(glb.tau_imgf)
-			FITSoutput( glb.tau_imgf, glb.tau_img, glb.StokesQ, glb.StokesU, "Optical depth", 1., 0);
-		
-		#if Sp_MIRSUPPORT
-		/* writing out MIRIAD file */
-		/* Denormalize and convert image to proper units, then write cube to
-                   Miriad image dataset */
-                
-                // output column density image
-                if(glb.coldens){
-                        MirImg_WriteXY( glb.imgf, glb.image, glb.unit->name, 1e-7);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
-                }
-                // output dust emission and its polarization image
-                else if(glb.cont){
-                        MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
-                        MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, glb.I_norm/glb.ucon);
-                        MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, glb.I_norm/glb.ucon);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxQf->name);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxUf->name);
-                }
-                // output line emission or zeeman effect (stokes V) image
-                else {
-                        MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
-                        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
-                }
-                // output tau image
                 if(glb.tau_imgf){
+			FITSoutput( glb.tau_imgf, glb.tau_img, glb.StokesQ, glb.StokesU, "Optical depth", 1., 0);
+                        #if Sp_MIRSUPPORT
                         MirImg_WriteXY(glb.tau_imgf, glb.tau_img, "Optical depth", 1.0);
                         Sp_PRINT("Wrote Miriad image to `%s'\n", glb.tau_imgf->name);
+                        #endif
+                        MirXY_Close(glb.tau_imgf);
                 }
+		
+                #if Sp_MIRSUPPORT
+                /* Miriad images must always be closed! */
+                if(glb.imgf)
+                        MirXY_Close(glb.imgf);
+                if(glb.StxQf)
+                        MirXY_Close(glb.StxQf);
+                if(glb.StxUf)
+                        MirXY_Close(glb.StxUf);
                 #endif
                 
                 /* write excitation visualization to VTK */
-                if(glb.excit && !glb.cont)
+                if(glb.excit && glb.task->idx == TASK_LINE)
                         visualization();
                 
                 #if 1
@@ -368,254 +533,107 @@ int SpTask_Telsim(void)
         }
 
 	
-	
-	FILE *fp;
-	size_t ix,iy,iv;
-	/* column density map to VTK */
-	if(glb.coldens && !glb.cont){
-		char filename[32];
-		sprintf(filename,"%s.vtk",glb.imgf->name);
-		fp=fopen(filename,"w");
-	
-		fprintf(fp,"# vtk DataFile Version 3.0\n");
-		fprintf(fp,"Column density\n");
-		fprintf(fp,"ASCII\n");
-		fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-		fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
-		fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,1);
-		fprintf(fp,"SPACING %d %d %d\n",1,1,1);
-		fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n );
-		fprintf(fp,"SCALARS CD float 1\n");
-		fprintf(fp,"LOOKUP_TABLE default\n");	
-		
-		iv=0;
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e\n",MirImg_PIXEL(*glb.image, iv, ix, iy));
-			}	
-		}
-	
-		fclose(fp);
-		
-	}
+
+
 
 #if 0	
-	// calculate three moments and output to VTK file
-	if(!glb.cont){
-	
-	double *mean_int,*mean_vel,*mean_dev,dv,tempINT;
-	mean_int = Mem_CALLOC(glb.x.n*glb.y.n, mean_int);
-	mean_vel = Mem_CALLOC(glb.x.n*glb.y.n, mean_vel);
-	mean_dev = Mem_CALLOC(glb.x.n*glb.y.n, mean_dev);
-	
-	
-	for(ix = 0; ix < glb.x.n; ix++) {
-		for(iy = 0; iy < glb.y.n; iy++) {
-			MEAN_INT(ix,iy)=0.0;
-			MEAN_VEL(ix,iy)=0.0;
-			MEAN_DEV(ix,iy)=0.0;
-			for(iv = 0; iv < glb.v.n; iv++) {
-				tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
-				MEAN_INT(ix,iy) += tempINT;
-				MEAN_VEL(ix,iy) += tempINT * ((double)iv - glb.v.crpix) * glb.v.delt;
-			}
-			MEAN_INT(ix,iy) /= (double)glb.v.n;
-			if (MEAN_INT(ix,iy)<1e-20){
-				MEAN_VEL(ix,iy)=0.;
-			}
-			else{
-				MEAN_VEL(ix,iy) /= MEAN_INT(ix,iy) * (double)glb.v.n;
-			}
-			for(iv = 0; iv < glb.v.n; iv++) {
-				tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
-			 	dv = ((double)iv - glb.v.crpix) * glb.v.delt - MEAN_VEL(ix,iy);
-				MEAN_DEV(ix,iy) += tempINT*dv*dv;
-			}
-			if (MEAN_INT(ix,iy)<1e-20){
-				MEAN_DEV(ix,iy)=0.;
-			}
-			else{
-				MEAN_DEV(ix,iy) /= MEAN_INT(ix,iy) * (double)glb.v.n;
-				MEAN_DEV(ix,iy) = sqrt(MEAN_DEV(ix,iy));
-			}	
-		}
-	}
-	
-	char filename[32];
-	
-        size_t iz;
-	sprintf(filename,"0thmov_%5s.vtk",glb.imgf->name);
-	fp=fopen(filename,"w");
-	fprintf(fp,"# vtk DataFile Version 3.0\n");
-	fprintf(fp,"0thmov\n");
-	fprintf(fp,"ASCII\n");
-	fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-	fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,2);
-	fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,1);
-	fprintf(fp,"SPACING %d %d %d\n",1,1,1);
-	fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n * 2);
-	fprintf(fp,"SCALARS Intensity float 1\n");
-	fprintf(fp,"LOOKUP_TABLE default\n");	
-	for (iz = 0; iz < 2; iz++){
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e\n",MEAN_INT(ix,iy));
-			}	
-		}
-	}
-	fclose(fp);
-	sprintf(filename,"1stmov_%5s.vtk",glb.imgf->name);
-	fp=fopen(filename,"w");
-	fprintf(fp,"# vtk DataFile Version 3.0\n");
-	fprintf(fp,"1stmov\n");
-	fprintf(fp,"ASCII\n");
-	fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-	fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,2);
-	fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,-1);
-	fprintf(fp,"SPACING %d %d %d\n",1,1,1);
-	fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n * 2);
-	fprintf(fp,"SCALARS Velocity float 1\n");
-	fprintf(fp,"LOOKUP_TABLE default\n");		
-	for (iz = 0; iz < 2; iz++){
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e\n",MEAN_VEL(ix,iy));
-			}	
-		}
-	}
-	fclose(fp);
-	sprintf(filename,"2ndmov_%5s.vtk",glb.imgf->name);
-	fp=fopen(filename,"w");
-	fprintf(fp,"# vtk DataFile Version 3.0\n");
-	fprintf(fp,"2ndmov\n");
-	fprintf(fp,"ASCII\n");
-	fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-	fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,2);
-	fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,0);
-	fprintf(fp,"SPACING %d %d %d\n",1,1,1);
-	fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n * 2);
-	fprintf(fp,"SCALARS Deviation float 1\n");
-	fprintf(fp,"LOOKUP_TABLE default\n");	
-	for (iz = 0; iz < 2; iz++){
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e\n",MEAN_DEV(ix,iy));
-			}	
-		}
-	}
-	fclose(fp);
-	
+        // this visualization is ... not useful
+        // calculate three moments and output to VTK file
+	if(glb.task->idx == TASK_LINE){
+                double *mean_int,*mean_vel,*mean_dev,dv,tempINT;
+                mean_int = Mem_CALLOC(glb.x.n*glb.y.n, mean_int);
+                mean_vel = Mem_CALLOC(glb.x.n*glb.y.n, mean_vel);
+                mean_dev = Mem_CALLOC(glb.x.n*glb.y.n, mean_dev);
+                
+                for(size_t ix = 0; ix < glb.x.n; ix++) 
+                        for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                MEAN_INT(ix,iy)=0.0;
+                                MEAN_VEL(ix,iy)=0.0;
+                                MEAN_DEV(ix,iy)=0.0;
+                                for(size_t iv = 0; iv < glb.v.n; iv++) {
+                                        tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
+                                        MEAN_INT(ix,iy) += tempINT;
+                                        MEAN_VEL(ix,iy) += tempINT * ((double)iv - glb.v.crpix) * glb.v.delt;
+                                }
+                                MEAN_INT(ix,iy) /= (double)glb.v.n;
+                                if (MEAN_INT(ix,iy)<1e-20){
+                                        MEAN_VEL(ix,iy)=0.;
+                                }
+                                else{
+                                        MEAN_VEL(ix,iy) /= MEAN_INT(ix,iy) * (double)glb.v.n;
+                                }
+                                for(size_t iv = 0; iv < glb.v.n; iv++) {
+                                        tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
+                                        dv = ((double)iv - glb.v.crpix) * glb.v.delt - MEAN_VEL(ix,iy);
+                                        MEAN_DEV(ix,iy) += tempINT*dv*dv;
+                                }
+                                if (MEAN_INT(ix,iy)<1e-20){
+                                        MEAN_DEV(ix,iy)=0.;
+                                }
+                                else{
+                                        MEAN_DEV(ix,iy) /= MEAN_INT(ix,iy) * (double)glb.v.n;
+                                        MEAN_DEV(ix,iy) = sqrt(MEAN_DEV(ix,iy));
+                                }	
+                        }
+
+                char filename[32];
+                sprintf(filename,"0thmov_%5s.vtk",glb.imgf->name);
+                FILE *fp=fopen(filename,"w");
+                fprintf(fp,"# vtk DataFile Version 3.0\n");
+                fprintf(fp,"0thmov\n");
+                fprintf(fp,"ASCII\n");
+                fprintf(fp,"DATASET STRUCTURED_POINTS\n");
+                fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,2);
+                fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,1);
+                fprintf(fp,"SPACING %d %d %d\n",1,1,1);
+                fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n * 2);
+                fprintf(fp,"SCALARS Intensity float 1\n");
+                fprintf(fp,"LOOKUP_TABLE default\n");	
+                for (size_t iz = 0; iz < 2; iz++)
+                        for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                        fprintf(fp,"%11.4e\n",MEAN_INT(ix,iy));
+                fclose(fp);
+                sprintf(filename,"1stmov_%5s.vtk",glb.imgf->name);
+                fp=fopen(filename,"w");
+                fprintf(fp,"# vtk DataFile Version 3.0\n");
+                fprintf(fp,"1stmov\n");
+                fprintf(fp,"ASCII\n");
+                fprintf(fp,"DATASET STRUCTURED_POINTS\n");
+                fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,2);
+                fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,-1);
+                fprintf(fp,"SPACING %d %d %d\n",1,1,1);
+                fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n * 2);
+                fprintf(fp,"SCALARS Velocity float 1\n");
+                fprintf(fp,"LOOKUP_TABLE default\n");		
+                for (size_t iz = 0; iz < 2; iz++)
+                        for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                        fprintf(fp,"%11.4e\n",MEAN_VEL(ix,iy));
+                fclose(fp);
+                sprintf(filename,"2ndmov_%5s.vtk",glb.imgf->name);
+                fp=fopen(filename,"w");
+                fprintf(fp,"# vtk DataFile Version 3.0\n");
+                fprintf(fp,"2ndmov\n");
+                fprintf(fp,"ASCII\n");
+                fprintf(fp,"DATASET STRUCTURED_POINTS\n");
+                fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,2);
+                fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,0);
+                fprintf(fp,"SPACING %d %d %d\n",1,1,1);
+                fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n * 2);
+                fprintf(fp,"SCALARS Deviation float 1\n");
+                fprintf(fp,"LOOKUP_TABLE default\n");	
+                for (size_t iz = 0; iz < 2; iz++)
+                        for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                        fprintf(fp,"%11.4e\n",MEAN_DEV(ix,iy));
+                fclose(fp);
 	}
 #endif
-	if(glb.cont){
-		char filename[32];
-		sprintf(filename,"stokesIQU_%s.vtk",glb.imgf->name);
-		fp=fopen(filename,"w");
-		fprintf(fp,"# vtk DataFile Version 3.0\n");
-		fprintf(fp,"Stokes parameters\n");
-		fprintf(fp,"ASCII\n");
-		fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-		fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
-		fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,0);
-		fprintf(fp,"SPACING %11.4e %11.4e %d\n",glb.x.delt,glb.y.delt,1);
-		fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n);
-		fprintf(fp,"SCALARS Stokes_I float 1\n");
-		fprintf(fp,"LOOKUP_TABLE default\n");
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.image, 0, ix, iy));
-			}
-		}
-		fprintf(fp,"\n");
-		fprintf(fp,"SCALARS Stokes_Q float 1\n");
-		fprintf(fp,"LOOKUP_TABLE default\n");
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
-			}
-		}
-		fprintf(fp,"\n");
-		fprintf(fp,"SCALARS Stokes_U float 1\n");
-		fprintf(fp,"LOOKUP_TABLE default\n");
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
-			}
-		}
-		fclose(fp);
 
-#if 0
-		sprintf(filename,"stokesI_%s.dat",glb.imgf->name);
-		fp=fopen(filename,"w");	
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.image, 0, ix, iy));
-			}
-			fprintf(fp,"\n");
-		}
-		fclose(fp);
-		sprintf(filename,"stokesQ_%s.dat",glb.imgf->name);
-		fp=fopen(filename,"w");	
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
-			}
-			fprintf(fp,"\n");
-		}
-		fclose(fp);
-		sprintf(filename,"stokesU_%s.dat",glb.imgf->name);
-		fp=fopen(filename,"w");	
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-				fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
-			}
-			fprintf(fp,"\n");
-		}
-		fclose(fp);
-#endif
-		sprintf(filename,"vector_%s.dat",glb.imgf->name);
-		fp=fopen(filename,"w");		
-		for(iy = 0; iy < glb.y.n; iy++) {
-			for(ix = 0; ix < glb.x.n; ix++) {
-                                double StxI = MirImg_PIXEL(*glb.image, 0, ix, iy);
-                                double StxQ = MirImg_PIXEL(*glb.StokesQ, 0, ix, iy);
-                                double StxU = MirImg_PIXEL(*glb.StokesU, 0, ix, iy);
-                                double Sigma2 = MirImg_PIXEL(*glb.sigma2, 0, ix, iy);
-				double pd = sqrt( StxQ*StxQ + StxU*StxU ) / (StxI - Sigma2);
-				
-// 				if (StxQ==0.0){
-//                   			if(StxU>0) xi = 0.5 * M_PI;
-//                                      else xi = -0.5 * M_PI;
-// 				}
-//                                else{
-// 					xi=atan(StxU/StxQ);
-// 				} 
-// 				if (StxQ<0){
-// 					xi=xi+M_PI;
-// 				}
-// 				else if (xi<0){ 
-// 					xi=xi+2*M_PI;
-// 				}
-				   
-				double xi=atan2(StxU,StxQ); xi = 0.5 * xi;
-				double vecx=-pd*sin(xi);
-				double vecy=pd*cos(xi);
-// 				double vecx=pd*cos(xi);
-// 				double vecy=pd*sin(xi);
-				
-				fprintf(fp,"%5zu %5zu %11.4e %11.4e %11.4e %11.4e\n",ix,iy,vecx,vecy,pd,xi);
-			}
-			fprintf(fp,"\n");
-		}
-		fclose(fp);
-	}
 	
 
-
-
-	/*
-	 * Cleanup
-	 */
+/* 5. Cleanup */
 	if(glb.image)
 		MirImg_Free(glb.image);
         if(glb.StokesQ)
@@ -626,28 +644,10 @@ int SpTask_Telsim(void)
 		MirImg_Free(glb.sigma2);
 	if(glb.tau_img)
 		MirImg_Free(glb.tau_img);
-
 	if(glb.subres)
 		free(glb.subres);
-
 	SpModel_Cleanup(glb.model);
 
-	
-#if Sp_MIRSUPPORT
-	/* Miriad images must always be closed! */
-	if(glb.imgf)
-		MirXY_Close(glb.imgf);
-	
-	if(glb.StxQf)
-		MirXY_Close(glb.StxQf);
-	if(glb.StxUf)
-		MirXY_Close(glb.StxUf);
-	if(glb.StxVf)
-		MirXY_Close(glb.StxVf);
-
-	if(glb.tau_imgf)
-		MirXY_Close(glb.tau_imgf);
-#endif
 	return sts;
 }
 
@@ -658,7 +658,6 @@ static int InitModel(void)
 	Zone *root = glb.model.grid, *zp;
 	SpPhys *pp;
 	int sts = 0;
-        size_t i,j;
 
 // 	FILE *fp;
 // 	double radius;
@@ -666,8 +665,8 @@ static int InitModel(void)
 	/* initialization : construct overlapping table */
         if(glb.overlap){
                 glb.model.parms.mol->OL = Mem_CALLOC(NRAD*NRAD,glb.model.parms.mol->OL);
-                for(i=0; i<NRAD; i++){
-                 for(j=0; j<NRAD; j++){
+                for(size_t i=0; i<NRAD; i++){
+                 for(size_t j=0; j<NRAD; j++){
                         glb.model.parms.mol->OL[NRAD*i+j] = Mem_CALLOC(1,glb.model.parms.mol->OL[NRAD*i+j]);
                         RELVEL(i,j) = ( 1e0-FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
                         if( fabs(RELVEL(i,j)) < glb.overlap_vel ){
@@ -682,7 +681,7 @@ static int InitModel(void)
 
         /* Set normalization intensity to 20K -- normalization prevents rounding
 	   errors from creeping in when flux values are very small */
-	if(!glb.coldens){
+	if(glb.task->idx != TASK_COLDENS){
 		glb.I_norm = Phys_PlanckFunc(glb.freq, 10.0);
 
 		Deb_ASSERT(glb.I_norm > 0); /* Just in case */
@@ -745,67 +744,60 @@ static void *InitModelThread(void *tid_p)
 	Zone *root = glb.model.grid, *zp;
 	SpPhys *pp;
         
-        if(glb.coldens){
-                // do nothing
-        }
-        else{
-                
-	for(zp = Zone_GetMinLeaf(root), zone_id = 0; zp; zp = Zone_AscendTree(zp), zone_id++) {
-		if(zone_id % Sp_NTHREAD == tid) {
+        if(glb.task->idx != TASK_COLDENS){
+          for(zp = Zone_GetMinLeaf(root), zone_id = 0; zp; zp = Zone_AscendTree(zp), zone_id++) {
+            if(zone_id % Sp_NTHREAD == tid) {
+                /* Check for thread termination */
+                Sp_CHECKTERMTHREAD();
 
-			/* Check for thread termination */
-			Sp_CHECKTERMTHREAD();
+                /* Init zone parameters */
+                pp = zp->data;
 
-			/* Init zone parameters */
-			pp = zp->data;
-
-			if(glb.cont) {
-				SpPhys_InitContWindows(pp, &glb.freq, (size_t)1);
-			}
-			else {
-                                size_t nrad = glb.model.parms.mol->nrad;
-                                double freq[nrad];
-                                /* Set initial pops to either optically thin or LTE */
-                                if(glb.lte){
-                                        // initialize level population for LTE condition
-                                        pp->mol = glb.model.parms.mol;
-                                        for(k = 0; k < Sp_NTHREAD; k++) {
-                                                pp->pops[k] = Mem_CALLOC(pp->mol->nlev, pp->pops[k]);
-                                        }
-                                        for(j = 0; j < pp->mol->nlev; j++) {
-                                                pp->pops[0][j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
-                                                for(k = 1; k < Sp_NTHREAD; k++) {
-                                                        pp->pops[k][j] = pp->pops[0][j];
-                                                }
-                                        }
-                                        /* Allocate continuum emission/absorption */
-                                        for(size_t i = 0; i < nrad; i++) {
-                                                freq[i] = pp->mol->rad[i]->freq;
-                                        }
-                                        SpPhys_InitContWindows(pp, freq, nrad);
+                if(glb.task->idx == TASK_CONT) {
+                        SpPhys_InitContWindows(pp, &glb.freq, (size_t)1);
+                }
+                else {
+                        size_t nrad = glb.model.parms.mol->nrad;
+                        double freq[nrad];
+                        /* Set initial pops to either optically thin or LTE */
+                        if(glb.lte){
+                                // initialize level population for LTE condition
+                                pp->mol = glb.model.parms.mol;
+                                for(k = 0; k < Sp_NTHREAD; k++) {
+                                        pp->pops[k] = Mem_CALLOC(pp->mol->nlev, pp->pops[k]);
                                 }
-                                pp->width = SpPhys_CalcLineWidth(pp);
+                                for(j = 0; j < pp->mol->nlev; j++) {
+                                        pp->pops[0][j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
+                                        for(k = 1; k < Sp_NTHREAD; k++) {
+                                                pp->pops[k][j] = pp->pops[0][j];
+                                        }
+                                }
+                                /* Allocate continuum emission/absorption */
+                                for(size_t i = 0; i < nrad; i++) {
+                                        freq[i] = pp->mol->rad[i]->freq;
+                                }
+                                SpPhys_InitContWindows(pp, freq, nrad);
                         }
+                        pp->width = SpPhys_CalcLineWidth(pp);
+                }
 
-			/* Add dust emission/absorption if T_d > 0 */
-			if(pp->T_d > 0) {
-				SpPhys_AddContinuum_d(pp, glb.cont, glb.model.parms.gas_to_dust);
-			}
-			/* Add free-free emission/absorption if T_ff > 0 */
-			if(pp->T_ff > 0) {
-				SpPhys_AddContinuum_ff(pp, glb.cont);
-			}
+                /* Add dust emission/absorption if T_d > 0 */
+                if(pp->T_d > 0) {
+                        SpPhys_AddContinuum_d(pp, glb.task->idx == TASK_CONT, glb.model.parms.gas_to_dust);
+                }
+                /* Add free-free emission/absorption if T_ff > 0 */
+                if(pp->T_ff > 0) {
+                        SpPhys_AddContinuum_ff(pp, glb.task->idx == TASK_CONT);
+                }
 
-			/* Set continuum flux */
-			if(pp->T_bb > 0) {
-				//debug
-				SpPhys_SetContinuumIntens_bb(pp, glb.cont, pp->T_bb, glb.I_norm);
-				Deb_PRINT("T_bb=%g, F_nu=%g\n", pp->T_bb, pp->cont[0].I_bb);
-			}
-
-		}
-	}
-	
+                /* Set continuum flux */
+                if(pp->T_bb > 0) {
+                        //debug
+                        SpPhys_SetContinuumIntens_bb(pp, glb.task->idx == TASK_CONT, pp->T_bb, glb.I_norm);
+                        Deb_PRINT("T_bb=%g, F_nu=%g\n", pp->T_bb, pp->cont[0].I_bb);
+                }
+            }
+          }
         }
 
 	pthread_exit(NULL);
@@ -815,14 +807,19 @@ static void *InitModelThread(void *tid_p)
 
 static int CalcImage(void)
 {
-	if(glb.zeeman)
-                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadZeeman);
-        else if(glb.cont)
-                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadCont);
-        else if(glb.coldens)
-                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadColdens);
-        else
-                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadLine);
+	switch(glb.task->idx){
+                case TASK_ZEEMAN:
+                        return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadZeeman);
+                case TASK_CONT:
+                        return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadCont);
+                case TASK_COLDENS:
+                        return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadColdens);
+                case TASK_LINE:
+                        return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadLine);
+                default:
+                        /* Shouldn't reach here */
+                        Deb_ASSERT(0);
+        }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1595,7 +1592,8 @@ static void InitRay(double *dx, double *dy, GeRay *ray)
                 case GEOM_CYL3D:
                         break;
 
-                default: /* Shouldn't reach here */
+                default: 
+                        /* Shouldn't reach here */
                         Deb_ASSERT(0);
         }
         return;

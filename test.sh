@@ -52,7 +52,8 @@ case $CASE in
         source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log  
         ;;
   "CONTRIBUTION")
-        source ../telsim/contribution/test       | tee -a test.log
+        #source ../telsim/contribution/sph1d/test       | tee -a test.log
+        source ../telsim/contribution/sph3d/test       | tee -a test.log
         ;;
   *)
         exit 1

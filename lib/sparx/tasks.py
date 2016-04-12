@@ -2187,20 +2187,33 @@ class Task_AMC(Task):
 
 install_task(Task_AMC("task_amc"))
 
-##
-## telsim related tasks:
-## task_contobs and task_lineobs
-##
-# Keys both contobs and lineobs share:
+
+
+
+################################################
+#    The following tasks are preprocessors     #
+################################################
+# Keys all tasks share:
 telsim_keys = [
+        Key("source", Type.OldFile, None, 
+            "Input source model (HDF5 file), must contain dust information"
+            ),
+        Key("out", Type.NewFile, None, 
+            "Name of output image (Miriad image dataset)"
+            ),
 	Key("dist", Type.Length, "1kpc", "Distance to source"),
-	Key("cell", Type.Custom([Type.Angle, Type.Angle]), "['1asec', '1asec']", "Angular size of each pixel"),
-	Key("npix", Type.Custom([Type.PosInt, Type.PosInt]), "[128, 128]", "Image dimensions in number of pixels"),
-	Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[64, '0.1kms^-1']", "Number of spectral channels and width of each channel (in velocity units)"),
-	Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", "Image brightness unit"),
-	Key("rotate", Type.Custom([Type.Angle, Type.Angle, Type.Angle]), "['0deg', '0deg', '0deg']", "Rotation of model about its x, y and z axes, in x-y-z order."),
-	Key("tau", Type.NewFile, Type.Optional, "Name of output tau cube (Miriad image dataset)"),
-	Key("subres", Type.Custom([[Type.Angle, Type.Angle, Type.Angle, Type.Angle, Type.PosInt]]), Type.Optional, "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]")	
+	Key("cell", Type.Custom([Type.Angle, Type.Angle]), "['1asec', '1asec']", 
+                "Angular size of each pixel"
+                ),
+	Key("npix", Type.Custom([Type.PosInt, Type.PosInt]), "[128, 128]", 
+                "Image dimensions in number of pixels"
+                ),
+	Key("rotate", Type.Custom([Type.Angle, Type.Angle, Type.Angle]), "['0deg', '0deg', '0deg']", 
+                "Rotation of model about its x, y and z axes, in x-y-z order."
+                ),
+	Key("subres", Type.Custom([[Type.Angle, Type.Angle, Type.Angle, Type.Angle, Type.PosInt]]), Type.Optional, 
+                "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]"
+                )	
 ]
 
 ##
@@ -2221,9 +2234,16 @@ class Task_ContObs(Task):
 
 		# Keys
 		self.keys = [
-			Key("source", Type.OldFile, None, "Input source model (HDF5 file), must contain dust information"),
-			Key("out", Type.NewFile, None, "Name of output image (Miriad image dataset)"),
-			Key("wavelen", Type.Length, None, "Wavelength of observation")
+			Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[1, '0.1kms^-1']", 
+                                "Number of spectral channels and width of each channel (in velocity units)"
+                                ),
+			Key("wavelen", Type.Length, None, "Wavelength of observation"),
+			Key("tau", Type.NewFile, Type.Optional, 
+                                "Name of output tau cube (Miriad image dataset)"
+                                ),
+			Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
+                                "Image brightness unit"
+                                ),
 		]+telsim_keys
 
 		# C function to call
@@ -2237,9 +2257,8 @@ class Task_ContObs(Task):
 		# eventually)
 		class obs:
                         # Enable continuum mode 
-			cont = 1 
+			task = 'cont' 
 			wavelen = INP_DICT['wavelen']
-			coldens=0
 		INP_DICT["obs"] = obs
 		return
 
@@ -2263,14 +2282,30 @@ class Task_LineObs(Task):
 
 		# Keys
 		self.keys = [
-			Key("source", Type.OldFile, None, "Input source model (HDF5 file), must contain dust information"),
-			Key("out", Type.NewFile, None, "Name of output image (Miriad image dataset)"),
-			Key("line", Type.Index, None, "Line index of observing line"),
-			Key("overlap", Type.Velo, '0kms^-1', "line overlaping calculation"),
-			Key("lte", Type.Bool, "False", "Init model to LTE pops of Molec"),
-			Key("molec", Type.Molec, Type.Optional, "Molecule to calculate"),
-			Key("excit", Type.Bool, "False", "Excitation temperature"),
-			Key("zeeman", Type.Bool, "False", "Excitation temperature")
+			Key("line", Type.Index, None, 
+                                "Line index of observing line"
+                                ),
+			Key("overlap", Type.Velo, '0kms^-1', 
+                                "line overlaping calculation"
+                                ),
+			Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[64, '0.1kms^-1']", 
+                                "Number of spectral channels and width of each channel (in velocity units)"
+                                ),
+			Key("lte", Type.Bool, "False", 
+                                "Init model to LTE pops of Molec"
+                                ),
+			Key("molec", Type.Molec, Type.Optional, 
+                                "Molecule to calculate" 
+                                ),
+			Key("excit", Type.Bool, "False", 
+                                "Excitation temperature"
+                                ),
+			Key("tau", Type.NewFile, Type.Optional, 
+                                "Name of output tau cube (Miriad image dataset)"
+                                ),
+			Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
+                                "Image brightness unit"
+                                ),
 		]+telsim_keys
 
 		# C function to call
@@ -2284,8 +2319,7 @@ class Task_LineObs(Task):
 		# eventually)
 		class obs:
 			# Disable continuum and coldens mode -- line observations
-			cont = 0 
-			coldens=0
+			task='line'
 			line = INP_DICT["line"]
 			overlap_vel = INP_DICT["overlap"]
 			if ( overlap_vel == 0.0):
@@ -2297,6 +2331,57 @@ class Task_LineObs(Task):
 		return
 
 install_task(Task_LineObs("task_lineobs"))
+
+
+
+##
+## task_zeeman
+##
+class Task_Zeeman(Task):
+        ##
+        ## Task configuration
+        ##
+        def configure(self):
+                # Name: defined when task is registered
+
+                # Description
+                self.desc = "Zeeman effect : Stokes-V image"
+
+                # Explanation
+                self.expl = "Zeeman effect polarization to see B-strength along the line of sight"
+
+                # Keys
+                self.keys = [
+                        Key("line", Type.Index, None, "Line index of observing line"),
+                        Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[64, '0.1kms^-1']", 
+                                "Number of spectral channels and width of each channel (in velocity units)"
+                                ),
+                        Key("lte", Type.Bool, "False", "Init model to LTE pops of Molec"),
+                        Key("molec", Type.Molec, Type.Optional, "Molecule to calculate"),
+                        Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
+                            "Image brightness unit"
+                            ),
+                ]+telsim_keys
+
+                # C function to call
+                self.cfunc = _sparx.task_telsim
+
+        ##
+        ## Task procedures
+        ##
+        def main(self):
+                # Create 'obs' class used by C code (consider changing this
+                # eventually)
+                class obs:
+                        # Disable continuum and coldens mode -- line observations
+                        task='zeeman'
+                        line = INP_DICT["line"]
+
+
+                INP_DICT["obs"] = obs
+                return
+
+install_task(Task_Zeeman("task_zeeman"))
 
 
 ##
@@ -2317,8 +2402,9 @@ class Task_ColDens(Task):
 
 		# Keys
 		self.keys = [
-			Key("source", Type.OldFile, None, "Input source model (HDF5 file), must contain dust information"),
-			Key("out", Type.NewFile, None, "Name of output image (Miriad image dataset)")
+			Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[1, '0.1kms^-1']", 
+                                "Number of spectral channels and width of each channel (in velocity units)"),
+                        Key("unit", Type.Option(['MKS', 'CGS']), "CGS", "Image brightness unit"),
 		]+telsim_keys
 
 		# C function to call
@@ -2332,8 +2418,7 @@ class Task_ColDens(Task):
 		# eventually)
 		class obs:
 			# Enable coldens mode 
-			cont = 0 
-			coldens=1
+			task='coldens'
 		INP_DICT["obs"] = obs
 		
 		

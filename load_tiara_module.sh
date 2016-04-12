@@ -1,12 +1,12 @@
 #!/bin/bash
 
-. /etc/profile.d/modules.sh
-module purge
-
 HOSTNAME=`hostname`
 CLUSTERNAME=${HOSTNAME:0:2}
 SPARXVERSION='sparx-'$CLUSTERNAME
 SPARX_VERSION='sparx_'$CLUSTERNAME
+
+. /etc/profile.d/modules.sh
+module purge
 
 module add icc
 module add torque

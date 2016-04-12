@@ -1,0 +1,26 @@
+preprocessor :
+  cd DIRECTORY
+  pre-sparx
+
+solver :
+  sparx run task_amc
+
+postprocessor :
+  sparx run task_lineobs	
+			 lte='True' / overlap='xxkms^-1'
+	    task_zeeman 
+                         lte='True'
+	    task_contobs
+	    
+	    task_coldens
+        
+  Interface : 
+  task -- 'line'
+       -- 'zeeman'
+       -- 'cont'
+       -- 'coldens'
+       
+       
+line-fitting :
+  sparx run tasl_linefitting
+       
