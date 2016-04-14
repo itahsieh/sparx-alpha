@@ -273,6 +273,8 @@ ext_sparx = Extension( SPARX_VERSION + '._sparx'  ,
 	library_dirs = lib_dirs,
 	libraries = libs
 )
+os.environ["CXX"] = "icc"
+os.environ["CC"] = "icc"
 
 # The main setup call
 setup(

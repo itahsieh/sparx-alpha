@@ -125,20 +125,20 @@ DatINode VISUAL_TYPES[] = {
         {0, 0}
 };
 
-void generic_vtk(int);
+static void generic_vtk(int);
 
-void vtk_rec3d(void);
-void vtk_cyl3d(void);
+static void vtk_rec3d(void);
+static void vtk_cyl3d(void);
+static void vtk_sph3d(void);
+static void vtk_sph1d(void);
 
-void vtk_sph1d(void);
 void *VtkContributionSph1dTread(void *tid_p);
-void vtk_sph3d(void);
-void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo);
+void *VtkContributionSph3dTread(void *tid_p);
+
+void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo);
 static void ContributionTracer_sph3d( double *, double *, Zone *, GeVec3_d *);
 static int HitSph3dVoxel( const GeRay *, const GeVox *, double * t, size_t * side);
-
 static void CalcOpticalDepth( Zone *, const GeRay *, const double, double *);
-
 static void ContributionOfCell( Zone *, const GeRay *, const GeVec3_d *, double *, double *);
 
 
@@ -151,8 +151,63 @@ int SpTask_Telsim(void)
 
 // 1. GET PARAMETERS FROM PYTHON
         PyObject *o;
+/*    1-1 those are the general parameters */
+        /* source */
+        if(!sts) {
+                sts = SpPy_GetInput_model("source","source", &glb.model);
+        }
+        
+        /* out (mandatory) */
+        if(!sts){
+                sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
+        }
+        
+        
+        /* npix */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("npix", &o))) {
+                glb.x.n = Sp_PYSIZE(Sp_PYLST(o, 0));
+                glb.x.crpix = MirWr_CRPIX(glb.x.n);
+                glb.y.n = Sp_PYSIZE(Sp_PYLST(o, 1));
+                glb.y.crpix = MirWr_CRPIX(glb.y.n);
+                SpPy_XDECREF(o);
+        }
+        /* cell */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("cell", &o))) {
+                glb.x.delt = Sp_PYDBL(Sp_PYLST(o, 0));
+                glb.y.delt = Sp_PYDBL(Sp_PYLST(o, 1));
+                SpPy_XDECREF(o);
+        }
+        
+        /* dist */
+        if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.dist);
+        
+        /* rotate */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("rotate", &o))) {
+                glb.rotate[0] = Sp_PYDBL(Sp_PYLST(o, 0));
+                glb.rotate[1] = Sp_PYDBL(Sp_PYLST(o, 1));
+                glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
+                SpPy_XDECREF(o);
+        }
+        /* subres */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("subres", &o))) {
+                if(o != Py_None) {
+                        /* Get number of boxes */
+                        glb.nsubres = (size_t)PyList_Size(o);
+                        glb.subres = Mem_CALLOC(glb.nsubres, glb.subres);
+                        for(size_t i = 0; i < glb.nsubres; i++) {
+                                PyObject *o_sub;
+                                o_sub = PyList_GetItem(o, (Py_ssize_t)i);
+                                glb.subres[i].blc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)0));
+                                glb.subres[i].blc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)1));
+                                glb.subres[i].trc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)2));
+                                glb.subres[i].trc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)3));
+                                glb.subres[i].nsub = Sp_PYSIZE(PyList_GetItem(o_sub, (Py_ssize_t)4));
+                        }
+                }
+                SpPy_XDECREF(o);
+        }
 
-/*    1.1 get the task-based parameters */
+/*    1-2 get the task-based parameters */
 	/* obs */
 	if(!sts && !(sts = SpPy_GetInput_PyObj("obs", &o))) {
                 PyObject *o_task;
@@ -182,30 +237,35 @@ int SpTask_Telsim(void)
                                 // get line transition
                                 o_line = PyObject_GetAttrString(o, "line");
                                 glb.line = Sp_PYSIZE(o_line);
-                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
-                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+                                SpPy_XDECREF(o_line);
+                                
                                 if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
                                 if(!sts){
                                         if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
                                 }
                                 Deb_ASSERT(glb.model.parms.mol != NULL);
-                                SpPy_XDECREF(o_line);
+                                
+                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
+                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
+                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+                                
                                 break;
                         // for task-lineobs
                         case TASK_LINE:
                                 // get line transition
                                 o1 = PyObject_GetAttrString(o, "line");
                                 glb.line = Sp_PYSIZE(o1);
-                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
-                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+                                SpPy_XDECREF(o1);
+                                
                                 if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
                                 if(!sts){
                                         if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
                                 }
                                 Deb_ASSERT(glb.model.parms.mol != NULL);
-                                SpPy_XDECREF(o1);
+                                
+                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
+                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
+                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
                                 
                                 /* tau (optional) */
                                 if(!sts && SpPy_CheckOptionalInput("tau")) {
@@ -260,73 +320,8 @@ int SpTask_Telsim(void)
                 glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
                 SpPy_XDECREF(o);
         }
-        
-        
-        
-        /*    1.2 those are the general parameters */
-        /* source */
-        if(!sts) {
-                sts = SpPy_GetInput_model("source","source", &glb.model);
-        }
-        
-        /* out (mandatory) */
-        if(!sts){
-                sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
-                #if Sp_MIRSUPPORT
-                if(glb.task->idx == TASK_CONT){
-                        char SQFName[64],SUFName[64];
-                        sprintf( SQFName, "stokesq_%s", glb.imgf->name);
-                        sprintf( SUFName, "stokesu_%s", glb.imgf->name);
-                        glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
-                        glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
-                }
-                #endif
-        }
-        
-        
-        /* npix */
-        if(!sts && !(sts = SpPy_GetInput_PyObj("npix", &o))) {
-                glb.x.n = Sp_PYSIZE(Sp_PYLST(o, 0));
-                glb.x.crpix = MirWr_CRPIX(glb.x.n);
-                glb.y.n = Sp_PYSIZE(Sp_PYLST(o, 1));
-                glb.y.crpix = MirWr_CRPIX(glb.y.n);
-                SpPy_XDECREF(o);
-        }
-        /* cell */
-        if(!sts && !(sts = SpPy_GetInput_PyObj("cell", &o))) {
-                glb.x.delt = Sp_PYDBL(Sp_PYLST(o, 0));
-                glb.y.delt = Sp_PYDBL(Sp_PYLST(o, 1));
-                SpPy_XDECREF(o);
-        }
-        
-        /* dist */
-        if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.dist);
-        
-        /* rotate */
-        if(!sts && !(sts = SpPy_GetInput_PyObj("rotate", &o))) {
-                glb.rotate[0] = Sp_PYDBL(Sp_PYLST(o, 0));
-                glb.rotate[1] = Sp_PYDBL(Sp_PYLST(o, 1));
-                glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
-                SpPy_XDECREF(o);
-        }
-        /* subres */
-        if(!sts && !(sts = SpPy_GetInput_PyObj("subres", &o))) {
-                if(o != Py_None) {
-                        /* Get number of boxes */
-                        glb.nsubres = (size_t)PyList_Size(o);
-                        glb.subres = Mem_CALLOC(glb.nsubres, glb.subres);
-                        for(size_t i = 0; i < glb.nsubres; i++) {
-                                PyObject *o_sub;
-                                o_sub = PyList_GetItem(o, (Py_ssize_t)i);
-                                glb.subres[i].blc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)0));
-                                glb.subres[i].blc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)1));
-                                glb.subres[i].trc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)2));
-                                glb.subres[i].trc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)3));
-                                glb.subres[i].nsub = Sp_PYSIZE(PyList_GetItem(o_sub, (Py_ssize_t)4));
-                        }
-                }
-                SpPy_XDECREF(o);
-        }
+
+
 
 
 /* 2. Initialize model */
@@ -353,6 +348,7 @@ int SpTask_Telsim(void)
 
 /* 4. I/O : OUTPUT */
 	if(!sts){
+                
                 double scale_factor;
                 int stokes;
                 switch(glb.task->idx){
@@ -400,6 +396,11 @@ int SpTask_Telsim(void)
                           scale_factor = glb.I_norm/glb.ucon;
                           stokes = 1;
                           #if Sp_MIRSUPPORT
+                          char SQFName[64],SUFName[64];
+                          sprintf( SQFName, "stokesq_%s", glb.imgf->name);
+                          sprintf( SUFName, "stokesu_%s", glb.imgf->name);
+                          glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
+                          glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
                           MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor;
                           MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, scale_factor);
                           MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, scale_factor);
@@ -488,6 +489,19 @@ int SpTask_Telsim(void)
                           break;
                   // output line emission or zeeman effect (stokes V) image
                   case TASK_LINE:
+                          scale_factor = glb.I_norm/glb.ucon;
+                          stokes = 0;
+                          #if Sp_MIRSUPPORT
+                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
+                          Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                          #endif
+                          /* write excitation visualization to VTK */
+                          if(glb.excit && glb.task->idx == TASK_LINE)
+                                visualization();
+                          #if 1
+                          generic_vtk(glb.model.grid->voxel.geom);
+                          #endif
+                          break;
                   case TASK_ZEEMAN:
                           scale_factor = glb.I_norm/glb.ucon;
                           stokes = 0;
@@ -508,28 +522,10 @@ int SpTask_Telsim(void)
                         #if Sp_MIRSUPPORT
                         MirImg_WriteXY(glb.tau_imgf, glb.tau_img, "Optical depth", 1.0);
                         Sp_PRINT("Wrote Miriad image to `%s'\n", glb.tau_imgf->name);
-                        #endif
                         MirXY_Close(glb.tau_imgf);
+                        #endif
+                        
                 }
-		
-                #if Sp_MIRSUPPORT
-                /* Miriad images must always be closed! */
-                if(glb.imgf)
-                        MirXY_Close(glb.imgf);
-                if(glb.StxQf)
-                        MirXY_Close(glb.StxQf);
-                if(glb.StxUf)
-                        MirXY_Close(glb.StxUf);
-                #endif
-                
-                /* write excitation visualization to VTK */
-                if(glb.excit && glb.task->idx == TASK_LINE)
-                        visualization();
-                
-                #if 1
-                generic_vtk(glb.model.grid->voxel.geom);
-                #endif
-                
         }
 
 	
@@ -537,7 +533,7 @@ int SpTask_Telsim(void)
 
 
 #if 0	
-        // this visualization is ... not useful
+        // this visualization is ... not useful...
         // calculate three moments and output to VTK file
 	if(glb.task->idx == TASK_LINE){
                 double *mean_int,*mean_vel,*mean_dev,dv,tempINT;
@@ -634,6 +630,15 @@ int SpTask_Telsim(void)
 	
 
 /* 5. Cleanup */
+        #if Sp_MIRSUPPORT
+        /* Miriad images must always be closed! */
+        if(glb.imgf)
+                MirXY_Close(glb.imgf);
+        if(glb.StxQf)
+                MirXY_Close(glb.StxQf);
+        if(glb.StxUf)
+                MirXY_Close(glb.StxUf);
+        #endif
 	if(glb.image)
 		MirImg_Free(glb.image);
         if(glb.StokesQ)
@@ -1836,7 +1841,7 @@ static void visualization(void)
 
 /*----------------------------------------------------------------------------*/
 
-void generic_vtk(int geom)
+static void generic_vtk(int geom)
 {
         glb.visual = Mem_CALLOC(1, glb.visual);
         switch (geom){
@@ -1863,21 +1868,19 @@ void generic_vtk(int geom)
 
 /*----------------------------------------------------------------------------*/
 
-void vtk_sph1d(void)
+static void vtk_sph1d(void)
 {
         int sts = 0;
         Zone * root = glb.model.grid;
         size_t nvelo = glb.v.n;
         
         glb.visual->sph3d = Mem_CALLOC(1,glb.visual->sph3d);
-        
         // Dimension of the visualized resolution
         size_t nr = glb.visual->sph3d->nr = root->nchildren;
         size_t nt = glb.visual->sph3d->nt = 45;
         size_t np = glb.visual->sph3d->np = 90;
-
-        size_t nelement =  nr * np * nt;
         
+        size_t nelement =  nr * np * nt;
         // declare the memory
         double * radius = Mem_CALLOC( nr+1, radius);
         double * theta = Mem_CALLOC( nt+1, theta);
@@ -1885,7 +1888,6 @@ void vtk_sph1d(void)
         double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
         double * tau = Mem_CALLOC( nelement * nvelo, tau);
         double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
-        
         // link to the global pointer
         glb.visual->sph3d->radius = radius;
         glb.visual->sph3d->theta = theta;
@@ -1893,26 +1895,23 @@ void vtk_sph1d(void)
         glb.visual->contrib = contrib;
         glb.visual->tau = tau;
         glb.visual->tau_dev = tau_dev;
-        
         // construct the expanding SPH3D mesh
-        double delta_theta = M_PI / (double) nt;
-        double delta_phi = 2. * M_PI / (double) np;
-        
         radius[0] = root->children[0]->voxel.min.x[0];
         for(size_t i = 1; i < nr+1; i++)
                 radius[i] = root->children[i-1]->voxel.max.x[0];
+        double delta_theta = M_PI / (double) nt;
         theta[0] = 0.;
         for ( size_t j = 1; j < nt+1; j++)
                 theta[j] = theta[j-1] + delta_theta;
+        double delta_phi = 2. * M_PI / (double) np;
         phi[0] = 0.;
         for (size_t k = 1; k < np+1; k ++)
                 phi[k] = phi[k-1] + delta_phi;
-        
-        
+
         /* paralized calculation of  the contribution of the cells */
-#define DEBUG 0
+        #define DEBUG 0
         sts = SpUtil_Threads2( DEBUG ? 1 : Sp_NTHREAD, VtkContributionSph1dTread);
-#undef DEBUG        
+        #undef DEBUG        
         
         // open VTK file
         FILE *fp;
@@ -1976,11 +1975,9 @@ void vtk_sph1d(void)
                 Zone *zp = root->children[i];
                 SpPhys *pp = zp->data;
                 if(pp->X_mol == 0.0){
-                        for( size_t j = 0; j < nt; j++){
-                                for( size_t k = 0; k < np; k++){
+                        for( size_t j = 0; j < nt; j++)
+                                for( size_t k = 0; k < np; k++)
                                         fprintf(fp,"%E ", 0.0);
-                                }
-                        }
                 }
                 else{
                         MolTrRad *trans = pp->mol->rad[glb.line];
@@ -1994,14 +1991,12 @@ void vtk_sph1d(void)
                         double g_l = pp->mol->lev[lo]->g;
                         double Tex = (E_l-E_u)
                                 / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
-                        for( size_t j = 0; j < nt; j++){
-                                for( size_t k = 0; k < np; k++){
+                        for( size_t j = 0; j < nt; j++)
+                                for( size_t k = 0; k < np; k++)
                                         fprintf(fp,"%E ", Tex/(pp->T_k));
-                                }
-                        }
                 }
         }
-        fprintf(fp,"\n");
+        
         
         fclose(fp);
         printf("wrote %s\n",filename);
@@ -2009,7 +2004,6 @@ void vtk_sph1d(void)
         free(contrib);
         free(tau);
         free(tau_dev);
-        
         free(radius);
         free(theta);
         free(phi);
@@ -2021,21 +2015,187 @@ void vtk_sph1d(void)
 
 /*----------------------------------------------------------------------------*/
 
-void vtk_sph3d(void){
+static void vtk_sph3d(void){
+        int sts = 0;
+        Zone * root = glb.model.grid;
+        size_t nvelo = glb.v.n;
+        
+        glb.visual->sph3d = Mem_CALLOC(1,glb.visual->sph3d);
+        // Dimension of the visualized resolution
+        size_t nr = glb.visual->sph3d->nr = root->naxes.x[0];
+        size_t nt = glb.visual->sph3d->nt = (root->naxes.x[1] == 1) ? 45 : root->naxes.x[1];
+        size_t np = glb.visual->sph3d->np = (root->naxes.x[2] == 1) ? 90 : root->naxes.x[2];
+        
+        size_t nelement =  nr * np * nt;
+        // declare the memory
+        double * radius = Mem_CALLOC( nr+1, radius);
+        double * theta = Mem_CALLOC( nt+1, theta);
+        double * phi = Mem_CALLOC( np+1, phi);
+        double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
+        double * tau = Mem_CALLOC( nelement * nvelo, tau);
+        double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
+        
+        // link to the global pointer
+        glb.visual->sph3d->radius = radius;
+        glb.visual->sph3d->theta = theta;
+        glb.visual->sph3d->phi = phi;
+        glb.visual->contrib = contrib;
+        glb.visual->tau = tau;
+        glb.visual->tau_dev = tau_dev;
+        
+        // construct the expanding SPH3D mesh
+        radius[0] = root->children[0]->voxel.min.x[0];
+        for(size_t i = 1; i < nr+1; i++)
+                radius[i] = root->children[(i-1)*root->naxes.x[1]*root->naxes.x[2]]->voxel.max.x[0];
+        if (root->naxes.x[1] == 1){
+                double delta_theta = M_PI / (double) nt;
+                theta[0] = 0.;
+                for ( size_t j = 1; j < nt+1; j++)
+                        theta[j] = theta[j-1] + delta_theta;
+        }
+        else{
+                theta[0] = root->children[0]->voxel.min.x[1];
+                for ( size_t j = 1; j < nt+1; j++)
+                        theta[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[1];
+        }
+        if (root->naxes.x[2] == 1){
+                double delta_phi = 2. * M_PI / (double) np;
+                phi[0] = 0.;
+                for (size_t k = 1; k < np+1; k ++)
+                        phi[k] = phi[k-1] + delta_phi;
+        }
+        else{
+                phi[0] = root->children[0]->voxel.min.x[2];
+                for (size_t k = 1; k < np+1; k ++)
+                        phi[k] = root->children[k-1]->voxel.max.x[2];
+        }
+        #if 0
+        for(size_t i = 0; i < nr+1; i++) printf("%E ",radius[i]);printf("\n");
+        for(size_t j = 0; j < nr+1; j++) printf("%E ",theta[j]);printf("\n");
+        for(size_t k = 0; k < nr+1; k++) printf("%E ",phi[k]);printf("\n");
+        printf("%zu %zu %zu\n",root->naxes.x[0],root->naxes.x[1],root->naxes.x[2]);
+        printf("%zu %zu %zu\n",nr,nt,np);                                 
+        #endif
+         /* paralized calculation of  the contribution of the cells */
+        #define DEBUG 0
+        sts = SpUtil_Threads2( DEBUG ? 1 : Sp_NTHREAD, VtkContributionSph3dTread);
+        #undef DEBUG
+        
+        // open VTK file
+        FILE *fp;
+        char filename[32];
+        sprintf(filename,"vis.vtk");
+        fp=fopen(filename,"w");
+        
+        // write the header
+        fprintf(fp,"# vtk DataFile Version 3.0\n");
+        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
+        fprintf(fp,"ASCII\n");
+        
+        // define the type of the gridding
+        fprintf(fp,"DATASET STRUCTURED_GRID\n");
+        fprintf(fp,"DIMENSIONS %zu %zu %zu\n", np+1, nt+1, nr+1);
+        fprintf(fp,"POINTS %zu float\n", (nr+1) * (nt+1) * (np+1) );
+        for( size_t i = 0; i < nr + 1; i++)
+         for( size_t j = 0; j < nt + 1; j++)
+          for( size_t k = 0; k < np + 1; k++){
+                double x = radius[i] * sin(theta[j]) * cos(phi[k]);
+                double y = radius[i] * sin(theta[j]) * sin(phi[k]);
+                double z = radius[i] * cos(theta[j]);
+                fprintf(fp,"%E %E %E\n", x, y, z);
+          }
+        // write the artributes
+        fprintf(fp,"CELL_DATA %zu\n", nelement );
+        fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
+
+        // write the contribution of the cells
+        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
+        for( size_t i = 0; i < nr; i++)
+         for( size_t j = 0; j < nt; j++)
+           for( size_t k = 0; k < np; k++){
+                size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
+                for ( size_t l = 0; l < nvelo; l++)
+                        fprintf(fp,"%E ", contrib[ idx + l ]);
+                fprintf(fp,"\n");
+        }
+        
+        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
+        for( size_t i = 0; i < nr; i++)
+         for( size_t j = 0; j < nt; j++)
+          for( size_t k = 0; k < np; k++){
+                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+                for ( size_t l = 0; l < nvelo; l++)
+                        fprintf(fp,"%E ", tau[ idx + l ]);
+                fprintf(fp,"\n");
+        }
+        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[2].name, nvelo, nelement);
+        for( size_t i = 0; i < nr; i++)
+         for( size_t j = 0; j < nt; j++)
+          for( size_t k = 0; k < np; k++){
+                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+                for ( size_t l = 0; l < nvelo; l++)
+                        fprintf(fp,"%E ", tau_dev[ idx + l ]);
+                fprintf(fp,"\n");
+        }
+        fprintf(fp,"SCALARS Tex float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
+        for( size_t i = 0; i < nr; i++)
+          for( size_t j = 0; j < nt; j++)
+            for( size_t k = 0; k < np; k++){
+                // izone : to coresponding zone index
+                size_t izone = 
+                  (root->naxes.x[1]==1) ?
+                     (root->naxes.x[2]==1) ?
+                             i :
+                             i * root->naxes.x[2] + k :
+                     (root->naxes.x[2]==1) ?
+                             i * root->naxes.x[1] + j :
+                             (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                Zone *zp = root->children[izone];
+                SpPhys *pp = zp->data;
+                if(pp->X_mol == 0.0){
+                        fprintf(fp,"%E ", 0.0);
+                }
+                else{
+                        MolTrRad *trans = pp->mol->rad[glb.line];
+                        size_t up = trans->up;
+                        size_t lo = trans->lo;
+                        double n_u = pp->pops[0][up];
+                        double n_l = pp->pops[0][lo];
+                        double E_u = pp->mol->lev[up]->E;
+                        double E_l = pp->mol->lev[lo]->E;
+                        double g_u = pp->mol->lev[up]->g;
+                        double g_l = pp->mol->lev[lo]->g;
+                        double Tex = (E_l-E_u)
+                                / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
+                        fprintf(fp,"%E ", Tex/(pp->T_k));
+                }
+        }
+                                fprintf(fp,"\n");
+        
+        fclose(fp);
+        printf("wrote %s\n",filename);  
+        
+        free(contrib);
+        free(tau);
+        free(tau_dev);
+        free(radius);
+        free(theta);
+        free(phi);
+        free(glb.visual->sph3d);
+        return;
+}
+
+/*----------------------------------------------------------------------------*/
+
+static void vtk_rec3d(void){
         
         return;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void vtk_rec3d(void){
-        
-        return;
-}
-
-/*----------------------------------------------------------------------------*/
-
-void vtk_cyl3d(void){
+static void vtk_cyl3d(void){
         
         return;
 }
@@ -2069,24 +2229,22 @@ void *VtkContributionSph1dTread(void *tid_p)
               if ( cell_id % Sp_NTHREAD == tid ){
                         /* Check for thread termination */
                         Sp_CHECKTERMTHREAD();
-                        
                         // copy grid i to sampling zone
                         Zone SampZone = *root->children[i];
-                        
                         // the voxel pointer
                         GeVox *vp = &SampZone.voxel;
                         // change the GEOM of the voxel to SPH3D
                         vp->geom = GEOM_SPH3D;
                         
-                        SampZone.index.x[1] = j;
-                        SampZone.index.x[2] = k;
                         vp->min.x[1] = theta[j];
                         vp->max.x[1] = theta[j+1];
+                        SampZone.index.x[1] = j;
                         vp->min.x[2] = phi[k];
                         vp->max.x[2] = phi[k+1];
+                        SampZone.index.x[2] = k;
                         
                         size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
-                        Contribution_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
+                        ContributionSubSamp_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
                         
                         #if 0
                         printf("zone pos = %zu %zu %zu\n",i,j,k);
@@ -2105,7 +2263,81 @@ void *VtkContributionSph1dTread(void *tid_p)
 
 /*----------------------------------------------------------------------------*/
 
-void Contribution_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo){
+void *VtkContributionSph3dTread(void *tid_p)
+{
+        size_t tid = *((size_t *)tid_p);
+        Zone * root = glb.model.grid;
+        size_t nvelo = glb.v.n;
+        
+        // Dimension of the visualized resolution
+        size_t nr = glb.visual->sph3d->nr;
+        size_t nt = glb.visual->sph3d->nt;
+        size_t np = glb.visual->sph3d->np;
+        
+        // link to the global pointer
+        double * radius = glb.visual->sph3d->radius;
+        double * theta = glb.visual->sph3d->theta;
+        double * phi = glb.visual->sph3d->phi;
+        double * contrib = glb.visual->contrib;
+        double * tau = glb.visual->tau;
+        double * tau_dev = glb.visual->tau_dev;
+        
+        size_t cell_id = 0;
+        // calculate the contribution of the cells
+        for( size_t i = 0; i < nr; i++){
+          for( size_t j = 0; j < nt; j++){
+            for( size_t k = 0; k < np; k++){
+              if ( cell_id % Sp_NTHREAD == tid ){
+                        /* Check for thread termination */
+                        Sp_CHECKTERMTHREAD();
+                        // izone : to coresponding zone index
+                        size_t izone = 
+                          (root->naxes.x[1]==1) ?
+                             (root->naxes.x[2]==1) ?
+                                     i :
+                                     i * root->naxes.x[2] + k :
+                             (root->naxes.x[2]==1) ?
+                                     i * root->naxes.x[1] + j :
+                                     (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                        // copy grid i_zone to sampling zone
+                        Zone SampZone = *root->children[izone];
+                        // the voxel pointer
+                        GeVox *vp = &SampZone.voxel;
+                        // change the GEOM of the voxel to SPH3D
+                        vp->geom = GEOM_SPH3D;
+
+                        if (root->naxes.x[1] == 1){
+                                vp->min.x[1] = theta[j];
+                                vp->max.x[1] = theta[j+1];
+                                SampZone.index.x[1] = j;
+                        }
+                        if(root->naxes.x[2] == 1){
+                                vp->min.x[2] = phi[k];
+                                vp->max.x[2] = phi[k+1];
+                                SampZone.index.x[2] = k;
+                        }
+                        
+                        size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
+                        ContributionSubSamp_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
+                        
+                        #if 0
+                        printf("zone pos = %zu %zu %zu\n",i,j,k);
+                        //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
+                        if( j==3 && k==41){                                
+                                //printf("OK\n");exit(0);
+                        }
+                        #endif
+              }
+              cell_id += 1;
+            }
+          }
+        }
+        pthread_exit(NULL);
+}
+
+/*----------------------------------------------------------------------------*/
+
+void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo){
         // initialize numer of sampling
         static int nSamp_initialized;
         static int nSamp1D;
