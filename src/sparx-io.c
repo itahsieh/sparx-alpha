@@ -180,12 +180,11 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
 {
 	int status = 0;
 	Molec *mol = model.parms.mol;
-	const char *mol_name = mol ? mol->name : "";
 	herr_t hstatus;
 
 	/* Write molecule name */
 	if(!status) {
-		hstatus = H5LTset_attribute_string(sfp->h5f_id, "/", "molec", mol_name);
+		hstatus = H5LTset_attribute_string(sfp->h5f_id, "/", "molec", mol ? mol->name : "");
 		if(hstatus < 0)
 			status = 1;
 	}

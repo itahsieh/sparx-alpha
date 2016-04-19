@@ -22,9 +22,9 @@ alpha-2.2.5     Feb 2016        fixing B-free-cont bug in SPH1D
 alpha-2.3.0     Feb 2016        complete all the unit tests of telsim and realease
 alpha-2.3.1     Mar 2016        fix CRPIX consitent between MIRIAD&FITS
 alpha-2.3.2     Mar 2016        improvement of portability
+alpha-2.3.3     Apr 2016        Visualization / contribution chart
 
 ## STATUS : PENDING
-alpha-2.3.3                     Visualization / contribution chart
 alpha-2.4.0                     Algorithm update : QMC & SOR
 alpha-2.5.0                     PRE-SPARX : integrated preprocessor
 

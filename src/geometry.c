@@ -368,6 +368,20 @@ GeVec3_d * GeVec3_Sph2Cart( double R, double theta, double phi){
 
 /*----------------------------------------------------------------------------*/
 
+GeVec3_d * GeVec3_Cyl2Cart( double Rc, double phi, double Z){
+        GeVec3_d *Cartesian = Mem_CALLOC( 1, Cartesian);
+        // x-ordinate
+        Cartesian->x[0] = Rc * cos(phi); 
+        // y-ordiante
+        Cartesian->x[1] = Rc * sin(phi); 
+        // z-ordinate
+        Cartesian->x[2] = Z;
+        
+        return Cartesian;
+}
+
+/*----------------------------------------------------------------------------*/
+
 GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
         double x = Cartesian->x[0];
         double y = Cartesian->x[1];
@@ -375,7 +389,13 @@ GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
         
         double R = sqrt( x * x + y * y + z * z );
         // R must be maximum!
-        R = ( R < x ) ? x : ( R < y ) ? y : ( R < z ) ? z : R;
+        R = ( R < x ) ? 
+                ( x < y ) ?
+                        ( y < z ) ? z : y :
+                        ( x < z ) ? z : x :
+                ( R < y ) ? 
+                        ( y < z ) ? z : y : 
+                        ( R < z ) ? z : R ;
         GeVec3_d *Spherical = Mem_CALLOC( 1, Spherical);
         
         // R-ordinate
@@ -394,6 +414,35 @@ GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
                         2. * M_PI - acos( x / Rc );
         
         return Spherical;
+}
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d * GeVec3_Cart2Cyl( const GeVec3_d *Cartesian){
+        double x = Cartesian->x[0];
+        double y = Cartesian->x[1];
+        double z = Cartesian->x[2];
+        
+        double Rc = sqrt( x * x + y * y);
+        // Rc must be maximum!
+        Rc = ( Rc < x ) ? 
+                ( x < y ) ? y : x : 
+                ( Rc < y ) ? y : Rc;
+                
+        GeVec3_d *Cylindrical = Mem_CALLOC( 1, Cylindrical);
+        
+        // Rc-ordinate
+        Cylindrical->x[0] = Rc;
+        // phi-ordinate
+        Cylindrical->x[1] = ( Rc == 0. ) ?
+                                0. : 
+                                ( y >= 0.) ? 
+                                        acos( x / Rc ) : 
+                                        2.0 * M_PI - acos( x / Rc );
+        // z-ordinate
+        Cylindrical->x[2] = z;
+        
+        return Cylindrical;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1607,15 +1656,13 @@ GeRay GeRay_Rand_cyl3d(gsl_rng *rng, const GeVox *voxel)
 	/* Reset ray */
         GeRay ray;
 	Mem_BZERO(&ray);
-	
-	
 
 	/* Set random ray origin in rectangular coordinates */
 	#if USE_RNG
-	if( Rc_in != 0.0 )
-		ERc = Rc_in * pow((1.0 + PRAND() * (pow(Rc_out/Rc_in, 2.0) - 1.0)), 0.5);
-	else
-		ERc = Rc_out * pow( PRAND() , 0.5);
+	ERc = ( Rc_in != 0.0 )?
+                Rc_out * pow( PRAND() , 0.5) :
+                Rc_in * pow((1.0 + PRAND() * (pow(Rc_out/Rc_in, 2.0) - 1.0)), 0.5);
+
 	Ep = phi_in + PRAND()*(phi_out-phi_in);
 	Ez = Hz_l + PRAND()*(Hz_u-Hz_l);
 	#else

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+rm -rf map/ tau/ map.fits tau.fits
+
+printf "${LIGHTCYAN}START THE MAPPING OF LINE-LTE EMISSION ${NC}\n"
+
+sparx run task_lineobs \
+source=model \
+out=map \
+lte=1 \
+molec=hco+ \
+line=1 \
+tau=tau \
+subres="[['-10asec','-10asec','10asec','10asec',4]]"

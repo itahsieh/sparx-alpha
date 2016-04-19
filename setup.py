@@ -3,13 +3,16 @@
 # Python Distutils setup script for SPARX
 
 # VERSION_NUMBER of SPARX
-VERSION_NUMBER = '2.3.2'
+VERSION_NUMBER = '2.3.3'
 # MIRIAD support option
 MIRSUPPORT = 0  
 # number of Thread using in per job
-import multiprocessing
-NumberOfThread = 2 * multiprocessing.cpu_count()
-#NumberOfThread = 1
+ENABLE_MULTITREADING=1
+if ENABLE_MULTITREADING:
+        import multiprocessing
+        NumberOfThread = 2 * multiprocessing.cpu_count()
+else:
+        NumberOfThread = 1
 print 'NumberOfThread=',NumberOfThread
 
 # Test for MPI by checking whether mpicc can be called
