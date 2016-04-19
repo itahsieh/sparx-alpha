@@ -7,7 +7,7 @@
 ###### Queue name #######
 #PBS -q large
 ###### Number of nodes and cores ######
-#PBS -l nodes=8:ppn=12
+#PBS -l nodes=20:ppn=12
 ###### Sends mail to yourself when the job begins and ends ######
 #PBS -M ithsieh@asiaa.sinica.edu.tw
 #PBS -m be
@@ -15,9 +15,9 @@
 #PBS -S /bin/bash
 
 PBS_O_WORKDIR=~/test
+mkdir -p $PBS_O_WORKDIR
 
 ###### Enter this job's working directory ######
-mkdir -p $PBS_O_WORKDIR
 cd $PBS_O_WORKDIR
 
 ###### Load modules to setup environment ######
@@ -25,15 +25,22 @@ source ~/.load_sparx_module
 
 
 ###### Run parallel jobs ######
-rm -rf pops* history.log 
+ 
+if [ -n "$PBS_NODEFILE" ]; then
+  if [ -f $PBS_NODEFILE ]; then
+    awk '!x[$0]++' $PBS_NODEFILE > MPIHOST
+  fi
+fi
 
-awk '!x[$0]++' $PBS_NODEFILE > LAMHOST
-$LAM_HOME/bin/lamboot LAMHOST
-HOSTNAME=`hostname`
+NPROCS=`wc -l < MPIHOST`
+
+
+rm -rf pops* history.log
+
 CLUSTERNAME=${HOSTNAME:0:2}
-sparx_version=`which sparx-dev$CLUSTERNAME`
+sparx_version=`which sparx-$CLUSTERNAME`
 
-$LAM_HOME/bin/mpiexec C \
+$OPENMPI_HOME/bin/mpirun -v -machinefile MPIHOSTE -np $NPROCS \
 $sparx_version --parallel run task_amc \
 source=model \
 out=pops \
@@ -42,12 +49,8 @@ trace='True' \
 lte='True' \
 tolerance=5e-3 \
 snr=20 \
-minpop=1e-6 \
-nrays=1000 \
-maxiter=20 \
 raniter=2 \
 fixiter=2 \
 | tee history.log
 
-$LAM_HOME/bin/lamhalt
-rm -rf LAMHOST
+rm -rf MPIHOST

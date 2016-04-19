@@ -670,7 +670,7 @@ Zone *Zone_GetNext_cyl3d(Zone *zone, size_t *side, const GeVec3_d *pt)
 		return Zone_GetLeaf_cyl3d(zone, *side, pt );
 	}
 	else if( axis == 2 ){
-		NULL;
+		return NULL;
 	}
 
 	else

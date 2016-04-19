@@ -884,7 +884,7 @@ static int SpTest_RayTracing3(void)
 					if(0) { cpgupdt(); Deb_PAUSE(); }
 
 					/* Get next zone to traverse to */
-					zp = Zone_GetNext(zp, side, &ray2);
+					zp = Zone_GetNext(zp, &side, &ray2);
 
 					ray1 = ray2;
 				}
@@ -1016,7 +1016,7 @@ static int SpTest_RayTracing2(void)
 				if(0) { cpgupdt(); Deb_PAUSE(); }
 
 				/* Get next zone to traverse to */
-				zp = Zone_GetNext(zp, side, &ray2);
+				zp = Zone_GetNext(zp, &side, &ray2);
 			}
 		}
 		else if(1) {
@@ -1307,7 +1307,7 @@ static int SpTest_RayAW(void)
 				GeVec3_Cpgarro2(&ray.e, &tmp_ray.e, &cam);
 
 				if(1) {
-					zp = Zone_GetNext(zp, plane, &ray);
+					zp = Zone_GetNext(zp, &plane, &ray);
 				}
 				else if(1) {
 					pt = GeRay_AWPos(&ray);

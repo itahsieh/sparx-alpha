@@ -32,7 +32,7 @@ elif [ "$HOSTNAME" == "ibhpc" -o "$CLUSTERNAME" == "px" ];then
 elif [ "$HOSTNAME" == "ashpc" -o "$CLUSTERNAME" == "xl" ];then
     module add python/2.7.11
     module add hdf5/1.8.16_openmpi_1.10.2_ic15.0
-    module add gsl/1.16_ic15.0
+    module add gsl/1.13_ic16.0
     
 fi
 

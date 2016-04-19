@@ -34,7 +34,6 @@ case $CASE in
 ###########################
 # testing postprocessor   #
 ###########################
-        #source ../telsim/line/test     | tee -a test.log
         #source ../telsim/coldens/test  | tee -a test.log
         #source ../telsim/cont/test     | tee -a test.log
         #source ../telsim/zeeman/test   | tee -a test.log
@@ -54,6 +53,9 @@ case $CASE in
   "CONTRIBUTION")
         #source ../telsim/contribution/sph1d/test       | tee -a test.log
         source ../telsim/contribution/sph3d/test       | tee -a test.log
+        ;;
+  "LINE")
+        source ../telsim/line/test       | tee -a test.log
         ;;
   *)
         exit 1

@@ -210,11 +210,12 @@ void MirImg_Free(void *img_p)
 MirFile *MirXY_Open_new(const char *name, size_t nx, size_t ny, size_t nv)
 {
 	int nsize[3] = {(int)nx, (int)ny, (int)nv}, tno;
-	MirFile *fp;
+
         #if Sp_MIRSUPPORT
 	xyopen_c(&tno, name, "new", 3, nsize);
         #endif
-	fp = Mem_CALLOC(1, fp);
+        
+	MirFile *fp = Mem_CALLOC(1, fp);
 	fp->name = Mem_STRDUP(name);
 	fp->tno = tno;
 
@@ -514,10 +515,6 @@ void MirImg_WriteXY(MirFile *fp, const MirImg *image, const char *bunit, double 
  * Values of ImgAxis->delt must be physically reasonable, or Miriad will have
  * trouble displaying the image. */
 {
-	size_t i, j, k;
-	int idx;
-	float *row;
-        //printf("xcrp=%d xcrv=%e x\n");
 	/************************************************************************/
 	/*                           Axis 1--RA                                 */
 	/************************************************************************/
@@ -549,18 +546,18 @@ void MirImg_WriteXY(MirFile *fp, const MirImg *image, const char *bunit, double 
 	wrhdd_c(fp->tno, "restfreq", image->restfreq / 1.0e9); /* Hz -> GHz */
 
 	/* Loop through all channels and write cube data */
-	for(k = 0; k < image->v.n; k++) {
+	for(size_t k = 0; k < image->v.n; k++) {
 		/* Select appropriate plane (indices start with 1 as always) */
-		idx = (int)k + 1;
+		int idx = (int)k + 1;//printf("OK %zu\n",fp->tno );exit(0);
 		xysetpl_c(fp->tno, 1, &idx);
 
 		/* Loop through rows */
-		for(j = 0; j < image->y.n; j++) {
+		for(size_t j = 0; j < image->y.n; j++) {
 			/* Allocate row buffer */
-			row = Mem_CALLOC(image->x.n, row);
+			float * row = Mem_CALLOC(image->x.n, row);
 
 			/* Load cube data into row */
-			for(i = 0; i < image->x.n; i++)
+			for(size_t i = 0; i < image->x.n; i++)
 				row[i] = (float)(MirImg_PIXEL(*image, k, i, j) * bfac);
 
 			/* Write row of data to file */
@@ -583,7 +580,7 @@ void MirImg_UVResamp(MirImg *image, MirFile *uvin, MirFile *uvout)
    nvis visbilities according to the Miriad dataset (tno) specified by
    the user. */
 {
-	size_t i, nx = image->x.n, ny = image->y.n, nchan = image->v.n;
+	size_t nx = image->x.n, ny = image->y.n, nchan = image->v.n;
 	int *flags, /* nwide, */ nspect, nants, nread = 0;
 	double *preamble, *chan, *chan_real, *chan_imag, *uarr, *varr,
 	       umax, vmax, uu, vv, restfreq, dfreq, sfreq;
@@ -724,7 +721,7 @@ void MirImg_UVResamp(MirImg *image, MirFile *uvin, MirFile *uvout)
 	 * for interpolation in uv-plane */
 	fft_real = MirImg_Alloc(image->x, image->y, image->v);
 	fft_imag = MirImg_Alloc(image->x, image->y, image->v);
-	for(i = 0; i < nchan; i++) {
+	for(size_t i = 0; i < nchan; i++) {
 		chan = MirImg_CHAN(*image, i);
 		chan_real = MirImg_CHAN(*fft_real, i);
 		chan_imag = MirImg_CHAN(*fft_imag, i);
@@ -743,10 +740,10 @@ void MirImg_UVResamp(MirImg *image, MirFile *uvin, MirFile *uvout)
 	 * radians -> n_lambda */
 	umax = 1.0 / image->x.delt;
 	vmax = 1.0 / image->y.delt;
-	for(i = 0; i < nx; i++) {
+	for(size_t i = 0; i < nx; i++) {
 		uarr[i] = -umax + (umax * 2.0 / (double)nx) * (double)i;
 	}
-	for(i = 0; i < ny; i++) {
+	for(size_t i = 0; i < ny; i++) {
 		varr[i] = -vmax + (vmax * 2.0 / (double)ny) * (double)i;
 	}
 
@@ -758,7 +755,7 @@ void MirImg_UVResamp(MirImg *image, MirFile *uvin, MirFile *uvout)
 		vv = preamble[1] * 1.0E-9 * restfreq;
 
 		/* interpolate visibilities */
-		for(i = 0; i < nchan; i++) {
+		for(size_t i = 0; i < nchan; i++) {
 			/* Pointer to real and imag fft maps */
 			chan_real = MirImg_CHAN(*fft_real, i);
 			chan_imag = MirImg_CHAN(*fft_imag, i);

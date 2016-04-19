@@ -156,7 +156,7 @@ int SpTask_Telsim(void)
         if(!sts) {
                 sts = SpPy_GetInput_model("source","source", &glb.model);
         }
-        
+      
         /* out (mandatory) */
         if(!sts){
                 sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
@@ -180,7 +180,7 @@ int SpTask_Telsim(void)
         
         /* dist */
         if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.dist);
-        
+          
         /* rotate */
         if(!sts && !(sts = SpPy_GetInput_PyObj("rotate", &o))) {
                 glb.rotate[0] = Sp_PYDBL(Sp_PYLST(o, 0));
@@ -321,9 +321,6 @@ int SpTask_Telsim(void)
                 SpPy_XDECREF(o);
         }
 
-
-
-
 /* 2. Initialize model */
 	if(!sts) sts = InitModel();
 
@@ -396,16 +393,19 @@ int SpTask_Telsim(void)
                           scale_factor = glb.I_norm/glb.ucon;
                           stokes = 1;
                           #if Sp_MIRSUPPORT
-                          char SQFName[64],SUFName[64];
-                          sprintf( SQFName, "stokesq_%s", glb.imgf->name);
-                          sprintf( SUFName, "stokesu_%s", glb.imgf->name);
-                          glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
-                          glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
-                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor;
-                          MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, scale_factor);
-                          MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, scale_factor);
+                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                          
+                          char SQFName[64],SUFName[64];
+                          
+                          sprintf( SQFName, "stokesQ_%s", glb.imgf->name);
+                          glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
+                          MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, scale_factor);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxQf->name);
+                          
+                          sprintf( SUFName, "stokesU_%s", glb.imgf->name);
+                          glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
+                          MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, scale_factor);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxUf->name);
                           #endif
                           {
@@ -498,17 +498,19 @@ int SpTask_Telsim(void)
                           /* write excitation visualization to VTK */
                           if(glb.excit && glb.task->idx == TASK_LINE)
                                 visualization();
-                          #if 1
+                          #if 0
                           generic_vtk(glb.model.grid->voxel.geom);
                           #endif
                           break;
                   case TASK_ZEEMAN:
                           scale_factor = glb.I_norm/glb.ucon;
                           stokes = 0;
+                          
                           #if Sp_MIRSUPPORT
                           MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
                           #endif
+                          
                           break;
                   default:
                           Deb_ASSERT(0);
@@ -519,12 +521,12 @@ int SpTask_Telsim(void)
 		// output tau image
                 if(glb.tau_imgf){
 			FITSoutput( glb.tau_imgf, glb.tau_img, glb.StokesQ, glb.StokesU, "Optical depth", 1., 0);
+                        
                         #if Sp_MIRSUPPORT
                         MirImg_WriteXY(glb.tau_imgf, glb.tau_img, "Optical depth", 1.0);
                         Sp_PRINT("Wrote Miriad image to `%s'\n", glb.tau_imgf->name);
                         MirXY_Close(glb.tau_imgf);
                         #endif
-                        
                 }
         }
 
@@ -1936,10 +1938,78 @@ static void vtk_sph1d(void)
                 double z = radius[i] * cos(theta[j]);
                 fprintf(fp,"%E %E %E\n", x, y, z);
           }
+        
         // write the artributes
         fprintf(fp,"CELL_DATA %zu\n", nelement );
+        
+        // H2 number density
+        fprintf(fp,"SCALARS H2_Number_Density float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
+        for( size_t i = 0; i < nr; i++){
+                Zone *zp = root->children[i];
+                SpPhys *pp = zp->data;
+                for( size_t j = 0; j < nt; j++)
+                  for( size_t k = 0; k < np; k++){
+                        fprintf(fp,"%E ", pp->n_H2);
+                  }fprintf(fp,"\n");
+        }
+        
+        // molecular number density
+        fprintf(fp,"SCALARS Molecular_Number_Density float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
+        for( size_t i = 0; i < nr; i++){
+                Zone *zp = root->children[i];
+                SpPhys *pp = zp->data;
+                for( size_t j = 0; j < nt; j++)
+                  for( size_t k = 0; k < np; k++){
+                        fprintf(fp,"%E ", pp->n_H2 * pp->X_mol);
+                  }fprintf(fp,"\n");
+        }
+        
+        // kinetic temperature
+        fprintf(fp,"SCALARS Temperature float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
+        for( size_t i = 0; i < nr; i++){
+                Zone *zp = root->children[i];
+                SpPhys *pp = zp->data;
+                for( size_t j = 0; j < nt; j++)
+                  for( size_t k = 0; k < np; k++){
+                        fprintf(fp,"%E ", pp->T_k);
+                  }fprintf(fp,"\n");
+        }
+        
+        // exitation temperature
+        fprintf(fp,"SCALARS Tex float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
+        for( size_t i = 0; i < nr; i++){
+                Zone *zp = root->children[i];
+                SpPhys *pp = zp->data;
+                if(pp->X_mol == 0.0){
+                        for( size_t j = 0; j < nt; j++)
+                          for( size_t k = 0; k < np; k++)
+                                fprintf(fp,"%E ", 0.0);
+                }
+                else{
+                        MolTrRad *trans = pp->mol->rad[glb.line];
+                        size_t up = trans->up;
+                        size_t lo = trans->lo;
+                        double n_u = pp->pops[0][up];
+                        double n_l = pp->pops[0][lo];
+                        double E_u = pp->mol->lev[up]->E;
+                        double E_l = pp->mol->lev[lo]->E;
+                        double g_u = pp->mol->lev[up]->g;
+                        double g_l = pp->mol->lev[lo]->g;
+                        double Tex = (E_l-E_u)
+                                / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
+                        for( size_t j = 0; j < nt; j++)
+                          for( size_t k = 0; k < np; k++){
+                                fprintf(fp,"%E ", Tex/(pp->T_k));
+                          }fprintf(fp,"\n");
+                }
+        }
+        
+        
         fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
-
         // write the contribution of the cells
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
         for( size_t i = 0; i < nr; i++)
@@ -1969,33 +2039,7 @@ static void vtk_sph1d(void)
                         fprintf(fp,"%E ", tau_dev[ idx + l ]);
                 fprintf(fp,"\n");
         }
-        fprintf(fp,"SCALARS Tex float 1\n");
-        fprintf(fp,"LOOKUP_TABLE default\n");
-        for( size_t i = 0; i < nr; i++){
-                Zone *zp = root->children[i];
-                SpPhys *pp = zp->data;
-                if(pp->X_mol == 0.0){
-                        for( size_t j = 0; j < nt; j++)
-                                for( size_t k = 0; k < np; k++)
-                                        fprintf(fp,"%E ", 0.0);
-                }
-                else{
-                        MolTrRad *trans = pp->mol->rad[glb.line];
-                        size_t up = trans->up;
-                        size_t lo = trans->lo;
-                        double n_u = pp->pops[0][up];
-                        double n_l = pp->pops[0][lo];
-                        double E_u = pp->mol->lev[up]->E;
-                        double E_l = pp->mol->lev[lo]->E;
-                        double g_u = pp->mol->lev[up]->g;
-                        double g_l = pp->mol->lev[lo]->g;
-                        double Tex = (E_l-E_u)
-                                / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
-                        for( size_t j = 0; j < nt; j++)
-                                for( size_t k = 0; k < np; k++)
-                                        fprintf(fp,"%E ", Tex/(pp->T_k));
-                }
-        }
+        
         
         
         fclose(fp);
@@ -2106,37 +2150,68 @@ static void vtk_sph3d(void){
           }
         // write the artributes
         fprintf(fp,"CELL_DATA %zu\n", nelement );
-        fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
-
-        // write the contribution of the cells
-        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-           for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
-                for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", contrib[ idx + l ]);
-                fprintf(fp,"\n");
-        }
         
-        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
+        // H2 number density
+        fprintf(fp,"SCALARS H2_Number_Density float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
         for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-          for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
-                for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau[ idx + l ]);
-                fprintf(fp,"\n");
-        }
-        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[2].name, nvelo, nelement);
+          for( size_t j = 0; j < nt; j++)
+            for( size_t k = 0; k < np; k++){
+                // izone : to coresponding zone index
+                size_t izone = 
+                  (root->naxes.x[1]==1) ?
+                     (root->naxes.x[2]==1) ?
+                             i :
+                             i * root->naxes.x[2] + k :
+                     (root->naxes.x[2]==1) ?
+                             i * root->naxes.x[1] + j :
+                             (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                Zone *zp = root->children[izone];
+                SpPhys *pp = zp->data;
+                fprintf(fp,"%E ", pp->n_H2);
+        }fprintf(fp,"\n");
+        
+        // molecular number density
+        fprintf(fp,"SCALARS Molecular_Number_Density float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
         for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-          for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
-                for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau_dev[ idx + l ]);
-                fprintf(fp,"\n");
-        }
+          for( size_t j = 0; j < nt; j++)
+            for( size_t k = 0; k < np; k++){
+                // izone : to coresponding zone index
+                size_t izone = 
+                  (root->naxes.x[1]==1) ?
+                     (root->naxes.x[2]==1) ?
+                             i :
+                             i * root->naxes.x[2] + k :
+                     (root->naxes.x[2]==1) ?
+                             i * root->naxes.x[1] + j :
+                             (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                Zone *zp = root->children[izone];
+                SpPhys *pp = zp->data;
+                fprintf(fp,"%E ", pp->n_H2 * pp->X_mol);
+        }fprintf(fp,"\n");
+        
+        // kinetic temperature
+        fprintf(fp,"SCALARS Temperature float 1\n");
+        fprintf(fp,"LOOKUP_TABLE default\n");
+        for( size_t i = 0; i < nr; i++)
+          for( size_t j = 0; j < nt; j++)
+            for( size_t k = 0; k < np; k++){
+                // izone : to coresponding zone index
+                size_t izone = 
+                  (root->naxes.x[1]==1) ?
+                     (root->naxes.x[2]==1) ?
+                             i :
+                             i * root->naxes.x[2] + k :
+                     (root->naxes.x[2]==1) ?
+                             i * root->naxes.x[1] + j :
+                             (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                Zone *zp = root->children[izone];
+                SpPhys *pp = zp->data;
+                fprintf(fp,"%E ", pp->T_k);
+        }fprintf(fp,"\n");
+        
+        // exitation temperature
         fprintf(fp,"SCALARS Tex float 1\n");
         fprintf(fp,"LOOKUP_TABLE default\n");
         for( size_t i = 0; i < nr; i++)
@@ -2170,8 +2245,39 @@ static void vtk_sph3d(void){
                                 / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
                         fprintf(fp,"%E ", Tex/(pp->T_k));
                 }
+        }fprintf(fp,"\n");
+        
+        fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
+        // write the contribution of the cells
+        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
+        for( size_t i = 0; i < nr; i++)
+         for( size_t j = 0; j < nt; j++)
+           for( size_t k = 0; k < np; k++){
+                size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
+                for ( size_t l = 0; l < nvelo; l++)
+                        fprintf(fp,"%E ", contrib[ idx + l ]);
+                fprintf(fp,"\n");
         }
-                                fprintf(fp,"\n");
+        
+        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
+        for( size_t i = 0; i < nr; i++)
+         for( size_t j = 0; j < nt; j++)
+          for( size_t k = 0; k < np; k++){
+                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+                for ( size_t l = 0; l < nvelo; l++)
+                        fprintf(fp,"%E ", tau[ idx + l ]);
+                fprintf(fp,"\n");
+        }
+        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[2].name, nvelo, nelement);
+        for( size_t i = 0; i < nr; i++)
+         for( size_t j = 0; j < nt; j++)
+          for( size_t k = 0; k < np; k++){
+                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+                for ( size_t l = 0; l < nvelo; l++)
+                        fprintf(fp,"%E ", tau_dev[ idx + l ]);
+                fprintf(fp,"\n");
+        }
+        
         
         fclose(fp);
         printf("wrote %s\n",filename);  

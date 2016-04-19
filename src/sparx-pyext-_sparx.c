@@ -324,15 +324,15 @@ static PyObject *load_mir_xyv(PyObject *self, PyObject *args)
 		sts = 1;
 
 	if(!sts) {
-		/* Create NumPy cubic array */
-		dims[0] = x.n;
-		dims[1] = y.n;
-		dims[2] = v.n;
-		np_cube = PyArray_ZEROS(3, dims, NPY_FLOAT, 0);
-
 		/* Load Miriad image into C data structure */
 		cube = MirImg_LoadXYV(fname, &x, &y, &v, &bunit);
 
+                /* Create NumPy cubic array */
+                dims[0] = x.n;
+                dims[1] = y.n;
+                dims[2] = v.n;
+                np_cube = PyArray_ZEROS(3, dims, NPY_FLOAT, 0);
+                
 		/* Load image data into NumPy array */
 		for(i = 0; i < x.n; i++) {
 			for(j = 0; j < y.n; j++) {
