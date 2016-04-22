@@ -173,7 +173,6 @@ int SpTask_Telsim(void)
                 sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
         }
         
-        
         /* npix */
         if(!sts && !(sts = SpPy_GetInput_PyObj("npix", &o))) {
                 glb.x.n = Sp_PYSIZE(Sp_PYLST(o, 0));
@@ -538,6 +537,7 @@ int SpTask_Telsim(void)
                         MirXY_Close(glb.tau_imgf);
                         #endif
                 }
+                
         }
 
 	
@@ -1168,10 +1168,11 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 // 			Deb_PRINT("checkpoint: GeRay_Inc\n");
 			/* Get next zone to traverse to */
 			zp = Zone_GetNext(zp, &side, &ray);
-			#if 0
+			#if 1
 			if(zp){
 				Deb_PRINT("zone index: %d %d %d\n",GeVec3_X(zp->index,0),GeVec3_X(zp->index,1),GeVec3_X(zp->index,2));
 				Deb_PRINT("traveling distance = %e\n",t);
+                                Deb_PRINT("side = %zu\n",side);
 			}
 			else
 				Deb_PRINT("shoot out!\n");
@@ -2489,7 +2490,6 @@ static void vtk_cyl3d(void){
                 fprintf(fp,"\n");
         }
         
-        
         fclose(fp);
         printf("wrote %s\n",filename);  
         
@@ -2693,11 +2693,11 @@ void *VtkContributionCyl3dTread(void *tid_p)
                         size_t idx = ( ( i * np + j ) * nz + k ) * nvelo;
                         ContributionSubSamp_cyl3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
                         
-                        #if 0
+                        #if 1
                         printf("zone pos = %zu %zu %zu\n",i,j,k);
                         //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
-                        if( j==3 && k==41){                                
-                                //printf("OK\n");exit(0);
+                        if( j==0 && k==0){                                
+                                printf("OK\n");exit(0);
                         }
                         #endif
               }
@@ -3050,6 +3050,20 @@ static void ContributionTracer_cyl3d( double *contrib, double *tau_nu, Zone *Sam
                                 // the ordinates of the ray position
                                 GeVec3_d RayCartPos = ray.e;
                                 GeVec3_d *RayCylPos = GeVec3_Cart2Cyl(&RayCartPos);
+                                #if 1
+                                // debugging
+                                //printf("dx \t= %E, dy = %E\n",dx,dy);
+                                printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
+                                //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
+                                printf("SampPos \t= %E %E %E\n", 
+                                SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
+                                printf("VoxelMin \t= %E %E %E\n", 
+                                SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
+                                printf("RayCylPos \t= %E %E %E\n", 
+                                RayCylPos->x[0], RayCylPos->x[1], RayCylPos->x[2]);
+                                printf("VoxelMax \t= %E %E %E\n", 
+                                SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
+                                #endif
                                 
                                 // see if the photon reach the sampling cell
                                 int reached_cell = 1;
@@ -3104,6 +3118,14 @@ static void ContributionTracer_cyl3d( double *contrib, double *tau_nu, Zone *Sam
                                                 /* Get next zone to traverse to */
                                                 zp = Zone_GetNext(zp, &side, &ray);
                                         }
+                                        #if 1
+                                        printf("hit = %d\n", hit);
+                                        printf("tSamp = %E, t = %E\n", tSamp, t);
+                                        #endif
+                                        #if 1
+                                        //if (SampZone->index.x[1]==0 && SampZone->index.x[2]==0)
+                                                {printf("OK\n");exit(0);}
+                                        #endif
                                 }
                         }
                         // not inside the target voxel, keep tracing

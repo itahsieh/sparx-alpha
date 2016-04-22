@@ -389,25 +389,18 @@ GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
         
         double R = sqrt( x * x + y * y + z * z );
         // R must be maximum!
-        R = ( R < x ) ? 
-                ( x < y ) ?
-                        ( y < z ) ? z : y :
-                        ( x < z ) ? z : x :
-                ( R < y ) ? 
-                        ( y < z ) ? z : y : 
-                        ( R < z ) ? z : R ;
+        R = Num_MAX( R, Num_MAX( x, Num_MAX( y, z) ) ); 
+        
         GeVec3_d *Spherical = Mem_CALLOC( 1, Spherical);
         
         // R-ordinate
         Spherical->x[0] = R;
         // theta-ordinate
-        Spherical->x[1] = ( R == 0. ) ?
-                0. :
-                acos( z / Spherical->x[0] );
+        Spherical->x[1] = ( R == 0. ) ? 0. : acos( z / R );
         // phi-ordinate
         double Rc = sqrt( x * x + y * y);
         // Rc must be maximum!
-        Rc = ( Rc < x ) ? x : ( Rc < y ) ? y : Rc;
+        Rc = Num_MAX( Rc, Num_MAX( x, y ) );
         Spherical->x[2] = ( Rc == 0. ) ?
                 0. : ( y >= 0.) ? 
                         acos( x / Rc ) : 
@@ -425,9 +418,7 @@ GeVec3_d * GeVec3_Cart2Cyl( const GeVec3_d *Cartesian){
         
         double Rc = sqrt( x * x + y * y);
         // Rc must be maximum!
-        Rc = ( Rc < x ) ? 
-                ( x < y ) ? y : x : 
-                ( Rc < y ) ? y : Rc;
+        Rc = Num_MAX( Rc, Num_MAX( x, y ) );
                 
         GeVec3_d *Cylindrical = Mem_CALLOC( 1, Cylindrical);
         
@@ -435,10 +426,9 @@ GeVec3_d * GeVec3_Cart2Cyl( const GeVec3_d *Cartesian){
         Cylindrical->x[0] = Rc;
         // phi-ordinate
         Cylindrical->x[1] = ( Rc == 0. ) ?
-                                0. : 
-                                ( y >= 0.) ? 
-                                        acos( x / Rc ) : 
-                                        2.0 * M_PI - acos( x / Rc );
+                0. :( y >= 0.) ? 
+                        acos( x / Rc ) : 
+                        2.0 * M_PI - acos( x / Rc );
         // z-ordinate
         Cylindrical->x[2] = z;
         
@@ -876,7 +866,6 @@ int GeRay_IntersectVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmi
 /* Find the intersection of a ray OUTSIDE voxel in rectangular coordinates. */
 {
 	double t[6];
-	GeRay tstray = GeRay_INIT(0, 0, 0, 0, 0, 0);
 
 	/* Init tmin */
 	*tmin = HUGE_VAL;
@@ -892,16 +881,20 @@ int GeRay_IntersectVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmi
 
 	for(size_t i = 0; i < 6; i++) {
 		/* Check if intersection is inside box */
-		tstray = GeRay_Inc(ray, t[i]);
+		GeRay tstray = GeRay_Inc(ray, t[i]);
 		int within_box = point_in_voxel_cyl3d(&tstray.e, voxel, i / 2);
 
 		/* Find tmin if intersection is within box*/
 		if(within_box && (t[i] < *tmin)) {
 			*tmin = t[i];
-			*side = (i == 0) ? 1:i;
+			*side = (i == 0) ? 1 : i;
 		}
 	}
-	
+#if 0
+        printf("%E %E %E %E %E %E\n", t[0], t[1], t[2], t[3], t[4], t[5]);
+        printf("tmin = %E, side = %zu\n", *tmin, *side);
+        printf("OK\n");exit(0);
+#endif	
 	return (*tmin < HUGE_VAL ? 1 : 0);
 }
 
@@ -926,13 +919,12 @@ int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 /* Check if coordinates of pt NOT on axis are within the limits of the voxel */
 {
 	int within_box = 1;
-	double Rc = sqrt( GeVec3_X(*pt, 0) * GeVec3_X(*pt, 0) + GeVec3_X(*pt, 1) * GeVec3_X(*pt, 1) );
-	double phi;
-        if( GeVec3_X(*pt, 1) >= 0. ) 
-                phi = acos(GeVec3_X(*pt, 0)/Rc);
-	else 
-                phi = 2. * M_PI - acos(GeVec3_X(*pt, 0)/Rc);
-	double Hz = GeVec3_X(*pt, 2); 
+        
+        GeVec3_d * CylPos = GeVec3_Cart2Cyl(pt);
+        
+	double Rc = CylPos->x[0];
+	double phi = CylPos->x[1];
+	double Hz = CylPos->x[2]; 
 	
 	switch(axis) {
 		case 0:
@@ -941,44 +933,34 @@ int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 			   Phi_min <= phi <= Phi_max &&
 			   Hz_min <= Hz <= Hz_max  */
 			
-			if(
-				phi < GeVec3_X(voxel->min, 1) ||
+			if(     phi < GeVec3_X(voxel->min, 1) ||
 				phi > GeVec3_X(voxel->max, 1) ||
-				Hz < GeVec3_X(voxel->min, 2) ||
-				Hz > GeVec3_X(voxel->max, 2)
-			){
+				Hz  < GeVec3_X(voxel->min, 2) ||
+				Hz  > GeVec3_X(voxel->max, 2)     )
 				within_box = 0;
-				break;
-			}
+			break;
 		case 1:
 			/* Pt is the intersection on horizontal plane on z=Hz 
 			   It should be guaranteed that 
 			   Rc_min <= Rc <= Rc_max &&
 			   Hz_min <= Hz <= Hz_max*/
-			if( 
-				Rc < GeVec3_X(voxel->min, 0) ||
+			if( 	Rc < GeVec3_X(voxel->min, 0) ||
 				Rc > GeVec3_X(voxel->max, 0) ||
 				Hz < GeVec3_X(voxel->min, 2) ||
-				Hz > GeVec3_X(voxel->max, 2)
-			){
+				Hz > GeVec3_X(voxel->max, 2)	)
 				within_box = 0;
 				break;
-			}
 		case 2:
 			/* Pt is the intersection on horizontal plane on z=Hz 
 			   It should be guaranteed that 
 			   Rc_min <= Rc <= Rc_max && 
 			   Phi_min <= phi <= Phi_max  */
-			if( 
-				Rc < GeVec3_X(voxel->min, 0) ||
+			if(	Rc < GeVec3_X(voxel->min, 0) ||
 				Rc > GeVec3_X(voxel->max, 0) ||
 				phi < GeVec3_X(voxel->min, 1) ||
-				phi > GeVec3_X(voxel->max, 1)
-				
-			){
+				phi > GeVec3_X(voxel->max, 1)	)
 				within_box = 0;
-				break;
-			}
+			break;
 	}
 	return within_box;
 }

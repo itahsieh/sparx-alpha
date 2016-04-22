@@ -11,6 +11,6 @@ lte='True' \
 molec='hco+' \
 out=map \
 line=1 \
-npix="[32,32]" \
+npix="[1,1]" \
 chan="[32,'0.1kms^-1']" \
 subres="[['-10asec','-10asec','10asec','10asec',4]]"
