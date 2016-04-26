@@ -143,8 +143,7 @@ void *VtkContributionCyl3dTread(void *tid_p);
 void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo);
 void ContributionSubSamp_cyl3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo);
 
-static void ContributionTracer_sph3d( double *, double *, Zone *, GeVec3_d *);
-static void ContributionTracer_cyl3d( double *, double *, Zone *, GeVec3_d *);
+static void ContributionTracer( double *, double *, Zone *, GeVec3_d *);
 
 static int HitSph3dVoxel( const GeRay *, const GeVox *, double * t, size_t * side);
 static int HitCyl3dVoxel( const GeRay *, const GeVox *, double * t, size_t * side);
@@ -2769,7 +2768,7 @@ void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zo
                                 double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub); 
                                 double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
 
-                                ContributionTracer_sph3d( contrib_sub, tau_sub, SampZone, SampPosXYZ);
+                                ContributionTracer( contrib_sub, tau_sub, SampZone, SampPosXYZ);
 
                                 // statistics : sum up
                                 for (size_t l = 0; l < nvelo; l++){
@@ -2784,7 +2783,6 @@ void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zo
                 }
         }
         
-        
         for (size_t l = 0; l < nvelo; l++){
                 // average contrib, tau
                 contrib[l] *= Devide_nSampCube;
@@ -2797,10 +2795,7 @@ void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zo
                 tau_dev[l] -= tau[l] * tau[l];
                 tau_dev[l] = sqrt( tau_dev[l] );
         }
-        #if 0
-        printf("%E %E %E\n",contrib[32],tau[32],tau_dev[32]);
-        printf("OK\n");exit(0);
-        #endif    
+
         return;
 }
 
@@ -2854,7 +2849,7 @@ void ContributionSubSamp_cyl3d(double *contrib, double *tau, double *tau_dev, Zo
                                 double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub); 
                                 double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
 
-                                ContributionTracer_cyl3d( contrib_sub, tau_sub, SampZone, SampPosXYZ);
+                                ContributionTracer( contrib_sub, tau_sub, SampZone, SampPosXYZ);
                                 
                                 // statistics : sum up
                                 for (size_t l = 0; l < nvelo; l++){
@@ -2887,7 +2882,7 @@ void ContributionSubSamp_cyl3d(double *contrib, double *tau, double *tau_dev, Zo
 
 /*----------------------------------------------------------------------------*/
 
-static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *SampZone, GeVec3_d *SampCartPos)
+static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone, GeVec3_d *SampCartPos)
 {
         GeVox * SampVp = &SampZone->voxel;
         GeRay ray;
@@ -2916,8 +2911,15 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
                         if( zp->pos == SampZone->pos ){
                                 // the ordinates of the ray position
                                 GeVec3_d RayCartPos = ray.e;
-                                GeVec3_d *RaySphPos = GeVec3_Cart2Sph(&RayCartPos);
-                                
+                                GeVec3_d *RayGEOMPos;
+                                switch (SampVp->geom){
+                                    case GEOM_SPH3D:
+                                        RayGEOMPos = GeVec3_Cart2Sph(&RayCartPos);
+                                        break;
+                                    case GEOM_CYL3D :
+                                        RayGEOMPos = GeVec3_Cart2Cyl(&RayCartPos);
+                                        break;
+                                }
                                 #if 0
                                 // debugging
                                 //printf("dx \t= %E, dy = %E\n",dx,dy);
@@ -2927,8 +2929,8 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
                                 SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
                                 printf("VoxelMin \t= %E %E %E\n", 
                                 SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
-                                printf("RaySphPos \t= %E %E %E\n", 
-                                RaySphPos->x[0], RaySphPos->x[1], RaySphPos->x[2]);
+                                printf("RayGEOMPos \t= %E %E %E\n", 
+                                RayGEOMPos->x[0], RayGEOMPos->x[1], RayGEOMPos->x[2]);
                                 printf("VoxelMax \t= %E %E %E\n", 
                                 SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
                                 #endif
@@ -2940,23 +2942,23 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
                                         size_t side_out = side_in + 1;
                                         if ( side_in == side ){
                                                 reached_cell *= 
-                                                ( fabs( SampVp->min.x[i] - RaySphPos->x[i] )/RaySphPos->x[i] < threshold) ? 
+                                                ( fabs( SampVp->min.x[i] - RayGEOMPos->x[i] )/RayGEOMPos->x[i] < threshold) ? 
                                                 1 : 0;
-                                                //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RaySphPos->x[i] ));
+                                                //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RayGEOMPos->x[i] ));
                                                 
                                         }else{
                                                 reached_cell *= 
-                                                (SampVp->min.x[i] <= RaySphPos->x[i]) ? 1 : 0;
+                                                (SampVp->min.x[i] <= RayGEOMPos->x[i]) ? 1 : 0;
                                         }
                                         if ( side_out == side ){
                                                 reached_cell *= 
-                                                ( fabs( SampVp->max.x[i] - RaySphPos->x[i] )/RaySphPos->x[i] < threshold ) ? 
+                                                ( fabs( SampVp->max.x[i] - RayGEOMPos->x[i] )/RayGEOMPos->x[i] < threshold ) ? 
                                                 1 : 0;
-                                                //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RaySphPos->x[i] ));
+                                                //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RayGEOMPos->x[i] ));
                                         }
                                         else{
                                                 reached_cell *= 
-                                                (SampVp->max.x[i] >= RaySphPos->x[i]) ? 1 : 0;
+                                                (SampVp->max.x[i] >= RayGEOMPos->x[i]) ? 1 : 0;
                                         }
                                 }
                                 
@@ -2969,11 +2971,19 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
                                 else{
                                         size_t side_Samp;
                                         double tSamp;
-                                        int hit = HitSph3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
+                                        
+                                        int hit ;
+                                        switch (SampVp->geom){
+                                            case GEOM_SPH3D :
+                                                hit = HitSph3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
+                                                break;
+                                            case GEOM_CYL3D :
+                                                hit = HitCyl3ddVoxel( &ray, SampVp, &tSamp, &side_Samp);
+                                                break;
+                                        
+                                        }
                                         GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-                                        
-                                        
-                                        
+
                                         if ( tSamp < t){
                                                 CalcOpticalDepth( zp, &ray, tSamp, tau_nu);
                                                 /* Calculate next position */
@@ -3023,141 +3033,7 @@ static void ContributionTracer_sph3d( double *contrib, double *tau_nu, Zone *Sam
         return;
 }
 
-/*----------------------------------------------------------------------------*/
 
-
-
-static void ContributionTracer_cyl3d( double *contrib, double *tau_nu, Zone *SampZone, GeVec3_d *SampCartPos)
-{
-        GeVox * SampVp = &SampZone->voxel;
-        GeRay ray;
-        size_t side;
-        Zone * root = glb.model.grid;
-        double t;
-        int reached_sampling_zone = 0;
-        static double threshold = 1E-6;
-
-        double dx = atan( SampCartPos->x[1] / ( glb.dist / Sp_LENFAC - SampCartPos->x[0] ) );
-        double dy = atan( SampCartPos->x[2] / ( glb.dist / Sp_LENFAC - SampCartPos->x[0] ) );
-        InitRay( &dx, &dy, &ray);
-        
-        /* Reset tau for all channels */
-        Mem_BZERO2(tau_nu, glb.v.n);
-        /* Shoot ray at model and see what happens! */
-        if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
-                /* Calculate intersection */
-                ray = GeRay_Inc(&ray, t);
-                /* Locate starting leaf zone according to intersection */
-                Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
-
-                /* Keep going until there's no next zone to traverse to */
-                while(zp) {
-                        // see if the ray reach the target 1-D layer
-                        if( zp->pos == SampZone->pos ){
-                                // the ordinates of the ray position
-                                GeVec3_d RayCartPos = ray.e;
-                                GeVec3_d *RayCylPos = GeVec3_Cart2Cyl(&RayCartPos);
-                                #if 0
-                                // debugging
-                                //printf("dx \t= %E, dy = %E\n",dx,dy);
-                                printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
-                                //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
-                                printf("SampPos \t= %E %E %E\n", 
-                                SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
-                                printf("VoxelMin \t= %E %E %E\n", 
-                                SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
-                                printf("RayCylPos \t= %E %E %E\n", 
-                                RayCylPos->x[0], RayCylPos->x[1], RayCylPos->x[2]);
-                                printf("VoxelMax \t= %E %E %E\n", 
-                                SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
-                                #endif
-
-                                // see if the photon reach the sampling cell
-                                int reached_cell = 1;
-                                for (size_t i = 0; i < 3; i++){
-                                        size_t side_in = 2 * i;
-                                        size_t side_out = side_in + 1;
-                                        if ( side_in == side ){
-                                                reached_cell *= 
-                                                ( fabs( SampVp->min.x[i] - RayCylPos->x[i] )/RayCylPos->x[i] < threshold) ? 
-                                                1 : 0;
-                                                
-                                        }else{
-                                                reached_cell *= 
-                                                (SampVp->min.x[i] <= RayCylPos->x[i]) ? 1 : 0;
-                                        }
-                                        if ( side_out == side ){
-                                                reached_cell *= 
-                                                ( fabs( SampVp->max.x[i] - RayCylPos->x[i] )/RayCylPos->x[i] < threshold ) ? 
-                                                1 : 0;
-                                        }
-                                        else{
-                                                reached_cell *= 
-                                                (SampVp->max.x[i] >= RayCylPos->x[i]) ? 1 : 0;
-                                        }
-                                }
-                                
-                                // if reached the sampling cell, escape the tau tracer.
-                                if( reached_cell ){
-                                        reached_sampling_zone = 1;
-                                        break;
-                                }
-                                // the ray is not inside the sampling voxel but inside the target zone
-                                else{
-                                        size_t side_Samp;
-                                        double tSamp;
-                                        int hit = HitCyl3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
-                                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-                                        
-                                        
-                                        
-                                        if ( tSamp < t){
-                                                CalcOpticalDepth( zp, &ray, tSamp, tau_nu);
-                                                /* Calculate next position */
-                                                ray = GeRay_Inc(&ray, tSamp);
-                                                side = side_Samp;
-                                        }
-                                        else{
-                                                // will not reach in this interval
-                                                CalcOpticalDepth( zp, &ray, t, tau_nu);
-                                                /* Calculate next position */
-                                                ray = GeRay_Inc(&ray, t);
-                                                /* Get next zone to traverse to */
-                                                zp = Zone_GetNext(zp, &side, &ray);
-                                        }
-                                        #if 0
-                                        printf("hit = %d\n", hit);
-                                        printf("tSamp = %E, t = %E\n", tSamp, t);
-                                        #endif
-                                        #if 0
-                                        //if (SampZone->index.x[1]==0 && SampZone->index.x[2]==0)
-                                                {printf("OK\n");exit(0);}
-                                        #endif
-                                }
-                        }
-                        // not inside the target voxel, keep tracing
-                        else{
-                                /* Calculate path to next boundary */
-                                GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-                                
-                                CalcOpticalDepth( zp, &ray, t, tau_nu);
-                                
-                                /* Calculate next position */
-                                ray = GeRay_Inc(&ray, t);
-                                /* Get next zone to traverse to */
-                                zp = Zone_GetNext(zp, &side, &ray);
-                        }
-                }
-                ContributionOfCell( zp, &ray, SampCartPos, contrib, tau_nu);
-        }
-        else{
-                Deb_ASSERT(0);
-        }
-        //printf("OK\n");exit(0);
-        Deb_ASSERT(reached_sampling_zone);
-
-        return;
-}
 
 /*----------------------------------------------------------------------------*/
 

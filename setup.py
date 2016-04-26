@@ -200,6 +200,7 @@ sources_base = [
 	'src/zone.c',
 	'src/zone-hdf5.c',
 	'src/fits-and-miriad-wrappers.c',
+	'src/vtk-wrapper.c',
 ]
 
 if MIRSUPPORT:
@@ -222,6 +223,7 @@ depends_base = [
 	'src/python-wrappers.h',
 	'src/zone.h',
 	'src/zone-hdf5.h',
+	'src/vtk-wrapper.h',
 ]
 
 if MIRSUPPORT:
