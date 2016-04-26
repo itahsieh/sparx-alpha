@@ -172,9 +172,16 @@ GeVec3_d GeVec3_Normalize(const GeVec3_d *a)
 {
 	GeVec3_d b;
 	double mag = GeVec3_Mag(a);
-	for(size_t i = 0; i < 3; i++) {
-		GeVec3_X(b, i) = GeVec3_X(*a, i) / mag;
-	}
+        if( mag == 0.0 ){
+                GeVec3_X(b, 0) = 1.0;
+                GeVec3_X(b, 1) = 0.0;
+                GeVec3_X(b, 2) = 0.0;
+        }
+        else{
+                for(size_t i = 0; i < 3; i++) {
+                        GeVec3_X(b, i) = GeVec3_X(*a, i) / mag;
+                }
+        }
 	return b;
 }
 

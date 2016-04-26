@@ -627,42 +627,43 @@ Zone *Zone_GetNext_cyl3d(Zone *zone, size_t *side, const GeVec3_d *pt, const GeR
 		* which could be off the grid */
                 GeVec3_s idx = zone->index;
 		int pos = (int)GeVec3_X(idx, axis) + step;
-// 		Deb_PRINT("pos=%d\n",pos);
-		if( 0 <= pos < (int)GeVec3_X(parent->naxes, axis)) {
+		//Deb_PRINT("pos=%d\n",pos);
+		if( 0 <= pos && pos < (int)GeVec3_X(parent->naxes, axis) ) {
 			/* If anticipated position is within current grid, descend
 			 * to leaf of child zone at pos */
+                        //Deb_PRINT("move to next cell!\n");
 			GeVec3_X(idx, axis) = (size_t)pos;
 			*side = (size_t)((int) *side - step);
 			return Zone_GetLeaf_cyl3d( Zone_CHILD(parent, idx), *side, pt, ray );
 		}
 		else {
 			/* Edge of current level reached, go to parent level */
-// 			Deb_PRINT("getting upper level!\n");
+			//Deb_PRINT("getting upper level!\n");
 			return Zone_GetNext_cyl3d(parent, side, pt, ray);
 		}
 	}
+	
 	// no parent, root zone
-	else if( axis == 0 ){ 
-		switch (*side){
+	switch(axis){
+          case 0 : 
+                switch (*side){
                   case 0 :
+                          //Deb_PRINT("getting in!\n");
                           return Zone_GetLeaf_cyl3d(zone, *side, pt, ray );
                   case 1 :
                           /* Outermost zone reached, no next-zone */
                           //Deb_PRINT("getting out!\n");
                           return NULL;
                 }
-        }
-	else if( axis == 1 ){
+          case 1 :
 		*side = (*side % 2 == 0) ? *side + 1 : *side - 1;
 		return Zone_GetLeaf_cyl3d(zone, *side, pt, ray );
-	}
-	else if( axis == 2 ){
+	  case 2 :
 		return NULL;
-	}
-
-	else
+          default :
 		/* Shouldn't happen */
-		Deb_ASSERT(0);		
+		Deb_ASSERT(0);
+        }
 }
 /*----------------------------------------------------------------------------*/
 #if Sp_MIRSUPPORT
@@ -697,7 +698,7 @@ Zone *Zone_GetNext(Zone *zone, size_t *side, const GeRay *ray)
 	  	next = Zone_GetNext_rec3d(zone, *side, &(ray->e));
 	  	break;
 	  	
-	  case GEOM_CYL3D:
+	  case GEOM_CYL3D: 
 	  	next = Zone_GetNext_cyl3d(zone, side, &(ray->e), ray);
 	  	break;
           

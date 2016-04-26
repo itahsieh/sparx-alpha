@@ -1116,7 +1116,11 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 		while(zp) {
 			/* Calculate path to next boundary */
 			GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-// 			Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
+                        #if 0
+                        Deb_PRINT("traveling distance = %e\n",t);
+                        Deb_PRINT("side = %zu\n",side);
+                        #endif
+
 			/* Pointer to physical parameters associated with this zone */
 			SpPhys *pp = zp->data;
 			/* Do radiative transfer only if gas is present in this zone */
@@ -1168,12 +1172,9 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 // 			Deb_PRINT("checkpoint: GeRay_Inc\n");
 			/* Get next zone to traverse to */
 			zp = Zone_GetNext(zp, &side, &ray);
-			#if 1
-			if(zp){
+			#if 0
+			if(zp)
 				Deb_PRINT("zone index: %d %d %d\n",GeVec3_X(zp->index,0),GeVec3_X(zp->index,1),GeVec3_X(zp->index,2));
-				Deb_PRINT("traveling distance = %e\n",t);
-                                Deb_PRINT("side = %zu\n",side);
-			}
 			else
 				Deb_PRINT("shoot out!\n");
 			#endif
@@ -2347,12 +2348,18 @@ static void vtk_cyl3d(void){
         }
         // for Z
         Z[0] = root->children[0]->voxel.min.x[2];
-        for (size_t k = 1; k < np+1; k ++)
-                phi[k] = root->children[k-1]->voxel.max.x[2];
+        for (size_t k = 1; k < nz+1; k ++)
+                Z[k] = root->children[k-1]->voxel.max.x[2];
 
-        
+        #if 0
+        for(size_t i = 0; i < nr+1; i++) printf("%E ",Rc[i]);printf("\n");
+        for(size_t j = 0; j < np+1; j++) printf("%E ",phi[j]);printf("\n");
+        for(size_t k = 0; k < nz+1; k++) printf("%E ",Z[k]);printf("\n");
+        printf("%zu %zu %zu\n",root->naxes.x[0],root->naxes.x[1],root->naxes.x[2]);
+        printf("%zu %zu %zu\n",nr,np,nz);                                 
+        #endif
         /* paralized calculation of  the contribution of the cells */
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
         sts = SpUtil_Threads2( DEBUG ? 1 : Sp_NTHREAD, VtkContributionCyl3dTread);
 #endif
@@ -2693,11 +2700,11 @@ void *VtkContributionCyl3dTread(void *tid_p)
                         size_t idx = ( ( i * np + j ) * nz + k ) * nvelo;
                         ContributionSubSamp_cyl3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
                         
-                        #if 1
-                        printf("zone pos = %zu %zu %zu\n",i,j,k);
+                        #if 0
+                        Deb_PRINT("zone pos = %zu %zu %zu\n",i,j,k);
                         //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
                         if( j==0 && k==0){                                
-                                printf("OK\n");exit(0);
+                                Deb_PRINT("OK\n");exit(0);
                         }
                         #endif
               }
@@ -3050,7 +3057,7 @@ static void ContributionTracer_cyl3d( double *contrib, double *tau_nu, Zone *Sam
                                 // the ordinates of the ray position
                                 GeVec3_d RayCartPos = ray.e;
                                 GeVec3_d *RayCylPos = GeVec3_Cart2Cyl(&RayCartPos);
-                                #if 1
+                                #if 0
                                 // debugging
                                 //printf("dx \t= %E, dy = %E\n",dx,dy);
                                 printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
@@ -3064,7 +3071,7 @@ static void ContributionTracer_cyl3d( double *contrib, double *tau_nu, Zone *Sam
                                 printf("VoxelMax \t= %E %E %E\n", 
                                 SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
                                 #endif
-                                
+
                                 // see if the photon reach the sampling cell
                                 int reached_cell = 1;
                                 for (size_t i = 0; i < 3; i++){
@@ -3118,11 +3125,11 @@ static void ContributionTracer_cyl3d( double *contrib, double *tau_nu, Zone *Sam
                                                 /* Get next zone to traverse to */
                                                 zp = Zone_GetNext(zp, &side, &ray);
                                         }
-                                        #if 1
+                                        #if 0
                                         printf("hit = %d\n", hit);
                                         printf("tSamp = %E, t = %E\n", tSamp, t);
                                         #endif
-                                        #if 1
+                                        #if 0
                                         //if (SampZone->index.x[1]==0 && SampZone->index.x[2]==0)
                                                 {printf("OK\n");exit(0);}
                                         #endif
@@ -3333,7 +3340,7 @@ static int HitCyl3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
 {
         static const double half_pi = 0.5 * 3.1415926535897932384626433832795;
         
-        Deb_ASSERT( voxel->geom == GEOM_SPH3D );
+        Deb_ASSERT( voxel->geom == GEOM_CYL3D );
         
         double Rc_in = voxel->min.x[0];
         double Rc_out = voxel->max.x[0];

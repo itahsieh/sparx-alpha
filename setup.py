@@ -7,7 +7,7 @@ VERSION_NUMBER = '2.3.3'
 # MIRIAD support option
 MIRSUPPORT = 0  
 # number of Thread using in per job
-ENABLE_MULTITREADING=0
+ENABLE_MULTITREADING = 1
 if ENABLE_MULTITREADING:
         import multiprocessing
         NumberOfThread = 2 * multiprocessing.cpu_count()

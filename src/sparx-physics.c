@@ -699,8 +699,9 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 	#define USE_CONST 0
         
 	GeVec3_d v_gas;
-	GeVec3_d vr, vt, vp;
+	
         GeVec3_d vRc, vz;
+
         #if USE_CONST
 	double velo = -0.2e3; // [km/s]
 	#endif
@@ -724,11 +725,14 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			#endif
 			break;
 			
-		case GEOM_SPH3D:
+		case GEOM_SPH3D:{
 			/* Project radial velocity onto position vector */
 			/* get normalized vr, vt vp */
-			vr = GeVec3_Normalize(pos);
-			if( fabs(pos->x[0])<1e-6 && fabs(pos->x[1])<1e-6 ){
+                        GeVec3_d vr = GeVec3_Normalize(pos);
+                        
+                        GeVec3_d vp;
+                        GeVec3_d * CylPos = GeVec3_Cart2Cyl(pos);
+			if( CylPos->x[0] == 0.0 ){
 				GeVec3_X(vp,0) = 0.0;
 				GeVec3_X(vp,1) = 1.0;
 				GeVec3_X(vp,2) = 0.0;
@@ -739,17 +743,20 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 				GeVec3_X(vp,2) = 0.0;	
 				vp = GeVec3_Normalize(&vp);
 			}
-			vt = GeVec3_CrossProd(&vp,&vr);
+
+			GeVec3_d vt = GeVec3_CrossProd(&vp,&vr);
+                        
 			/* Project directional velocity onto the normalized vector */
 			vr = GeVec3_Scale(&vr, GeVec3_X(pp->v_cen, 0));
 			vt = GeVec3_Scale(&vt, GeVec3_X(pp->v_cen, 1));
 			vp = GeVec3_Scale(&vp, GeVec3_X(pp->v_cen, 2));
+                        
 			/* add vr, vt, vp to get v_gas */
 			v_gas = GeVec3_Add(&vr,&vt);
 			v_gas = GeVec3_Add(&v_gas,&vp);
-
+                
 			break;
-
+                }        
 		case GEOM_REC3D:
 			#if USE_LVG
 			/* Analytic expression for LVG expanding cloud */
@@ -767,14 +774,14 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			#endif
 			break;
 
-		case GEOM_CYL3D:
-
-			/* Project radial velocity onto position vector */
-			/* get normalized vr, vt vp */
-			vRc = *pos;
+		case GEOM_CYL3D:{
+			GeVec3_d vRc = *pos;
 			vRc.x[2] = 0.;
 			vRc = GeVec3_Normalize(&vRc);
-			if( fabs(pos->x[0])<1e-6 && fabs(pos->x[1])<1e-6 ){
+
+                        GeVec3_d vp;
+                        GeVec3_d * CylPos = GeVec3_Cart2Cyl(pos);
+			if( CylPos->x[0] == 0.0 ){
 				GeVec3_X(vp,0) = 0.0;
 				GeVec3_X(vp,1) = 1.0;
 				GeVec3_X(vp,2) = 0.0;
@@ -785,7 +792,8 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 				GeVec3_X(vp,2) = 0.0;	
 				vp = GeVec3_Normalize(&vp);
 			}
-			
+
+			GeVec3_d vz;
 			GeVec3_X(vz,0) = 0.0;
 			GeVec3_X(vz,1) = 0.0;
 			GeVec3_X(vz,2) = 1.0;
@@ -799,7 +807,7 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			v_gas = GeVec3_Add(&v_gas,&vp);
 
 			break;
-		
+                }
 		default: /* Shouldn't reach here */
 			Deb_ASSERT(0);
 	}
@@ -980,7 +988,7 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 {
 	SpPhys *pp = zone->data;
 	double vfac = 0;
-	
+
 	//debug
 	//return Num_GaussNormal(SpPhys_GetVfunc(ray, dt, v_los, zone), pp->width);
 
@@ -993,14 +1001,14 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 	GeVec3_d v_0 = SpPhys_GetVfunc(ray, 0.0, zone);
 	GeVec3_d v_1 = SpPhys_GetVfunc(ray, dt, zone);
 
-// 	Deb_PRINT("dt=%g, v_0=%g, v_1=%g\n", dt, v_0, v_1);
+ 	//Deb_PRINT("dt=%e, v_0=%e %e %e, v_1=%e %e %e\n", dt, v_0.x[0], v_0.x[1], v_0.x[2], v_1.x[0], v_1.x[1], v_1.x[2]);
 
 	size_t n_step = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width), 1);
 
-// 	Deb_PRINT("n_step=%d\n", (int)n_step);
+ 	//Deb_PRINT("n_step=%d\n", (int)n_step);
+        //Deb_PRINT("n_step=%d\n", (size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width));
 
 	Deb_ASSERT(n_step > 0); /* Just in case */
-	//Deb_PRINT("n_step=%d\n", (int)n_step);
 
 	for(size_t i = 0; i < n_step; i++) {
 		/* Check for velocity differences within each step
@@ -1013,7 +1021,7 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 
 		Deb_ASSERT(n_avg > 0); /* Just in case */
 
-		//Deb_PRINT("  n_avg=%d\n", (int)n_step);
+		//Deb_PRINT("  n_avg=%d\n", (int)n_avg);
 
 		/* Average line profile over n_avg */
 		for(size_t j = 0; j < n_avg; j++) {
@@ -1024,7 +1032,7 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 	}
 	//debug
 	#if 0
-		printf("zone=<%lu, %lu, %lu>, r=%g pc, dir=<%g, %g, %g>, v=%g km/s\n",
+		Deb_PRINT("zone=<%lu, %lu, %lu>, r=%g pc, dir=<%g, %g, %g>, v=%g km/s\n",
 			(unsigned long)GeVec3_X(zone->index, 0), (unsigned long)GeVec3_X(zone->index, 1), (unsigned long)GeVec3_X(zone->index, 2),
 			GeVec3_Mag2(&zone->parent->voxel.cen, &zone->voxel.cen),
 			GeRay_D(*ray, 0), GeRay_D(*ray, 1), GeRay_D(*ray, 2),
