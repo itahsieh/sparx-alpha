@@ -1,5 +1,6 @@
 preprocessor :
   cd DIRECTORY
+  write grid.py & model.py
   pre-sparx
 
 solver :
@@ -23,4 +24,4 @@ postprocessor :
        
 line-fitting :
   sparx run tasl_linefitting
-       
+         

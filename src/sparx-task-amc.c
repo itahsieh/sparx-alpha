@@ -813,19 +813,19 @@ static void *CalcExcThread(void *tid_p)
 		pthread_mutex_lock(&glb.exc_mutex);
 
 		/* Update max_diff */
-		if(diff > glb.max_diff)
+		if( diff > glb.max_diff )
 			glb.max_diff = diff;
 		
 		/* Determine convergence and act accordingly */
 		/* The nray-doubling critiria modified by I-Ta */
-		if(glb.fully_random){
-			if(diff<MCNOISE)
+		if( glb.fully_random ){
+			if( diff < MCNOISE )
 				glb.nconv += 1;
-			if(diff>0.5*MCNOISE)
+			if( diff > 0.5 * MCNOISE )
 				pp->nray *= 4;
 		}
 		else{
-			if(diff<TOLERANCE)
+			if( diff < TOLERANCE )
 				glb.nconv += 1;
 		}
 		

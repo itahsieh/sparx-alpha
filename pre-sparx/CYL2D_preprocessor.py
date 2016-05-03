@@ -31,8 +31,8 @@ Rc_in = 0.0
 Z_max=0.05 #pc
 stretch_ratioRc=1.02
 stretch_ratioZ=1.02
-nr=100
-nz=180
+nr=64
+nz=128
 np=1
 
 # Physical parameter

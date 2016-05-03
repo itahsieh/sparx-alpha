@@ -5,7 +5,7 @@
 # VERSION_NUMBER of SPARX
 VERSION_NUMBER = '2.3.3'
 # MIRIAD support option
-MIRSUPPORT = 0  
+MIRSUPPORT = 1
 # number of Thread using in per job
 ENABLE_MULTITREADING = 1
 if ENABLE_MULTITREADING:

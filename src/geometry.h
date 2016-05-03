@@ -9,12 +9,12 @@
 #include <gsl/gsl_rng.h>
 #include "data_structs.h"
 
-enum {
+typedef enum {
 	GEOM_SPH1D,
 	GEOM_SPH3D,
 	GEOM_REC3D,
 	GEOM_CYL3D
-};
+} GEOM_TYPE;
 
 extern DatINode GEOM_TYPES[];
 
@@ -162,11 +162,11 @@ GeVec3_d GeVec3_Rotate_y(const GeVec3_d *vec, double phi);
 GeVec3_d GeVec3_Rotate_z(const GeVec3_d *vec, double phi);
 GeVec3_d GeVec3_Rotate(const GeVec3_d *vec, const GeCam *cam);
 
-GeVec3_d * GeVec3_Sph2Cart( double R, double theta, double phi);
-GeVec3_d * GeVec3_Cyl2Cart( double Rc, double phi, double Z);
+GeVec3_d GeVec3_Sph2Cart( double R, double theta, double phi);
+GeVec3_d GeVec3_Cyl2Cart( double Rc, double phi, double Z);
 
-GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *);
-GeVec3_d * GeVec3_Cart2Cyl( const GeVec3_d *);
+GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *);
+GeVec3_d GeVec3_Cart2Cyl( const GeVec3_d *);
 
 int point_in_voxel2(const GeVec3_d *pt, const GeVox *voxel, size_t axis);
 int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis);

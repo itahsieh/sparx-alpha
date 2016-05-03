@@ -731,8 +731,9 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
                         GeVec3_d vr = GeVec3_Normalize(pos);
                         
                         GeVec3_d vp;
-                        GeVec3_d * CylPos = GeVec3_Cart2Cyl(pos);
-			if( CylPos->x[0] == 0.0 ){
+                        GeVec3_d CylPos;
+                        CylPos = GeVec3_Cart2Cyl(pos);
+			if( CylPos.x[0] == 0.0 ){
 				GeVec3_X(vp,0) = 0.0;
 				GeVec3_X(vp,1) = 1.0;
 				GeVec3_X(vp,2) = 0.0;
@@ -780,8 +781,9 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			vRc = GeVec3_Normalize(&vRc);
 
                         GeVec3_d vp;
-                        GeVec3_d * CylPos = GeVec3_Cart2Cyl(pos);
-			if( CylPos->x[0] == 0.0 ){
+                        GeVec3_d CylPos;
+                        CylPos = GeVec3_Cart2Cyl( pos);
+			if( CylPos.x[0] == 0.0 ){
 				GeVec3_X(vp,0) = 0.0;
 				GeVec3_X(vp,1) = 1.0;
 				GeVec3_X(vp,2) = 0.0;
@@ -1017,7 +1019,7 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 		double s_1 = dt * (double)(i + 1) / (double)n_step;
 		v_0 = SpPhys_GetVfunc(ray, s_0, zone);
 		v_1 = SpPhys_GetVfunc(ray, s_1, zone);
-		size_t n_avg = Num_MAX((size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width), 1);
+		size_t n_avg = Num_MAX( (size_t)(GeVec3_Mag2(&v_1, &v_0) / pp->width) , 1);
 
 		Deb_ASSERT(n_avg > 0); /* Just in case */
 

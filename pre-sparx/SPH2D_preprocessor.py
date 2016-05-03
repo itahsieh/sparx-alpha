@@ -29,8 +29,8 @@ R_out=0.05 #pc
 R_in=26.*0.0046491/206260 #pc
 stretch_ratior=1.02
 stretch_ratiot=1.02
-nr=100
-nt=180
+nr=64
+nt=50
 np=1
 
 # Physical parameter

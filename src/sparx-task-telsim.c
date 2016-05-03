@@ -29,7 +29,7 @@ static struct glb {
                         size_t nr, np, nz;
                         double *Rc, *phi, *Z;
                 } *cyl3d;
-                double *contrib, *tau, *tau_dev;
+                double **contrib, **tau, **tau_dev;
         } *visual;
 } glb;
 
@@ -89,9 +89,9 @@ static void *CalcImageThreadLine(void *tid_p);
 static void *CalcImageThreadZeeman(void *tid_p);
 static void *CalcImageThreadCont(void *tid_p);
 static void *CalcImageThreadColdens(void *tid_p);
-static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu);
-static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu);
-static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu);
+static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu, size_t tid);
+static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu, size_t tid);
+static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu, size_t tid);
 static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu);
 static void ColumnDensityTracer(double dx, double dy, double *CD);
 static void InitRay(double *dx, double *dy, GeRay *ray);
@@ -129,27 +129,28 @@ DatINode VISUAL_TYPES[] = {
         {0, 0}
 };
 
-static void generic_vtk(int);
+static int generic_vtk(int);
 
-static void vtk_rec3d(void);
-static void vtk_cyl3d(void);
-static void vtk_sph3d(void);
-static void vtk_sph1d(void);
+static int vtk_rec3d(void);
+static int vtk_cyl3d(void);
+static int vtk_sph3d(void);
+static int vtk_sph1d(void);
 
-void *VtkContributionSph1dTread(void *tid_p);
-void *VtkContributionSph3dTread(void *tid_p);
-void *VtkContributionCyl3dTread(void *tid_p);
+static int CalcContrib(GEOM_TYPE geom_type);
 
-void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo);
-void ContributionSubSamp_cyl3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo);
+static void *VtkContributionSph1dTread(void *tid_p);
+static void *VtkContributionSph3dTread(void *tid_p);
+static void *VtkContributionCyl3dTread(void *tid_p);
 
-static void ContributionTracer( double *, double *, Zone *, GeVec3_d *);
+static void ContributionSubSamp(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo, size_t tid);
+
+static void ContributionTracer( double *, double *, Zone *, GeVec3_d *, size_t tid);
 
 static int HitSph3dVoxel( const GeRay *, const GeVox *, double * t, size_t * side);
 static int HitCyl3dVoxel( const GeRay *, const GeVox *, double * t, size_t * side);
 
-static void CalcOpticalDepth( Zone *, const GeRay *, const double, double *);
-static void ContributionOfCell( Zone *, const GeRay *, const GeVec3_d *, double *, double *);
+static void CalcOpticalDepth( Zone *, const GeRay *, const double, double *, size_t tid);
+static void ContributionOfCell( Zone *, const GeRay *, const GeVec3_d *, double *, double *, size_t tid);
 
 
 /*----------------------------------------------------------------------------*/
@@ -166,12 +167,7 @@ int SpTask_Telsim(void)
         if(!sts) {
                 sts = SpPy_GetInput_model("source","source", &glb.model);
         }
-      
-        /* out (mandatory) */
-        if(!sts){
-                sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
-        }
-        
+
         /* npix */
         if(!sts && !(sts = SpPy_GetInput_PyObj("npix", &o))) {
                 glb.x.n = Sp_PYSIZE(Sp_PYLST(o, 0));
@@ -185,6 +181,18 @@ int SpTask_Telsim(void)
                 glb.x.delt = Sp_PYDBL(Sp_PYLST(o, 0));
                 glb.y.delt = Sp_PYDBL(Sp_PYLST(o, 1));
                 SpPy_XDECREF(o);
+        }
+        /* chan */
+        if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
+                glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
+                glb.v.crpix = MirWr_CRPIX(glb.v.n);
+                glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
+                SpPy_XDECREF(o);
+        }
+
+        /* out (mandatory) */
+        if(!sts){
+                sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
         }
         
         /* dist */
@@ -228,76 +236,76 @@ int SpTask_Telsim(void)
                 PyObject *o_line;
                 PyObject *o1, *o2, *o3;
                 switch (glb.task->idx){
-                        // for task-contobs 
-                        case TASK_CONT:
-                                /* tau (optional) */
-                                if(!sts && SpPy_CheckOptionalInput("tau")) {
-                                        sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
-                                }
-                                PyObject *o_wavelen;
-                                o_wavelen = PyObject_GetAttrString(o, "wavelen");
-                                glb.lamb = Sp_PYDBL(o_wavelen);
-                                glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
-                                SpPy_XDECREF(o_wavelen);
-                                break;
-                        
-                        // for task-lineobs
-                        case TASK_ZEEMAN:
-                                // get line transition
-                                o_line = PyObject_GetAttrString(o, "line");
-                                glb.line = Sp_PYSIZE(o_line);
-                                SpPy_XDECREF(o_line);
-                                
-                                if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-                                if(!sts){
-                                        if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
-                                }
-                                Deb_ASSERT(glb.model.parms.mol != NULL);
-                                
-                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
-                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
-                                
-                                break;
-                        // for task-lineobs
-                        case TASK_LINE:
-                                // get line transition
-                                o1 = PyObject_GetAttrString(o, "line");
-                                glb.line = Sp_PYSIZE(o1);
-                                SpPy_XDECREF(o1);
-                                
-                                if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-                                if(!sts){
-                                        if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
-                                }
-                                Deb_ASSERT(glb.model.parms.mol != NULL);
-                                
-                                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
-                                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
-                                
-                                /* tau (optional) */
-                                if(!sts && SpPy_CheckOptionalInput("tau")) {
-                                        sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
-                                }
+                  // for task-contobs 
+                  case TASK_CONT:
+                          /* tau (optional) */
+                          if(!sts && SpPy_CheckOptionalInput("tau")) {
+                                  sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
+                          }
+                          PyObject *o_wavelen;
+                          o_wavelen = PyObject_GetAttrString(o, "wavelen");
+                          glb.lamb = Sp_PYDBL(o_wavelen);
+                          glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
+                          SpPy_XDECREF(o_wavelen);
+                          break;
+                  
+                  // for task-lineobs
+                  case TASK_ZEEMAN:
+                          // get line transition
+                          o_line = PyObject_GetAttrString(o, "line");
+                          glb.line = Sp_PYSIZE(o_line);
+                          SpPy_XDECREF(o_line);
+                          
+                          if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+                          if(!sts){
+                                  if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
+                          }
+                          Deb_ASSERT(glb.model.parms.mol != NULL);
+                          
+                          glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
+                          glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
+                          Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+                          
+                          break;
+                  // for task-lineobs
+                  case TASK_LINE:
+                          // get line transition
+                          o1 = PyObject_GetAttrString(o, "line");
+                          glb.line = Sp_PYSIZE(o1);
+                          SpPy_XDECREF(o1);
+                          
+                          if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+                          if(!sts){
+                                  if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
+                          }
+                          Deb_ASSERT(glb.model.parms.mol != NULL);
+                          
+                          glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
+                          glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
+                          Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+                          
+                          /* tau (optional) */
+                          if(!sts && SpPy_CheckOptionalInput("tau")) {
+                                  sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
+                          }
 
-                                // get overlap switch
-                                o2 = PyObject_GetAttrString(o, "overlap_int");
-                                glb.overlap = Sp_PYINT(o2);
-                                
-                                // get overlap velocity
-                                o3 = PyObject_GetAttrString(o, "overlap_vel");
-                                glb.overlap_vel = Sp_PYDBL(o3);
-                                SpPy_XDECREF(o2);
-                                SpPy_XDECREF(o3);
-                                
-                                /* excitation visualization */
-                                if(!sts) 
-                                        sts = SpPy_GetInput_bool("excit", &glb.excit);
-                                break;
-                        default: 
-                                /* Shouldn't reach here */
-                                Deb_ASSERT(0);
+                          // get overlap switch
+                          o2 = PyObject_GetAttrString(o, "overlap_int");
+                          glb.overlap = Sp_PYINT(o2);
+                          
+                          // get overlap velocity
+                          o3 = PyObject_GetAttrString(o, "overlap_vel");
+                          glb.overlap_vel = Sp_PYDBL(o3);
+                          SpPy_XDECREF(o2);
+                          SpPy_XDECREF(o3);
+                          
+                          /* excitation visualization */
+                          if(!sts) 
+                                  sts = SpPy_GetInput_bool("excit", &glb.excit);
+                          break;
+                  default: 
+                          /* Shouldn't reach here */
+                          Deb_ASSERT(0);
                 }
 	}
 	
@@ -322,13 +330,6 @@ int SpTask_Telsim(void)
                 }
         }
 	
-        /* chan */
-        if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
-                glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
-                glb.v.crpix = MirWr_CRPIX(glb.v.n);
-                glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
-                SpPy_XDECREF(o);
-        }
 
 /* 2. Initialize model */
 	if(!sts) sts = InitModel();
@@ -507,7 +508,7 @@ int SpTask_Telsim(void)
                           if(glb.excit && glb.task->idx == TASK_LINE)
                                 visualization();
                           #if 1
-                          generic_vtk(glb.model.grid->voxel.geom);
+                          sts = generic_vtk(glb.model.grid->voxel.geom);
                           #endif
                           break;
                   case TASK_ZEEMAN:
@@ -547,10 +548,9 @@ int SpTask_Telsim(void)
         // this visualization is ... not useful...
         // calculate three moments and output to VTK file
 	if(glb.task->idx == TASK_LINE){
-                double *mean_int,*mean_vel,*mean_dev,dv,tempINT;
-                mean_int = Mem_CALLOC(glb.x.n*glb.y.n, mean_int);
-                mean_vel = Mem_CALLOC(glb.x.n*glb.y.n, mean_vel);
-                mean_dev = Mem_CALLOC(glb.x.n*glb.y.n, mean_dev);
+                double * mean_int = Mem_CALLOC(glb.x.n*glb.y.n, mean_int);
+                double * mean_vel = Mem_CALLOC(glb.x.n*glb.y.n, mean_vel);
+                double * mean_dev = Mem_CALLOC(glb.x.n*glb.y.n, mean_dev);
                 
                 for(size_t ix = 0; ix < glb.x.n; ix++) 
                         for(size_t iy = 0; iy < glb.y.n; iy++) {
@@ -558,7 +558,7 @@ int SpTask_Telsim(void)
                                 MEAN_VEL(ix,iy)=0.0;
                                 MEAN_DEV(ix,iy)=0.0;
                                 for(size_t iv = 0; iv < glb.v.n; iv++) {
-                                        tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
+                                        double tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
                                         MEAN_INT(ix,iy) += tempINT;
                                         MEAN_VEL(ix,iy) += tempINT * ((double)iv - glb.v.crpix) * glb.v.delt;
                                 }
@@ -570,8 +570,8 @@ int SpTask_Telsim(void)
                                         MEAN_VEL(ix,iy) /= MEAN_INT(ix,iy) * (double)glb.v.n;
                                 }
                                 for(size_t iv = 0; iv < glb.v.n; iv++) {
-                                        tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
-                                        dv = ((double)iv - glb.v.crpix) * glb.v.delt - MEAN_VEL(ix,iy);
+                                        double tempINT = (MirImg_PIXEL(*glb.image, iv, ix, iy)-glb.I_cmb)*glb.I_norm/glb.ucon;
+                                        double dv = ((double)iv - glb.v.crpix) * glb.v.delt - MEAN_VEL(ix,iy);
                                         MEAN_DEV(ix,iy) += tempINT*dv*dv;
                                 }
                                 if (MEAN_INT(ix,iy)<1e-20){
@@ -662,7 +662,8 @@ int SpTask_Telsim(void)
 		MirImg_Free(glb.tau_img);
 	if(glb.subres)
 		free(glb.subres);
-	SpModel_Cleanup(glb.model);
+	
+        SpModel_Cleanup(glb.model);
 
 	return sts;
 }
@@ -868,9 +869,9 @@ static void *CalcImageThreadLine(void *tid_p)
 
 				/* Calculate radiative transfer for this sub-los */
                                 if(glb.overlap)
-                                        RadiativeXferOverlap(dx, dy, I_sub, tau_sub);
+                                        RadiativeXferOverlap(dx, dy, I_sub, tau_sub, tid);
                                 else
-                                        RadiativeXferLine(dx, dy, I_sub, tau_sub);
+                                        RadiativeXferLine(dx, dy, I_sub, tau_sub, tid);
 
 				/* Add I_sub to I_nu */
 				for(size_t iv = 0; iv < glb.v.n; iv++) {
@@ -933,7 +934,7 @@ static void *CalcImageThreadZeeman(void *tid_p)
                                 double *V_sub = Mem_CALLOC(glb.v.n, V_sub);
                                 double *tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
                                 /* Calculate radiative transfer for this sub-los (Zeeman) */
-                                RadiativeXferZeeman(dx, dy, V_sub, tau_sub);
+                                RadiativeXferZeeman(dx, dy, V_sub, tau_sub, tid);
                                 /* Add I_sub to I_nu */
                                 for(size_t iv = 0; iv < glb.v.n; iv++) {
                                         V_nu[iv] += V_sub[iv];
@@ -1094,7 +1095,7 @@ static void *CalcImageThreadCont(void *tid_p)
 
 /*----------------------------------------------------------------------------*/
 
-static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu)
+static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu, size_t tid)
 {
 	GeRay ray;
 	size_t side;
@@ -1141,7 +1142,7 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
                                                  * of the local line width -- very time consuming! */
 						double vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
 						/* Calculate molecular line emission and absorption coefficients */
-						SpPhys_GetMoljk((size_t)0, pp, glb.line, vfac, &j_nu, &k_nu);
+						SpPhys_GetMoljk(tid, pp, glb.line, vfac, &j_nu, &k_nu);
 						
 					}
 					
@@ -1200,7 +1201,7 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 
 /*----------------------------------------------------------------------------*/
 
-static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu)
+static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu, size_t tid)
 {
         GeRay ray;
         double t;
@@ -1249,13 +1250,13 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
                                                                 double tempj_nu, tempk_nu;
                                                                 if(i==j){
                                                                         /* Calculate molecular line emission and absorption coefficients */
-                                                                        SpPhys_GetMoljk((size_t)0, pp, j, vfac, &tempj_nu, &tempk_nu);
+                                                                        SpPhys_GetMoljk(tid, pp, j, vfac, &tempj_nu, &tempk_nu);
                                                                 }
                                                                 else{
                                                                         /* Calculate velocity line profile factor */
                                                                         double vfac2 = pp->has_tracer ? SpPhys_GetVfac(&ray, t, dv-RELVEL(i,j), zp, 0) : 0.0;
                                                                         /* Calculate molecular line emission and absorption coefficients */
-                                                                        SpPhys_GetMoljk((size_t)0, pp, j, vfac2, &tempj_nu, &tempk_nu);
+                                                                        SpPhys_GetMoljk(tid, pp, j, vfac2, &tempj_nu, &tempk_nu);
                                                                 }
                                                                 j_nu += tempj_nu;
                                                                 k_nu += tempk_nu;
@@ -1297,7 +1298,7 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
 
 /*----------------------------------------------------------------------------*/
 
-static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu)
+static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu, size_t tid)
 {
         GeRay ray;
         double t;
@@ -1359,7 +1360,7 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                                 double vfac2 = SpPhys_GetVfac(&ray, t, dv-deltav, zp, 0);
                                                 vfac = vfac-vfac2;
                                                 double tempj_nu, tempk_nu;
-                                                SpPhys_GetMoljk((size_t)0, pp, glb.line, vfac, &tempj_nu, &tempk_nu);
+                                                SpPhys_GetMoljk(tid, pp, glb.line, vfac, &tempj_nu, &tempk_nu);
                                                 j_nu = 0.5*tempj_nu;
                                                 k_nu += tempk_nu;
                                         }
@@ -1850,21 +1851,23 @@ static void visualization(void)
 
 /*----------------------------------------------------------------------------*/
 
-static void generic_vtk(int geom)
+static int generic_vtk(int geom)
 {
+        int sts = 0;
+        
         glb.visual = Mem_CALLOC(1, glb.visual);
         switch (geom){
                 case GEOM_SPH1D:
-                        vtk_sph1d();
+                        sts = vtk_sph1d();
                         break;
                 case GEOM_SPH3D:
-                        vtk_sph3d();
+                        sts = vtk_sph3d();
                         break;
                 case GEOM_REC3D:
-                        vtk_rec3d();
+                        sts = vtk_rec3d();
                         break;
                 case GEOM_CYL3D:
-                        vtk_cyl3d();
+                        sts = vtk_cyl3d();
                         break;
                 default:
                         /* Should not happen */
@@ -1872,12 +1875,12 @@ static void generic_vtk(int geom)
         }
         free(glb.visual);
         
-        return;
+        return sts;
 }
 
 /*----------------------------------------------------------------------------*/
 
-static void vtk_sph1d(void)
+static int vtk_sph1d(void)
 {
         int sts = 0;
         Zone * root = glb.model.grid;
@@ -1894,9 +1897,14 @@ static void vtk_sph1d(void)
         double * radius = Mem_CALLOC( nr+1, radius);
         double * theta = Mem_CALLOC( nt+1, theta);
         double * phi = Mem_CALLOC( np+1, phi);
-        double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
-        double * tau = Mem_CALLOC( nelement * nvelo, tau);
-        double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
+        double ** contrib = Mem_CALLOC( nelement, contrib);
+        double ** tau = Mem_CALLOC( nelement, tau);
+        double ** tau_dev = Mem_CALLOC( nelement, tau_dev);
+        for (size_t idx = 0; idx < nelement; idx++){
+                contrib[idx] = Mem_CALLOC(nvelo, contrib[idx]);
+                tau[idx]     = Mem_CALLOC(nvelo, tau[idx]);
+                tau_dev[idx] = Mem_CALLOC(nvelo, tau_dev[idx]);
+        }
         // link to the global pointer
         glb.visual->sph3d->radius = radius;
         glb.visual->sph3d->theta = theta;
@@ -1904,6 +1912,7 @@ static void vtk_sph1d(void)
         glb.visual->contrib = contrib;
         glb.visual->tau = tau;
         glb.visual->tau_dev = tau_dev;
+        
         // construct the expanding SPH3D mesh
         radius[0] = root->children[0]->voxel.min.x[0];
         for(size_t i = 1; i < nr+1; i++)
@@ -1912,13 +1921,12 @@ static void vtk_sph1d(void)
         theta[0] = 0.;
         for ( size_t j = 1; j < nt+1; j++)
                 theta[j] = theta[j-1] + delta_theta;
-        double delta_phi = 2. * M_PI / (double) np;
+        double delta_phi = 2.0 * M_PI / (double) np;
         phi[0] = 0.;
         for (size_t k = 1; k < np+1; k ++)
                 phi[k] = phi[k-1] + delta_phi;
 
-        /* paralized calculation of  the contribution of the cells */
-        sts = SpUtil_Threads2( Sp_NTHREAD, VtkContributionSph1dTread);      
+        sts = CalcContrib(GEOM_SPH1D);     
         
         // open VTK file
         FILE *fp;
@@ -2005,10 +2013,11 @@ static void vtk_sph1d(void)
                         double g_u = pp->mol->lev[up]->g;
                         double g_l = pp->mol->lev[lo]->g;
                         double Tex = (E_l-E_u)
-                                / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
+                                / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) );
+                        double Tex_ratio = Tex/(pp->T_k);
                         for( size_t j = 0; j < nt; j++)
                           for( size_t k = 0; k < np; k++){
-                                fprintf(fp,"%E ", Tex/(pp->T_k));
+                                fprintf(fp,"%E ", Tex_ratio);
                           }fprintf(fp,"\n");
                 }
         }
@@ -2016,36 +2025,33 @@ static void vtk_sph1d(void)
         fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
         // write the contribution of the cells
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-           for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", contrib[ idx + l ]);
+                        fprintf(fp,"%E ", contrib[idx][l]);
                 fprintf(fp,"\n");
         }
         
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-          for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau[ idx + l ]);
+                        fprintf(fp,"%E ", tau[idx][l]);
                 fprintf(fp,"\n");
         }
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[2].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-          for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau_dev[ idx + l ]);
+                        fprintf(fp,"%E ", tau_dev[idx][l]);
                 fprintf(fp,"\n");
         }
         fclose(fp);
         printf("wrote %s\n",filename);
         
+
+        for (size_t idx = 0; idx < nelement; idx++){
+                free(contrib[idx]);
+                free(tau[idx]);
+                free(tau_dev[idx]);
+        }
         free(contrib);
         free(tau);
         free(tau_dev);
@@ -2055,12 +2061,12 @@ static void vtk_sph1d(void)
         
         free(glb.visual->sph3d);
 
-        return;
+        return sts;
 }
 
 /*----------------------------------------------------------------------------*/
 
-static void vtk_sph3d(void){
+static int vtk_sph3d(void){
         int sts = 0;
         Zone * root = glb.model.grid;
         size_t nvelo = glb.v.n;
@@ -2076,9 +2082,14 @@ static void vtk_sph3d(void){
         double * radius = Mem_CALLOC( nr+1, radius);
         double * theta = Mem_CALLOC( nt+1, theta);
         double * phi = Mem_CALLOC( np+1, phi);
-        double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
-        double * tau = Mem_CALLOC( nelement * nvelo, tau);
-        double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
+        double ** contrib = Mem_CALLOC( nelement, contrib);
+        double ** tau = Mem_CALLOC( nelement, tau);
+        double ** tau_dev = Mem_CALLOC( nelement, tau_dev);
+        for (size_t idx = 0; idx < nelement; idx++){
+                contrib[idx] = Mem_CALLOC(nvelo, contrib[idx]);
+                tau[idx]     = Mem_CALLOC(nvelo, tau[idx]);
+                tau_dev[idx] = Mem_CALLOC(nvelo, tau_dev[idx]);
+        }
         
         // link to the global pointer
         glb.visual->sph3d->radius = radius;
@@ -2121,8 +2132,8 @@ static void vtk_sph3d(void){
         printf("%zu %zu %zu\n",root->naxes.x[0],root->naxes.x[1],root->naxes.x[2]);
         printf("%zu %zu %zu\n",nr,nt,np);                                 
         #endif
-         /* paralized calculation of  the contribution of the cells */
-        sts = SpUtil_Threads2( Sp_NTHREAD, VtkContributionSph3dTread);
+         /* multithreading calculation of the contribution of the cells */
+        sts = CalcContrib(GEOM_SPH3D);
 
         // open VTK file
         FILE *fp;
@@ -2249,38 +2260,32 @@ static void vtk_sph3d(void){
         fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
         // write the contribution of the cells
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-           for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", contrib[ idx + l ]);
+                        fprintf(fp,"%E ", contrib[idx][l]);
                 fprintf(fp,"\n");
         }
         
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-          for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau[ idx + l ]);
+                        fprintf(fp,"%E ", tau[idx][l]);
                 fprintf(fp,"\n");
         }
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[2].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < nt; j++)
-          for( size_t k = 0; k < np; k++){
-                size_t idx = ( ( i * nt + j )*np + k)*nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau_dev[ idx + l ]);
+                        fprintf(fp,"%E ", tau_dev[idx][l]);
                 fprintf(fp,"\n");
         }
-        
-        
         fclose(fp);
         printf("wrote %s\n",filename);  
         
+        for (size_t idx = 0; idx < nelement; idx++){
+                free(contrib[idx]);
+                free(tau[idx]);
+                free(tau_dev[idx]);
+        }
         free(contrib);
         free(tau);
         free(tau_dev);
@@ -2288,19 +2293,19 @@ static void vtk_sph3d(void){
         free(theta);
         free(phi);
         free(glb.visual->sph3d);
-        return;
+        return sts;
 }
 
 /*----------------------------------------------------------------------------*/
 
-static void vtk_rec3d(void){
-        
-        return;
+static int vtk_rec3d(void){
+        int sts = 0;
+        return sts;
 }
 
 /*----------------------------------------------------------------------------*/
 
-static void vtk_cyl3d(void){
+static int vtk_cyl3d(void){
         int sts = 0;
         Zone * root = glb.model.grid;
         size_t nvelo = glb.v.n;
@@ -2308,7 +2313,7 @@ static void vtk_cyl3d(void){
         glb.visual->cyl3d = Mem_CALLOC(1,glb.visual->cyl3d);
         // Dimension of the visualized resolution
         size_t nr = glb.visual->cyl3d->nr = root->naxes.x[0];
-        size_t np = glb.visual->cyl3d->np = (root->naxes.x[1] == 1) ? 90 : root->naxes.x[1];
+        size_t np = glb.visual->cyl3d->np = (root->naxes.x[1] == 1) ? 72 : root->naxes.x[1];
         size_t nz = glb.visual->cyl3d->nz = root->naxes.x[2];
         
         size_t nelement =  nr * np * nz;
@@ -2316,9 +2321,14 @@ static void vtk_cyl3d(void){
         double * Rc = Mem_CALLOC( nr+1, Rc);
         double * phi = Mem_CALLOC( np+1, phi);
         double * Z = Mem_CALLOC( nz+1, Z);
-        double * contrib = Mem_CALLOC( nelement * nvelo, contrib);
-        double * tau = Mem_CALLOC( nelement * nvelo, tau);
-        double * tau_dev = Mem_CALLOC( nelement * nvelo, tau_dev);
+        double ** contrib = Mem_CALLOC( nelement, contrib);
+        double ** tau = Mem_CALLOC( nelement, tau);
+        double ** tau_dev = Mem_CALLOC( nelement, tau_dev);
+        for (size_t idx = 0; idx < nelement; idx++){
+                contrib[idx] = Mem_CALLOC(nvelo, contrib[idx]);
+                tau[idx]     = Mem_CALLOC(nvelo, tau[idx]);
+                tau_dev[idx] = Mem_CALLOC(nvelo, tau_dev[idx]);
+        }
         
         // link to the global pointer
         glb.visual->cyl3d->Rc   = Rc;
@@ -2357,12 +2367,9 @@ static void vtk_cyl3d(void){
         printf("%zu %zu %zu\n",root->naxes.x[0],root->naxes.x[1],root->naxes.x[2]);
         printf("%zu %zu %zu\n",nr,np,nz);                                 
         #endif
-        /* paralized calculation of  the contribution of the cells */
-#define DEBUG 0
-#if DEBUG
-        sts = SpUtil_Threads2( DEBUG ? 1 : Sp_NTHREAD, VtkContributionCyl3dTread);
-#endif
-#undef DEBUG
+
+        sts = CalcContrib(GEOM_CYL3D);
+
         // open VTK file
         FILE *fp;
         char filename[32];
@@ -2393,7 +2400,7 @@ static void vtk_cyl3d(void){
         fprintf(fp,"SCALARS H2_Number_Density float 1\n");
         fprintf(fp,"LOOKUP_TABLE default\n");
         for( size_t i = 0; i < nr; i++) 
-         for( size_t j = 0; j < np; j++) 
+         for( size_t j = 0; j < np; j++){ 
           for( size_t k = 0; k < nz; k++){
                 // izone : to coresponding zone index
                 size_t izone = (root->naxes.x[1]==1) ?
@@ -2402,8 +2409,9 @@ static void vtk_cyl3d(void){
                 Zone *zp = root->children[izone];
                 SpPhys *pp = zp->data;
                 fprintf(fp,"%E ", pp->n_H2);
-        }fprintf(fp,"\n");
-        
+           }
+           fprintf(fp,"\n");
+         }
         // molecular number density
         fprintf(fp,"SCALARS Molecular_Number_Density float 1\n");
         fprintf(fp,"LOOKUP_TABLE default\n");
@@ -2423,7 +2431,7 @@ static void vtk_cyl3d(void){
         fprintf(fp,"SCALARS Temperature float 1\n");
         fprintf(fp,"LOOKUP_TABLE default\n");
         for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < np; j++)
+         for( size_t j = 0; j < np; j++){
           for( size_t k = 0; k < nz; k++){
                 // izone : to coresponding zone index
                 size_t izone = (root->naxes.x[1]==1) ?
@@ -2432,13 +2440,15 @@ static void vtk_cyl3d(void){
                 Zone *zp = root->children[izone];
                 SpPhys *pp = zp->data;
                 fprintf(fp,"%E ", pp->T_k);
-        }fprintf(fp,"\n");
+           }
+           fprintf(fp,"\n");
+         }
         
         // exitation temperature
         fprintf(fp,"SCALARS Tex float 1\n");
         fprintf(fp,"LOOKUP_TABLE default\n");
         for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < np; j++)
+         for( size_t j = 0; j < np; j++){
           for( size_t k = 0; k < nz; k++){
                 // izone : to coresponding zone index
                 size_t izone = (root->naxes.x[1]==1) ?
@@ -2463,42 +2473,39 @@ static void vtk_cyl3d(void){
                                 / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
                         fprintf(fp,"%E ", Tex/(pp->T_k));
                 }
-        }fprintf(fp,"\n");
+           }
+           fprintf(fp,"\n");
+         }
         
         fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
         // write the contribution of the cells
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < np; j++)
-          for( size_t k = 0; k < nz; k++){
-                size_t idx = ( ( i * np + j ) * nz + k ) * nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", contrib[ idx + l ]);
+                        fprintf(fp,"%E ", contrib[idx][l]);
                 fprintf(fp,"\n");
         }
         
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < np; j++)
-          for( size_t k = 0; k < nz; k++){
-                size_t idx = ( ( i * np + j )*nz + k)*nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau[ idx + l ]);
+                        fprintf(fp,"%E ", tau[idx][l]);
                 fprintf(fp,"\n");
         }
         fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[2].name, nvelo, nelement);
-        for( size_t i = 0; i < nr; i++)
-         for( size_t j = 0; j < np; j++)
-          for( size_t k = 0; k < nz; k++){
-                size_t idx = ( ( i * np + j )*nz + k)*nvelo;
+        for (size_t idx = 0; idx < nelement; idx++){
                 for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau_dev[ idx + l ]);
+                        fprintf(fp,"%E ", tau_dev[idx][l]);
                 fprintf(fp,"\n");
-        }
-        
+        }        
         fclose(fp);
         printf("wrote %s\n",filename);  
         
+        for (size_t idx = 0; idx < nelement; idx++){
+                free(contrib[idx]);
+                free(tau[idx]);
+                free(tau_dev[idx]);
+        }
         free(contrib);
         free(tau);
         free(tau_dev);
@@ -2507,12 +2514,29 @@ static void vtk_cyl3d(void){
         free(Z);
         free(glb.visual->cyl3d);
 
-        return;
+        return sts;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void *VtkContributionSph1dTread(void *tid_p)
+static int CalcContrib(GEOM_TYPE geom_type)
+{
+        /* multithreading calculation of the contribution of the cells */
+        switch (geom_type){
+            case GEOM_SPH1D :
+                return SpUtil_Threads2( Sp_NTHREAD, VtkContributionSph1dTread);
+            case GEOM_SPH3D :
+                return SpUtil_Threads2( Sp_NTHREAD, VtkContributionSph3dTread);
+            case GEOM_CYL3D :
+                return SpUtil_Threads2( Sp_NTHREAD, VtkContributionCyl3dTread);
+            default:
+                Deb_ASSERT(0);
+        }
+}
+
+/*----------------------------------------------------------------------------*/
+
+static void *VtkContributionSph1dTread(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
@@ -2527,9 +2551,9 @@ void *VtkContributionSph1dTread(void *tid_p)
         double * radius = glb.visual->sph3d->radius;
         double * theta = glb.visual->sph3d->theta;
         double * phi = glb.visual->sph3d->phi;
-        double * contrib = glb.visual->contrib;
-        double * tau = glb.visual->tau;
-        double * tau_dev = glb.visual->tau_dev;
+        double ** contrib = glb.visual->contrib;
+        double ** tau = glb.visual->tau;
+        double ** tau_dev = glb.visual->tau_dev;
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
@@ -2553,8 +2577,8 @@ void *VtkContributionSph1dTread(void *tid_p)
                         vp->max.x[2] = phi[k+1];
                         SampZone.index.x[2] = k;
                         
-                        size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
-                        ContributionSubSamp_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
+                        size_t idx = ( i * nt + j ) * np + k ;
+                        ContributionSubSamp( contrib[idx], tau[idx], tau_dev[idx], &SampZone, nvelo, tid);
                         
                         #if 0
                         printf("zone pos = %zu %zu %zu\n",i,j,k);
@@ -2568,12 +2592,13 @@ void *VtkContributionSph1dTread(void *tid_p)
             }
           }
         }
-        pthread_exit(NULL);
+        //pthread_exit(NULL);
+        return NULL;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void *VtkContributionSph3dTread(void *tid_p)
+static void *VtkContributionSph3dTread(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
@@ -2588,9 +2613,9 @@ void *VtkContributionSph3dTread(void *tid_p)
         double * radius = glb.visual->sph3d->radius;
         double * theta = glb.visual->sph3d->theta;
         double * phi = glb.visual->sph3d->phi;
-        double * contrib = glb.visual->contrib;
-        double * tau = glb.visual->tau;
-        double * tau_dev = glb.visual->tau_dev;
+        double ** contrib = glb.visual->contrib;
+        double ** tau = glb.visual->tau;
+        double ** tau_dev = glb.visual->tau_dev;
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
@@ -2627,8 +2652,8 @@ void *VtkContributionSph3dTread(void *tid_p)
                                 SampZone.index.x[2] = k;
                         }
                         
-                        size_t idx = ( ( i * nt + j ) * np + k ) * nvelo;
-                        ContributionSubSamp_sph3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
+                        size_t idx = ( i * nt + j ) * np + k ;
+                        ContributionSubSamp( contrib[idx], tau[idx], tau_dev[idx], &SampZone, nvelo, tid);
                         
                         #if 0
                         printf("zone pos = %zu %zu %zu\n",i,j,k);
@@ -2642,12 +2667,13 @@ void *VtkContributionSph3dTread(void *tid_p)
             }
           }
         }
-        pthread_exit(NULL);
+        //pthread_exit(NULL);
+        return NULL;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void *VtkContributionCyl3dTread(void *tid_p)
+static void *VtkContributionCyl3dTread(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
@@ -2662,9 +2688,9 @@ void *VtkContributionCyl3dTread(void *tid_p)
         double * Rc = glb.visual->cyl3d->Rc;
         double * phi = glb.visual->cyl3d->phi;
         double * Z = glb.visual->cyl3d->Z;
-        double * contrib = glb.visual->contrib;
-        double * tau = glb.visual->tau;
-        double * tau_dev = glb.visual->tau_dev;
+        double ** contrib = glb.visual->contrib;
+        double ** tau = glb.visual->tau;
+        double ** tau_dev = glb.visual->tau_dev;
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
@@ -2696,14 +2722,14 @@ void *VtkContributionCyl3dTread(void *tid_p)
                                 SampZone.index.x[2] = k;
                         }
                         
-                        size_t idx = ( ( i * np + j ) * nz + k ) * nvelo;
-                        ContributionSubSamp_cyl3d( contrib + idx, tau + idx, tau_dev + idx, &SampZone, nvelo);
+                        size_t idx = ( i * np + j ) * nz + k ;
+                        ContributionSubSamp( contrib[idx], tau[idx], tau_dev[idx], &SampZone, nvelo, tid);
                         
                         #if 0
-                        Deb_PRINT("zone pos = %zu %zu %zu\n",i,j,k);
-                        //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
+                        printf("zone pos = %zu %zu %zu\n",i,j,k);
+                        printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
                         if( j==0 && k==0){                                
-                                Deb_PRINT("OK\n");exit(0);
+                                //printf("OK\n");exit(0);
                         }
                         #endif
               }
@@ -2711,12 +2737,14 @@ void *VtkContributionCyl3dTread(void *tid_p)
             }
           }
         }
-        pthread_exit(NULL);
+    
+        //pthread_exit(NULL);
+        return NULL;
 }
 
 /*----------------------------------------------------------------------------*/
 
-void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo){
+void ContributionSubSamp(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo, size_t tid){
         // initialize numer of sampling
         static int nSamp_initialized;
         static int nSamp1D;
@@ -2733,54 +2761,108 @@ void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zo
         // sampling n * n * n points in a cell
         // extract the geometry of the voxel
         GeVox * vp = &SampZone->voxel;
-        double R_in = vp->min.x[0];
-        double R_out = vp->max.x[0];
-        double theta_in = vp->min.x[1];
-        double theta_out = vp->max.x[1];
-        double phi_in = vp->min.x[2];
-        double phi_out = vp->max.x[2];
-        Mem_BZERO2(contrib, nvelo); 
-        Mem_BZERO2(tau, nvelo);
-        Mem_BZERO2(tau_dev, nvelo);
-        for(int i = 0; i < nSamp1D; i++){
-                // radius position
-                double RFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
-                #define ONE_THIRD (0.3333333333333333)
-                double R = ( R_in == 0. ) ? 
-                        R_out * pow(RFrac, ONE_THIRD) : 
-                        R_in * pow((1. + RFrac * (pow(R_out/R_in, 3.) - 1.)), ONE_THIRD);
-                #undef ONE_THIRD
-                for(int j = 0; j < nSamp1D; j++){
-                        // theta position
-                        double ThetaFrac = (double) ( 2 * j + 1 ) * Devide_2nSamp1D;
-                        double theta = ( theta_in == 0. ) ?
-                                acos( 1. + ThetaFrac * ( cos(theta_out) - 1. ) ) :
-                                acos( ( cos(theta_in) - 1. ) * ( 1. + ThetaFrac * ( ( cos(theta_out) - 1. ) / ( cos(theta_in) - 1. ) - 1. ) ) + 1. );
-                        for(int k = 0; k < nSamp1D; k++){
+        
+        switch (vp->geom){
+            case GEOM_SPH3D:{
+                double R_in = vp->min.x[0];
+                double R_out = vp->max.x[0];
+                double theta_in = vp->min.x[1];
+                double theta_out = vp->max.x[1];
+                double phi_in = vp->min.x[2];
+                double phi_out = vp->max.x[2];
+                Mem_BZERO2(contrib, nvelo); 
+                Mem_BZERO2(tau, nvelo);
+                Mem_BZERO2(tau_dev, nvelo);
+                for(int i = 0; i < nSamp1D; i++){
+                        // radius position
+                        double RFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
+                        #define ONE_THIRD (0.3333333333333333)
+                        double R = ( R_in == 0. ) ? 
+                                R_out * pow(RFrac, ONE_THIRD) : 
+                                R_in * pow((1. + RFrac * (pow(R_out/R_in, 3.) - 1.)), ONE_THIRD);
+                        #undef ONE_THIRD
+                        for(int j = 0; j < nSamp1D; j++){
+                                // theta position
+                                double ThetaFrac = (double) ( 2 * j + 1 ) * Devide_2nSamp1D;
+                                double theta = ( theta_in == 0. ) ?
+                                        acos( 1. + ThetaFrac * ( cos(theta_out) - 1. ) ) :
+                                        acos( ( cos(theta_in) - 1. ) * ( 1. + ThetaFrac * ( ( cos(theta_out) - 1. ) / ( cos(theta_in) - 1. ) - 1. ) ) + 1. );
+                                for(int k = 0; k < nSamp1D; k++){
+                                        // phi position
+                                        double PhiFrac = (double) ( 2 * k + 1 ) * Devide_2nSamp1D;
+                                        double phi = phi_in + PhiFrac * ( phi_out - phi_in );
+                                        
+                                        // Sampling position in Cartesian (x,y,z) format
+                                        GeVec3_d SampPosXYZ = GeVec3_Sph2Cart( R, theta, phi);
+                                        
+                                        // Call the contribution tracer
+                                        double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub); 
+                                        double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
+
+                                        ContributionTracer( contrib_sub, tau_sub, SampZone, &SampPosXYZ, tid);
+
+                                        // statistics : sum up
+                                        for (size_t l = 0; l < nvelo; l++){
+                                                contrib[l] += contrib_sub[l];
+                                                tau[l] += tau_sub[l];
+                                                tau_dev[l] += tau_sub[l] * tau_sub[l];
+                                        }
+                                        
+                                        free(contrib_sub);
+                                        free(tau_sub);
+                                }
+                        }
+                }
+                break;
+            }
+            case GEOM_CYL3D:{
+                double Rc_in = vp->min.x[0];
+                double Rc_out = vp->max.x[0];
+                double phi_in = vp->min.x[1];
+                double phi_out = vp->max.x[1];
+                double Z_in = vp->min.x[2];
+                double Z_out = vp->max.x[2];
+                Mem_BZERO2(contrib, nvelo); 
+                Mem_BZERO2(tau, nvelo);
+                Mem_BZERO2(tau_dev, nvelo);
+                for(int i = 0; i < nSamp1D; i++){
+                        // radius position
+                        double RcFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
+                        double Rc = ( Rc_in == 0. ) ? 
+                                Rc_out * pow(RcFrac, 0.5) : 
+                                Rc_in * pow((1. + RcFrac * (pow(Rc_out/Rc_in, 2.0) - 1.)), 0.5);
+                        for(int j = 0; j < nSamp1D; j++){
                                 // phi position
-                                double PhiFrac = (double) ( 2 * k + 1 ) * Devide_2nSamp1D;
+                                double PhiFrac = (double) ( 2 * j + 1 ) * Devide_2nSamp1D;
                                 double phi = phi_in + PhiFrac * ( phi_out - phi_in );
-                                
-                                // Sampling position in Cartesian (x,y,z) format
-                                GeVec3_d *SampPosXYZ = GeVec3_Sph2Cart( R, theta, phi);
-                                
-                                // Call the contribution tracer
-                                double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub); 
-                                double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
+                                for(int k = 0; k < nSamp1D; k++){
+                                        // Z position
+                                        double ZFrac = (double) ( 2 * k + 1 ) * Devide_2nSamp1D;
+                                        double Z = Z_in + ZFrac * ( Z_out - Z_in );
+                                        
+                                        // Sampling position in Cartesian (x,y,z) format
+                                        GeVec3_d SampPosXYZ = GeVec3_Cyl2Cart( Rc, phi, Z);
+                                        
+                                        // Call the contribution tracer
+                                        double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub); 
+                                        double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
 
-                                ContributionTracer( contrib_sub, tau_sub, SampZone, SampPosXYZ);
-
-                                // statistics : sum up
-                                for (size_t l = 0; l < nvelo; l++){
-                                        contrib[l] += contrib_sub[l];
-                                        tau[l] += tau_sub[l];
-                                        tau_dev[l] += tau_sub[l] * tau_sub[l];
+                                        ContributionTracer( contrib_sub, tau_sub, SampZone, &SampPosXYZ, tid);
+                                        
+                                        // statistics : sum up
+                                        for (size_t l = 0; l < nvelo; l++){
+                                                contrib[l] += contrib_sub[l];
+                                                tau[l] += tau_sub[l];
+                                                tau_dev[l] += tau_sub[l] * tau_sub[l];
+                                        }
+                                        
+                                        free(contrib_sub);
+                                        free(tau_sub);
                                 }
-                                
-                                free(contrib_sub);
-                                free(tau_sub);
                         }
                 }
+                break;    
+            }    
         }
         
         for (size_t l = 0; l < nvelo; l++){
@@ -2801,88 +2883,8 @@ void ContributionSubSamp_sph3d(double *contrib, double *tau, double *tau_dev, Zo
 
 /*----------------------------------------------------------------------------*/
 
-void ContributionSubSamp_cyl3d(double *contrib, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo){
-        // initialize numer of sampling
-        static int nSamp_initialized;
-        static int nSamp1D;
-        static double Devide_nSampCube;
-        static double Devide_2nSamp1D;
-        if (!nSamp_initialized) {
-                nSamp1D = 1;
-                Devide_nSampCube = 1. / ((double) (nSamp1D * nSamp1D * nSamp1D));
-                Devide_2nSamp1D = 1. / ((double) (2 * nSamp1D));
-                nSamp_initialized = 1;
-        }
-        
-        // the contribution of the cell
-        // sampling n * n * n points in a cell
-        // extract the geometry of the voxel
-        GeVox * vp = &SampZone->voxel;
-        double Rc_in = vp->min.x[0];
-        double Rc_out = vp->max.x[0];
-        double phi_in = vp->min.x[1];
-        double phi_out = vp->max.x[1];
-        double Z_in = vp->min.x[2];
-        double Z_out = vp->max.x[2];
-        Mem_BZERO2(contrib, nvelo); 
-        Mem_BZERO2(tau, nvelo);
-        Mem_BZERO2(tau_dev, nvelo);
-        for(int i = 0; i < nSamp1D; i++){
-                // radius position
-                double RcFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
-                double Rc = ( Rc_in == 0. ) ? 
-                        Rc_out * pow(RcFrac, 0.5) : 
-                        Rc_in * pow((1. + RcFrac * (pow(Rc_out/Rc_in, 2.0) - 1.)), 0.5);
-                for(int j = 0; j < nSamp1D; j++){
-                        // phi position
-                        double PhiFrac = (double) ( 2 * j + 1 ) * Devide_2nSamp1D;
-                        double phi = phi_in + PhiFrac * ( phi_out - phi_in );
-                        for(int k = 0; k < nSamp1D; k++){
-                                // Z position
-                                double ZFrac = (double) ( 2 * k + 1 ) * Devide_2nSamp1D;
-                                double Z = Z_in + ZFrac * ( Z_out - Z_in );
-                                
-                                // Sampling position in Cartesian (x,y,z) format
-                                GeVec3_d *SampPosXYZ = GeVec3_Cyl2Cart( Rc, phi, Z);
-                                
-                                // Call the contribution tracer
-                                double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub); 
-                                double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
 
-                                ContributionTracer( contrib_sub, tau_sub, SampZone, SampPosXYZ);
-                                
-                                // statistics : sum up
-                                for (size_t l = 0; l < nvelo; l++){
-                                        contrib[l] += contrib_sub[l];
-                                        tau[l] += tau_sub[l];
-                                        tau_dev[l] += tau_sub[l] * tau_sub[l];
-                                }
-                                
-                                free(contrib_sub);
-                                free(tau_sub);
-                        }
-                }
-        }
-        
-        for (size_t l = 0; l < nvelo; l++){
-                // average contrib, tau
-                contrib[l] *= Devide_nSampCube;
-                tau[l] *= Devide_nSampCube;
-                /* evaluate tau_dev
-                   tau_dev = ( 1/n * sum ( tau_i - tau_mean )^2 ) ^ 1/2
-                           = ( 1/n * ( sum tau_i^2 - sum tau_mean^2 ) ) ^ 1/2
-                           = ( 1/n * sum tau_i^2 - tau_mean^2 ) ^ 1/2         */
-                tau_dev[l] *= Devide_nSampCube;
-                tau_dev[l] -= tau[l] * tau[l];
-                tau_dev[l] = sqrt( tau_dev[l] );
-        }
-        
-        return;
-}
-
-/*----------------------------------------------------------------------------*/
-
-static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone, GeVec3_d *SampCartPos)
+static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone, GeVec3_d *SampCartPos, size_t tid)
 {
         GeVox * SampVp = &SampZone->voxel;
         GeRay ray;
@@ -2900,134 +2902,139 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
         Mem_BZERO2(tau_nu, glb.v.n);
         /* Shoot ray at model and see what happens! */
         if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
-                /* Calculate intersection */
-                ray = GeRay_Inc(&ray, t);
-                /* Locate starting leaf zone according to intersection */
-                Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
+            /* Calculate intersection */
+            ray = GeRay_Inc(&ray, t);
+            /* Locate starting leaf zone according to intersection */
+            Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
 
-                /* Keep going until there's no next zone to traverse to */
-                while(zp) {
-                        // see if the ray reach the target 1-D layer
-                        if( zp->pos == SampZone->pos ){
-                                // the ordinates of the ray position
-                                GeVec3_d RayCartPos = ray.e;
-                                GeVec3_d *RayGEOMPos;
+            /* Keep going until there's no next zone to traverse to */
+            while(zp) {
+                // see if the ray reach the target 1-D layer
+                if( zp->pos == SampZone->pos ){
+                        // the ordinates of the ray position
+                        GeVec3_d RayCartPos = ray.e;
+                        GeVec3_d RayGeomPos;
+                        switch (SampVp->geom){
+                            case GEOM_SPH3D:
+                                RayGeomPos = GeVec3_Cart2Sph(&RayCartPos);
+                                break;
+                            case GEOM_CYL3D:
+                                RayGeomPos = GeVec3_Cart2Cyl(&RayCartPos);
+                                break;
+                            default:
+                                Deb_ASSERT(0);
+                        }
+                        #if 0
+                        // debugging
+                        //printf("dx \t= %E, dy = %E\n",dx,dy);
+                        printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
+                        //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
+                        printf("SampPos \t= %E %E %E\n", 
+                        SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
+                        printf("VoxelMin \t= %E %E %E\n", 
+                        SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
+                        printf("RayGeomPos \t= %E %E %E\n", 
+                        RayGeomPos.x[0], RayGeomPos.x[1], RayGeomPos.x[2]);
+                        printf("VoxelMax \t= %E %E %E\n", 
+                        SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
+                        #endif
+
+                        // see if the photon reach the sampling cell
+                        int reached_cell = 1;
+                        for (size_t i = 0; i < 3; i++){
+                                size_t side_in = 2 * i;
+                                size_t side_out = side_in + 1;
+                                if ( side_in == side ){
+                                        reached_cell *= 
+                                        ( fabs( SampVp->min.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold) ? 
+                                        1 : 0;
+                                        //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RayGeomPos.x[i] ));
+                                        
+                                }else{
+                                        reached_cell *= 
+                                        (SampVp->min.x[i] <= RayGeomPos.x[i]) ? 1 : 0;
+                                }
+                                if ( side_out == side ){
+                                        reached_cell *= 
+                                        ( fabs( SampVp->max.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold ) ? 
+                                        1 : 0;
+                                        //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RayGeomPos.x[i] ));
+                                }
+                                else{
+                                        reached_cell *= 
+                                        (SampVp->max.x[i] >= RayGeomPos.x[i]) ? 1 : 0;
+                                }
+                        }
+                        
+                        // if reached the sampling cell, escape the tau tracer.
+                        if( reached_cell ){
+                                reached_sampling_zone = 1;
+                                break;
+                        }
+                        // the ray is not inside the sampling voxel but inside the target zone
+                        else{
+                                size_t side_Samp;
+                                double tSamp;
+                                
+                                int hit;
                                 switch (SampVp->geom){
-                                    case GEOM_SPH3D:
-                                        RayGEOMPos = GeVec3_Cart2Sph(&RayCartPos);
+                                    case GEOM_SPH3D :
+                                        hit = HitSph3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
                                         break;
                                     case GEOM_CYL3D :
-                                        RayGEOMPos = GeVec3_Cart2Cyl(&RayCartPos);
+                                        hit = HitCyl3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
                                         break;
+                                    default:
+                                            Deb_ASSERT(0);
+                                
+                                }
+                                GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+
+                                if ( tSamp < t){
+                                        CalcOpticalDepth( zp, &ray, tSamp, tau_nu, tid);
+                                        /* Calculate next position */
+                                        ray = GeRay_Inc(&ray, tSamp);
+                                        side = side_Samp;
+                                }
+                                else{
+                                        // will not reach in this interval
+                                        CalcOpticalDepth( zp, &ray, t, tau_nu, tid);
+                                        /* Calculate next position */
+                                        ray = GeRay_Inc(&ray, t);
+                                        /* Get next zone to traverse to */
+                                        zp = Zone_GetNext(zp, &side, &ray);
                                 }
                                 #if 0
-                                // debugging
-                                //printf("dx \t= %E, dy = %E\n",dx,dy);
-                                printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
-                                //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
-                                printf("SampPos \t= %E %E %E\n", 
-                                SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
-                                printf("VoxelMin \t= %E %E %E\n", 
-                                SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
-                                printf("RayGEOMPos \t= %E %E %E\n", 
-                                RayGEOMPos->x[0], RayGEOMPos->x[1], RayGEOMPos->x[2]);
-                                printf("VoxelMax \t= %E %E %E\n", 
-                                SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
+                                printf("hit = %d\n", hit);
+                                printf("tSamp = %E, t = %E\n", tSamp, t);
                                 #endif
-
-                                // see if the photon reach the sampling cell
-                                int reached_cell = 1;
-                                for (size_t i = 0; i < 3; i++){
-                                        size_t side_in = 2 * i;
-                                        size_t side_out = side_in + 1;
-                                        if ( side_in == side ){
-                                                reached_cell *= 
-                                                ( fabs( SampVp->min.x[i] - RayGEOMPos->x[i] )/RayGEOMPos->x[i] < threshold) ? 
-                                                1 : 0;
-                                                //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RayGEOMPos->x[i] ));
-                                                
-                                        }else{
-                                                reached_cell *= 
-                                                (SampVp->min.x[i] <= RayGEOMPos->x[i]) ? 1 : 0;
-                                        }
-                                        if ( side_out == side ){
-                                                reached_cell *= 
-                                                ( fabs( SampVp->max.x[i] - RayGEOMPos->x[i] )/RayGEOMPos->x[i] < threshold ) ? 
-                                                1 : 0;
-                                                //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RayGEOMPos->x[i] ));
-                                        }
-                                        else{
-                                                reached_cell *= 
-                                                (SampVp->max.x[i] >= RayGEOMPos->x[i]) ? 1 : 0;
-                                        }
-                                }
-                                
-                                // if reached the sampling cell, escape the tau tracer.
-                                if( reached_cell ){
-                                        reached_sampling_zone = 1;
-                                        break;
-                                }
-                                // the ray is not inside the sampling voxel but inside the target zone
-                                else{
-                                        size_t side_Samp;
-                                        double tSamp;
-                                        
-                                        int hit ;
-                                        switch (SampVp->geom){
-                                            case GEOM_SPH3D :
-                                                hit = HitSph3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
-                                                break;
-                                            case GEOM_CYL3D :
-                                                hit = HitCyl3ddVoxel( &ray, SampVp, &tSamp, &side_Samp);
-                                                break;
-                                        
-                                        }
-                                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-
-                                        if ( tSamp < t){
-                                                CalcOpticalDepth( zp, &ray, tSamp, tau_nu);
-                                                /* Calculate next position */
-                                                ray = GeRay_Inc(&ray, tSamp);
-                                                side = side_Samp;
-                                        }
-                                        else{
-                                                // will not reach in this interval
-                                                CalcOpticalDepth( zp, &ray, t, tau_nu);
-                                                /* Calculate next position */
-                                                ray = GeRay_Inc(&ray, t);
-                                                /* Get next zone to traverse to */
-                                                zp = Zone_GetNext(zp, &side, &ray);
-                                        }
-                                        #if 0
-                                        printf("hit = %d\n", hit);
-                                        printf("tSamp = %E, t = %E\n", tSamp, t);
-                                        #endif
-                                        #if 0
-                                        if (SampZone->index.x[1]==3 && SampZone->index.x[2]==41){
-                                                printf("OK\n");exit(0);
-                                        }
-                                        #endif
-                                }
-                        }
-                        // not inside the target voxel, keep tracing
-                        else{
-                                /* Calculate path to next boundary */
-                                GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-                                
-                                CalcOpticalDepth( zp, &ray, t, tau_nu);
-                                
-                                /* Calculate next position */
-                                ray = GeRay_Inc(&ray, t);
-                                /* Get next zone to traverse to */
-                                zp = Zone_GetNext(zp, &side, &ray);
                         }
                 }
-                ContributionOfCell( zp, &ray, SampCartPos, contrib, tau_nu);
+                // not inside the target voxel, keep tracing
+                else{
+                        /* Calculate path to next boundary */
+                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+                        
+                        CalcOpticalDepth( zp, &ray, t, tau_nu, tid);
+                        
+                        /* Calculate next position */
+                        ray = GeRay_Inc(&ray, t);
+                        /* Get next zone to traverse to */
+                        zp = Zone_GetNext(zp, &side, &ray);
+                }
+            } 
+            ContributionOfCell( zp, &ray, SampCartPos, contrib, tau_nu, tid);
         }
         else{
                 Deb_ASSERT(0);
         }
-        //printf("OK\n");exit(0);
+#if 0
+        printf("contribution\n");
+        for(size_t l = 0; l < glb.v.n;l++)
+                printf("%E ",contrib[l]);
+        printf("\n");
+        printf("OK\n");exit(0);
+#endif
         Deb_ASSERT(reached_sampling_zone);
 
         return;
@@ -3037,7 +3044,7 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
 
 /*----------------------------------------------------------------------------*/
 
-static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double *tau_nu)
+static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double *tau_nu, size_t tid)
 {       /* Pointer to physical parameters associated with this zone */
         SpPhys * pp = zp->data;
         
@@ -3051,8 +3058,8 @@ static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double
                         /* Calculate velocity associated with this channel */
                         double dv = ((double)iv - glb.v.crpix) * glb.v.delt;
                         /* Reset emission and absorption coeffs */
-                        double j_nu = 0;
-                        double k_nu = 0;
+                        double j_nu = 0.0;
+                        double k_nu = 0.0;
 
                         if(pp->has_tracer) {
                                 /* Calculate velocity line profile factor for this channel:
@@ -3060,7 +3067,7 @@ static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double
                                 * of the local line width -- very time consuming! */
                                 double vfac = SpPhys_GetVfac(ray, t, dv, zp, 0);
                                 /* Calculate molecular line emission and absorption coefficients */
-                                SpPhys_GetMoljk((size_t)0, pp, glb.line, vfac, &j_nu, &k_nu);
+                                SpPhys_GetMoljk(tid, pp, glb.line, vfac, &j_nu, &k_nu);
                                 
                         }
                         
@@ -3095,7 +3102,7 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         double phi_out = voxel->max.x[2];
         
         GeRay ray2;
-        GeVec3_d *RaySphPos;
+        GeVec3_d RaySphPos;
         
         // t_Tl : distance to lower theta
         double t_Tl1, t_Tl2;
@@ -3115,13 +3122,13 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         #if 0
         printf("x y z \t= %E %E %E\n", ray2.e.x[0], ray2.e.x[1], ray2.e.x[2]);
         printf("t_Tl = %E, t_Tl1 = %E, t_Tl2 = %E\n", t_Tl, t_Tl1, t_Tl2);
-        printf("R Theta Phi \t= %E %E %E\n", RaySphPos->x[0], RaySphPos->x[1], RaySphPos->x[2]);
+        printf("R Theta Phi \t= %E %E %E\n", RaySphPos.x[0], RaySphPos.x[1], RaySphPos.x[2]);
         printf("%E %E %E %E %E %E\n", R_in, R_out, theta_in, theta_out, phi_in, phi_out);
         #endif
-        if( ( RaySphPos->x[0] > R_out   ) ||
-            ( RaySphPos->x[0] < R_in    ) ||
-            ( RaySphPos->x[2] < phi_in  ) ||
-            ( RaySphPos->x[2] > phi_out )    )
+        if( ( RaySphPos.x[0] > R_out   ) ||
+            ( RaySphPos.x[0] < R_in    ) ||
+            ( RaySphPos.x[2] < phi_in  ) ||
+            ( RaySphPos.x[2] > phi_out )    )
                 t_Tl = HUGE_VAL;
         
         // t_Tu : distance to upper theta
@@ -3141,13 +3148,13 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         RaySphPos = GeVec3_Cart2Sph(&ray2.e);
         #if 0
         printf("x y z \t= %E %E %E\n", ray2.e.x[0], ray2.e.x[1], ray2.e.x[2]);
-        printf("R Theta Phi \t= %E %E %E\n", RaySphPos->x[0], RaySphPos->x[1], RaySphPos->x[2]);
+        printf("R Theta Phi \t= %E %E %E\n", RaySphPos.x[0], RaySphPos.x[1], RaySphPos.x[2]);
         printf("%E %E %E %E %E %E\n", R_in, R_out, theta_in, theta_out, phi_in, phi_out);
         #endif
-        if( ( RaySphPos->x[0] > R_out   ) ||
-            ( RaySphPos->x[0] < R_in    ) ||
-            ( RaySphPos->x[2] < phi_in  ) ||
-            ( RaySphPos->x[2] > phi_out )    )
+        if( ( RaySphPos.x[0] > R_out   ) ||
+            ( RaySphPos.x[0] < R_in    ) ||
+            ( RaySphPos.x[2] < phi_in  ) ||
+            ( RaySphPos.x[2] > phi_out )    )
                 t_Tu = HUGE_VAL;
 
         // t_Pin : distance to inner phi
@@ -3159,10 +3166,10 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
                 GeRay_IntersectPhi(ray, phi_in, &t_Pin);
                 ray2 = GeRay_Inc(ray, t_Pin);
                 RaySphPos = GeVec3_Cart2Sph(&ray2.e);
-                if( ( RaySphPos->x[0] > R_out  ) ||
-                    ( RaySphPos->x[0] < R_in   ) ||
-                    ( RaySphPos->x[1] < theta_in ) ||
-                    ( RaySphPos->x[1] > theta_out )   )
+                if( ( RaySphPos.x[0] > R_out  ) ||
+                    ( RaySphPos.x[0] < R_in   ) ||
+                    ( RaySphPos.x[1] < theta_in ) ||
+                    ( RaySphPos.x[1] > theta_out )   )
                         t_Pin = HUGE_VAL;
         }
         
@@ -3175,10 +3182,10 @@ static int HitSph3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
                 GeRay_IntersectPhi(ray, phi_out, &t_Pout);
                 ray2 = GeRay_Inc(ray, t_Pout);
                 RaySphPos = GeVec3_Cart2Sph(&ray2.e);
-                if( ( RaySphPos->x[0] > R_out  ) ||
-                    ( RaySphPos->x[0] < R_in   ) ||
-                    ( RaySphPos->x[1] < theta_in ) ||
-                    ( RaySphPos->x[1] > theta_out )   )
+                if( ( RaySphPos.x[0] > R_out  ) ||
+                    ( RaySphPos.x[0] < R_in   ) ||
+                    ( RaySphPos.x[1] < theta_in ) ||
+                    ( RaySphPos.x[1] > theta_out )   )
                         t_Pout = HUGE_VAL;
         }
         
@@ -3226,7 +3233,7 @@ static int HitCyl3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
         double Z_out = voxel->max.x[2];
         
         GeRay ray2;
-        GeVec3_d *RayCylPos;
+        GeVec3_d RayCylPos;
 
         // t_Pin : distance to inner phi
         double t_Pin;
@@ -3237,10 +3244,10 @@ static int HitCyl3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
                 GeRay_IntersectPhi(ray, phi_in, &t_Pin);
                 ray2 = GeRay_Inc(ray, t_Pin);
                 RayCylPos = GeVec3_Cart2Cyl(&ray2.e);
-                if( ( RayCylPos->x[0] > Rc_out  ) ||
-                    ( RayCylPos->x[0] < Rc_in   ) ||
-                    ( RayCylPos->x[2] < Z_in ) ||
-                    ( RayCylPos->x[2] > Z_out )   )
+                if( ( RayCylPos.x[0] > Rc_out  ) ||
+                    ( RayCylPos.x[0] < Rc_in   ) ||
+                    ( RayCylPos.x[2] < Z_in ) ||
+                    ( RayCylPos.x[2] > Z_out )   )
                         t_Pin = HUGE_VAL;
         }
         
@@ -3253,10 +3260,10 @@ static int HitCyl3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
                 GeRay_IntersectPhi(ray, phi_out, &t_Pout);
                 ray2 = GeRay_Inc(ray, t_Pout);
                 RayCylPos = GeVec3_Cart2Cyl(&ray2.e);
-                if( ( RayCylPos->x[0] > Rc_out  ) ||
-                    ( RayCylPos->x[0] < Rc_in   ) ||
-                    ( RayCylPos->x[2] < Z_in ) ||
-                    ( RayCylPos->x[2] > Z_out )   )
+                if( ( RayCylPos.x[0] > Rc_out  ) ||
+                    ( RayCylPos.x[0] < Rc_in   ) ||
+                    ( RayCylPos.x[2] < Z_in ) ||
+                    ( RayCylPos.x[2] > Z_out )   )
                         t_Pout = HUGE_VAL;
         }
         
@@ -3277,7 +3284,7 @@ static int HitCyl3dVoxel( const GeRay *ray, const GeVox *voxel, double *t, size_
 
 /*----------------------------------------------------------------------------*/
 
-static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *SampCartPos, double * contrib, double *tau_nu)
+static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *SampCartPos, double * contrib, double *tau_nu, size_t tid)
 {
         /* Pointer to physical parameters associated with this zone */
         SpPhys *pp = zp->data;
@@ -3293,8 +3300,8 @@ static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *Samp
                         /* Calculate velocity associated with this channel */
                         double dv = ((double)iv - glb.v.crpix) * glb.v.delt;
                         /* Reset emission and absorption coeffs */
-                        double j_nu = 0;
-                        double k_nu = 0;
+                        double j_nu = 0.0;
+                        double k_nu = 0.0;
 
                         if(pp->has_tracer) {
                                 /* Calculate velocity line profile factor for this channel:
@@ -3302,7 +3309,7 @@ static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *Samp
                                 * of the local line width -- very time consuming! */
                                 double vfac = SpPhys_GetVfac(ray, t, dv, zp, 0);
                                 /* Calculate molecular line emission and absorption coefficients */
-                                SpPhys_GetMoljk((size_t)0, pp, glb.line, vfac, &j_nu, &k_nu);
+                                SpPhys_GetMoljk(tid, pp, glb.line, vfac, &j_nu, &k_nu);
                         }
                         
                         /* Add continuum emission/absorption */

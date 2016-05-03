@@ -294,10 +294,10 @@ Zone *Zone_GetLeaf_sph3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRa
 	if(!zone->children)
 		return zone;
 
-        GeVec3_d * SphPos = GeVec3_Cart2Sph(pt);
-        double R     = SphPos->x[0];
-        double theta = SphPos->x[1];
-        double phi   = SphPos->x[2];
+        GeVec3_d SphPos = GeVec3_Cart2Sph(pt);
+        double R     = SphPos.x[0];
+        double theta = SphPos.x[1];
+        double phi   = SphPos.x[2];
         GeVec3_s pos = GeVec3_INIT(0, 0, 0);
         
 	/* Otherwise search for child containing pt */
@@ -343,8 +343,8 @@ Zone *Zone_GetLeaf_sph3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRa
 			else if(i==2){ // Phi search
 				double Rc = R * sin(theta);
 				if(Rc < RTHRESHOLD){
-					GeVec3_d * SphDir = GeVec3_Cart2Sph(&ray->d);
-                                        phi = SphDir->x[2];
+					GeVec3_d SphDir = GeVec3_Cart2Sph(&ray->d);
+                                        phi = SphDir.x[2];
 				}
 // 				Deb_PRINT("Rc=%g phi=%g\n",Rc,phi);
 				GeVec3_X(pos, i) = 
@@ -421,10 +421,10 @@ Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRa
 		return zone;
 
         GeVec3_s pos = GeVec3_INIT(0, 0, 0);
-        GeVec3_d * CylPos = GeVec3_Cart2Cyl(pt);
-        double Rc  = CylPos->x[0];
-        double phi = CylPos->x[1];
-        double Hz  = CylPos->x[2];
+        GeVec3_d CylPos = GeVec3_Cart2Cyl(pt);
+        double Rc  = CylPos.x[0];
+        double phi = CylPos.x[1];
+        double Hz  = CylPos.x[2];
         /* Otherwise search for child containing pt */
         for(size_t i = 0; i < 3; i++) {
                 size_t n = GeVec3_X(zone->naxes, i);
@@ -465,8 +465,8 @@ Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRa
                           case 1: // phi search
                                   //Deb_PRINT("Rc=%g phi=%g\n", Rc, phi);
                                   if ( Rc < RTHRESHOLD){
-                                          GeVec3_d  * CylDirec = GeVec3_Cart2Cyl(&ray->d);
-                                          phi = CylDirec->x[1];
+                                          GeVec3_d CylDirec = GeVec3_Cart2Cyl(&ray->d);
+                                          phi = CylDirec.x[1];
                                   }
                                   GeVec3_X(pos, i) = 
                                           gsl_interp_bsearch(array, phi, (size_t)0, n);

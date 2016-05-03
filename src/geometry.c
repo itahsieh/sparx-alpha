@@ -361,35 +361,37 @@ Rotation matrix about z:
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d * GeVec3_Sph2Cart( double R, double theta, double phi){
-        GeVec3_d *Cartesian = Mem_CALLOC( 1, Cartesian);
+GeVec3_d GeVec3_Sph2Cart( double R, double theta, double phi)
+{
+        GeVec3_d Cartesian;
         // x-ordinate
-        Cartesian->x[0] = R * sin(theta) * cos(phi); 
+        Cartesian.x[0] = R * sin(theta) * cos(phi); 
         // y-ordiante
-        Cartesian->x[1] = R * sin(theta) * sin(phi); 
+        Cartesian.x[1] = R * sin(theta) * sin(phi); 
         // z-ordinate
-        Cartesian->x[2] = R * cos(theta);
+        Cartesian.x[2] = R * cos(theta);
         
         return Cartesian;
 }
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d * GeVec3_Cyl2Cart( double Rc, double phi, double Z){
-        GeVec3_d *Cartesian = Mem_CALLOC( 1, Cartesian);
+GeVec3_d GeVec3_Cyl2Cart( double Rc, double phi, double Z)
+{
+        GeVec3_d Cartesian;
         // x-ordinate
-        Cartesian->x[0] = Rc * cos(phi); 
+        Cartesian.x[0] = Rc * cos(phi); 
         // y-ordiante
-        Cartesian->x[1] = Rc * sin(phi); 
+        Cartesian.x[1] = Rc * sin(phi); 
         // z-ordinate
-        Cartesian->x[2] = Z;
+        Cartesian.x[2] = Z;
         
         return Cartesian;
 }
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
+GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
         double x = Cartesian->x[0];
         double y = Cartesian->x[1];
         double z = Cartesian->x[2];
@@ -398,17 +400,17 @@ GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
         // R must be maximum!
         R = Num_MAX( R, Num_MAX( x, Num_MAX( y, z) ) ); 
         
-        GeVec3_d *Spherical = Mem_CALLOC( 1, Spherical);
+        GeVec3_d Spherical;
         
         // R-ordinate
-        Spherical->x[0] = R;
+        Spherical.x[0] = R;
         // theta-ordinate
-        Spherical->x[1] = ( R == 0. ) ? 0. : acos( z / R );
+        Spherical.x[1] = ( R == 0. ) ? 0. : acos( z / R );
         // phi-ordinate
         double Rc = sqrt( x * x + y * y);
         // Rc must be maximum!
         Rc = Num_MAX( Rc, Num_MAX( x, y ) );
-        Spherical->x[2] = ( Rc == 0. ) ?
+        Spherical.x[2] = ( Rc == 0. ) ?
                 0. : ( y >= 0.) ? 
                         acos( x / Rc ) : 
                         2. * M_PI - acos( x / Rc );
@@ -418,7 +420,7 @@ GeVec3_d * GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d * GeVec3_Cart2Cyl( const GeVec3_d *Cartesian){
+GeVec3_d GeVec3_Cart2Cyl(const GeVec3_d *Cartesian){
         double x = Cartesian->x[0];
         double y = Cartesian->x[1];
         double z = Cartesian->x[2];
@@ -426,18 +428,18 @@ GeVec3_d * GeVec3_Cart2Cyl( const GeVec3_d *Cartesian){
         double Rc = sqrt( x * x + y * y);
         // Rc must be maximum!
         Rc = Num_MAX( Rc, Num_MAX( x, y ) );
-                
-        GeVec3_d *Cylindrical = Mem_CALLOC( 1, Cylindrical);
+
+        GeVec3_d Cylindrical;
         
         // Rc-ordinate
-        Cylindrical->x[0] = Rc;
+        Cylindrical.x[0] = Rc;
         // phi-ordinate
-        Cylindrical->x[1] = ( Rc == 0. ) ?
+        Cylindrical.x[1] = ( Rc == 0. ) ?
                 0. :( y >= 0.) ? 
                         acos( x / Rc ) : 
                         2.0 * M_PI - acos( x / Rc );
         // z-ordinate
-        Cylindrical->x[2] = z;
+        Cylindrical.x[2] = z;
         
         return Cylindrical;
 }
@@ -927,11 +929,12 @@ int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis)
 {
 	int within_box = 1;
         
-        GeVec3_d * CylPos = GeVec3_Cart2Cyl(pt);
+        GeVec3_d CylPos;
+        CylPos = GeVec3_Cart2Cyl( pt);
         
-	double Rc = CylPos->x[0];
-	double phi = CylPos->x[1];
-	double Hz = CylPos->x[2]; 
+	double Rc = CylPos.x[0];
+	double phi = CylPos.x[1];
+	double Hz = CylPos.x[2]; 
 	
 	switch(axis) {
 		case 0:
