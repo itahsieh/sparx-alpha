@@ -2708,7 +2708,7 @@ static void *VtkContributionCyl3dTread(void *tid_p)
                         Zone SampZone = *root->children[izone];
                         // the voxel pointer
                         GeVox *vp = &SampZone.voxel;
-                        // change the GEOM of the voxel to SPH3D
+                        // change the GEOM of the voxel to CYL3D
                         vp->geom = GEOM_CYL3D;
 
                         if (root->naxes.x[1] == 1){
@@ -2891,11 +2891,15 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
         size_t side;
         Zone * root = glb.model.grid;
         double t;
-        int reached_sampling_zone = 0;
         static double threshold = 1E-6;
 
-        double dx = atan( SampCartPos->x[1] / ( glb.dist / Sp_LENFAC - SampCartPos->x[0] ) );
-        double dy = atan( SampCartPos->x[2] / ( glb.dist / Sp_LENFAC - SampCartPos->x[0] ) );
+        GeVec3_d SampCartPosRotate = *SampCartPos;
+        SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.rotate[2]);
+        SampCartPosRotate = GeVec3_Rotate_y( &SampCartPosRotate, glb.rotate[1]);
+        SampCartPosRotate = GeVec3_Rotate_x( &SampCartPosRotate, glb.rotate[0]);
+        
+        double dx = atan( SampCartPosRotate.x[1] / ( glb.dist / Sp_LENFAC - SampCartPosRotate.x[0] ) );
+        double dy = atan( SampCartPosRotate.x[2] / ( glb.dist / Sp_LENFAC - SampCartPosRotate.x[0] ) );
         InitRay( &dx, &dy, &ray);
         
         /* Reset tau for all channels */
@@ -2904,125 +2908,176 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
         if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
             /* Calculate intersection */
             ray = GeRay_Inc(&ray, t);
+
             /* Locate starting leaf zone according to intersection */
             Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
-
+#if 0
+            printf("dx \t= %E, dy = %E\n",dx,dy);
+            printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
+            printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
+            printf("SP index : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]);
+            
+            printf("SampPos \t= %E %E %E\n", 
+            SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
+            printf("VoxelMin \t= %E %E %E\n", 
+            SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
+            {
+            GeVec3_d RayCartPos = ray.e;
+            GeVec3_d RayGeomPos = GeVec3_Cart2Cyl(&RayCartPos);
+            printf("RayGeomPos \t= %E %E %E\n", 
+            RayGeomPos.x[0], RayGeomPos.x[1], RayGeomPos.x[2]);
+            }
+            printf("VoxelMax \t= %E %E %E\n", 
+            SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
+#endif
+            int reached_sampling_zone = 0;
+            
             /* Keep going until there's no next zone to traverse to */
             while(zp) {
-                // see if the ray reach the target 1-D layer
-                if( zp->pos == SampZone->pos ){
-                        // the ordinates of the ray position
-                        GeVec3_d RayCartPos = ray.e;
-                        GeVec3_d RayGeomPos;
-                        switch (SampVp->geom){
-                            case GEOM_SPH3D:
-                                RayGeomPos = GeVec3_Cart2Sph(&RayCartPos);
-                                break;
-                            case GEOM_CYL3D:
-                                RayGeomPos = GeVec3_Cart2Cyl(&RayCartPos);
-                                break;
-                            default:
-                                Deb_ASSERT(0);
-                        }
-                        #if 0
-                        // debugging
-                        //printf("dx \t= %E, dy = %E\n",dx,dy);
-                        printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
-                        //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
-                        printf("SampPos \t= %E %E %E\n", 
-                        SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
-                        printf("VoxelMin \t= %E %E %E\n", 
-                        SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
-                        printf("RayGeomPos \t= %E %E %E\n", 
-                        RayGeomPos.x[0], RayGeomPos.x[1], RayGeomPos.x[2]);
-                        printf("VoxelMax \t= %E %E %E\n", 
-                        SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
-                        #endif
 
-                        // see if the photon reach the sampling cell
-                        int reached_cell = 1;
-                        for (size_t i = 0; i < 3; i++){
-                                size_t side_in = 2 * i;
-                                size_t side_out = side_in + 1;
-                                if ( side_in == side ){
-                                        reached_cell *= 
-                                        ( fabs( SampVp->min.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold) ? 
-                                        1 : 0;
-                                        //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RayGeomPos.x[i] ));
-                                        
-                                }else{
-                                        reached_cell *= 
-                                        (SampVp->min.x[i] <= RayGeomPos.x[i]) ? 1 : 0;
-                                }
-                                if ( side_out == side ){
-                                        reached_cell *= 
-                                        ( fabs( SampVp->max.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold ) ? 
-                                        1 : 0;
-                                        //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RayGeomPos.x[i] ));
-                                }
-                                else{
-                                        reached_cell *= 
-                                        (SampVp->max.x[i] >= RayGeomPos.x[i]) ? 1 : 0;
-                                }
+                // see if the ray reach the target zone
+                int reach_the_target_zone = 1;
+                switch(zp->voxel.geom){
+                    case GEOM_SPH1D:
+                        reach_the_target_zone = ( zp->pos == SampZone->pos ) ? 1 : 0;
+                        break;
+                    case GEOM_SPH3D:
+                        for (int i =0; i < 3; i++){
+                            if ( (i == 1) && (zp->parent->naxes.x[1] == 1) )
+                                reach_the_target_zone *= 1;
+                            else if ( (i == 2) && (zp->parent->naxes.x[2] == 1) )
+                                reach_the_target_zone *= 1;
+                            else
+                                reach_the_target_zone *= (zp->index.x[i] == SampZone->index.x[i]) ? 1 : 0;
                         }
-                        
-                        // if reached the sampling cell, escape the tau tracer.
-                        if( reached_cell ){
-                                reached_sampling_zone = 1;
-                                break;
+                        break;
+                    case GEOM_CYL3D:
+                        for (int i =0; i < 3; i++){
+                            if ( (i == 1) && (zp->parent->naxes.x[1] == 1) )
+                                reach_the_target_zone *= 1;
+                            else
+                                reach_the_target_zone *= (zp->index.x[i] == SampZone->index.x[i]) ? 1 : 0;
                         }
-                        // the ray is not inside the sampling voxel but inside the target zone
-                        else{
-                                size_t side_Samp;
-                                double tSamp;
-                                
-                                int hit;
-                                switch (SampVp->geom){
-                                    case GEOM_SPH3D :
-                                        hit = HitSph3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
-                                        break;
-                                    case GEOM_CYL3D :
-                                        hit = HitCyl3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
-                                        break;
-                                    default:
-                                            Deb_ASSERT(0);
-                                
-                                }
-                                GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+                        break;
+                    default:
+                        Deb_ASSERT(0);
+                }
+                
+                // the ray reaches the taget zone
+                if( reach_the_target_zone ){
+                    // the ordinates of the ray position
+                    GeVec3_d RayCartPos = ray.e;
+                    GeVec3_d RayGeomPos;
+                    switch (SampVp->geom){
+                        case GEOM_SPH3D:
+                            RayGeomPos = GeVec3_Cart2Sph(&RayCartPos);
+                            break;
+                        case GEOM_CYL3D:
+                            RayGeomPos = GeVec3_Cart2Cyl(&RayCartPos);
+                            break;
+                        default:
+                            Deb_ASSERT(0);
+                    }
+                    #if 0
+                    // debugging
+                    //printf("dx \t= %E, dy = %E\n",dx,dy);
+                    printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
+                    //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
+                    printf("SampPos \t= %E %E %E\n", 
+                    SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
+                    printf("VoxelMin \t= %E %E %E\n", 
+                    SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
+                    printf("RayGeomPos \t= %E %E %E\n", 
+                    RayGeomPos.x[0], RayGeomPos.x[1], RayGeomPos.x[2]);
+                    printf("VoxelMax \t= %E %E %E\n", 
+                    SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
+                    #endif
 
-                                if ( tSamp < t){
-                                        CalcOpticalDepth( zp, &ray, tSamp, tau_nu, tid);
-                                        /* Calculate next position */
-                                        ray = GeRay_Inc(&ray, tSamp);
-                                        side = side_Samp;
-                                }
-                                else{
-                                        // will not reach in this interval
-                                        CalcOpticalDepth( zp, &ray, t, tau_nu, tid);
-                                        /* Calculate next position */
-                                        ray = GeRay_Inc(&ray, t);
-                                        /* Get next zone to traverse to */
-                                        zp = Zone_GetNext(zp, &side, &ray);
-                                }
-                                #if 0
-                                printf("hit = %d\n", hit);
-                                printf("tSamp = %E, t = %E\n", tSamp, t);
-                                #endif
-                        }
+                    // see if the photon reach the sampling cell
+                    int reached_cell = 1;
+                    for (size_t i = 0; i < 3; i++){
+                            size_t side_in = 2 * i;
+                            size_t side_out = side_in + 1;
+                            if ( side_in == side ){
+                                    reached_cell *= 
+                                    ( fabs( SampVp->min.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold) ? 
+                                    1 : 0;
+                                    //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RayGeomPos.x[i] ));
+                                    
+                            }else{
+                                    reached_cell *= 
+                                    (SampVp->min.x[i] <= RayGeomPos.x[i]) ? 1 : 0;
+                            }
+                            if ( side_out == side ){
+                                    reached_cell *= 
+                                    ( fabs( SampVp->max.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold ) ? 
+                                    1 : 0;
+                                    //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RayGeomPos.x[i] ));
+                            }
+                            else{
+                                    reached_cell *= 
+                                    (SampVp->max.x[i] >= RayGeomPos.x[i]) ? 1 : 0;
+                            }
+                    }
+                    
+                    // if reached the sampling cell, escape the tau tracer.
+                    if( reached_cell ){
+                            reached_sampling_zone = 1;
+                            break;
+                    }
+                    // the ray is not inside the sampling voxel but inside the target zone
+                    else{
+                            size_t side_Samp;
+                            double tSamp;
+                            
+                            int hit;
+                            switch (SampVp->geom){
+                                case GEOM_SPH3D :
+                                    hit = HitSph3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
+                                    break;
+                                case GEOM_CYL3D :
+                                    hit = HitCyl3dVoxel( &ray, SampVp, &tSamp, &side_Samp);
+                                    break;
+                                default:
+                                        Deb_ASSERT(0);
+                            
+                            }
+                            GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+
+                            if ( tSamp < t){
+                                    CalcOpticalDepth( zp, &ray, tSamp, tau_nu, tid);
+                                    /* Calculate next position */
+                                    ray = GeRay_Inc(&ray, tSamp);
+                                    side = side_Samp;
+                            }
+                            else{
+                                    // will not reach in this interval
+                                    CalcOpticalDepth( zp, &ray, t, tau_nu, tid);
+                                    /* Calculate next position */
+                                    ray = GeRay_Inc(&ray, t);
+                                    /* Get next zone to traverse to */
+                                    zp = Zone_GetNext(zp, &side, &ray);
+                            }
+                            #if 0
+                            printf("hit = %d\n", hit);
+                            printf("tSamp = %E, t = %E\n", tSamp, t);
+                            #endif
+                    }
                 }
                 // not inside the target voxel, keep tracing
                 else{
-                        /* Calculate path to next boundary */
-                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-                        
-                        CalcOpticalDepth( zp, &ray, t, tau_nu, tid);
-                        
-                        /* Calculate next position */
-                        ray = GeRay_Inc(&ray, t);
-                        /* Get next zone to traverse to */
-                        zp = Zone_GetNext(zp, &side, &ray);
+                    /* Calculate path to next boundary */
+                    GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+                    
+                    CalcOpticalDepth( zp, &ray, t, tau_nu, tid);
+                    
+                    /* Calculate next position */
+                    ray = GeRay_Inc(&ray, t);
+                    /* Get next zone to traverse to */
+                    zp = Zone_GetNext(zp, &side, &ray);
                 }
-            } 
+            }
+            Deb_ASSERT(reached_sampling_zone);
             ContributionOfCell( zp, &ray, SampCartPos, contrib, tau_nu, tid);
         }
         else{
@@ -3035,7 +3090,7 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
         printf("\n");
         printf("OK\n");exit(0);
 #endif
-        Deb_ASSERT(reached_sampling_zone);
+        
 
         return;
 }

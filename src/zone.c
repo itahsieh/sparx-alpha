@@ -420,16 +420,18 @@ Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRa
 	if(!zone->children)
 		return zone;
 
-        GeVec3_s pos = GeVec3_INIT(0, 0, 0);
         GeVec3_d CylPos = GeVec3_Cart2Cyl(pt);
         double Rc  = CylPos.x[0];
         double phi = CylPos.x[1];
         double Hz  = CylPos.x[2];
+        
+        size_t axis = side / 2;
+        
+        GeVec3_s pos = GeVec3_INIT(0, 0, 0);
         /* Otherwise search for child containing pt */
         for(size_t i = 0; i < 3; i++) {
                 size_t n = GeVec3_X(zone->naxes, i);
 
-                size_t axis = side / 2;
                 if(i == axis) {
                         /* We already know the position on the driving axis -- this saves
                         * some time */

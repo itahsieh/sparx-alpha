@@ -902,7 +902,7 @@ int GeRay_IntersectVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmi
 #if 0
         printf("%E %E %E %E %E %E\n", t[0], t[1], t[2], t[3], t[4], t[5]);
         printf("tmin = %E, side = %zu\n", *tmin, *side);
-        printf("OK\n");exit(0);
+        //printf("OK\n");exit(0);
 #endif	
 	return (*tmin < HUGE_VAL ? 1 : 0);
 }
