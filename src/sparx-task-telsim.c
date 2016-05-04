@@ -2694,7 +2694,7 @@ static void *VtkContributionCyl3dTread(void *tid_p)
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
-        for( size_t i = 0; i < nr; i++){
+        for( size_t i = 12; i < nr; i++){
           for( size_t j = 0; j < np; j++){
             for( size_t k = 0; k < nz; k++){
               if ( cell_id % Sp_NTHREAD == tid ){
@@ -2892,6 +2892,7 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
         Zone * root = glb.model.grid;
         double t;
         static double threshold = 1E-6;
+        static double threshold_0 = 1E-12;
 
         GeVec3_d SampCartPosRotate = *SampCartPos;
         SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.rotate[2]);
@@ -2934,7 +2935,9 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
             
             /* Keep going until there's no next zone to traverse to */
             while(zp) {
-
+                //printf("zp index : %zu %zu %zu\n",zp->index.x[0],zp->index.x[1],zp->index.x[2]);
+                
+                
                 // see if the ray reach the target zone
                 int reach_the_target_zone = 1;
                 switch(zp->voxel.geom){
@@ -2944,9 +2947,9 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
                     case GEOM_SPH3D:
                         for (int i =0; i < 3; i++){
                             if ( (i == 1) && (zp->parent->naxes.x[1] == 1) )
-                                reach_the_target_zone *= 1;
+                                ;
                             else if ( (i == 2) && (zp->parent->naxes.x[2] == 1) )
-                                reach_the_target_zone *= 1;
+                                ;
                             else
                                 reach_the_target_zone *= (zp->index.x[i] == SampZone->index.x[i]) ? 1 : 0;
                         }
@@ -2954,7 +2957,7 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
                     case GEOM_CYL3D:
                         for (int i =0; i < 3; i++){
                             if ( (i == 1) && (zp->parent->naxes.x[1] == 1) )
-                                reach_the_target_zone *= 1;
+                                ;
                             else
                                 reach_the_target_zone *= (zp->index.x[i] == SampZone->index.x[i]) ? 1 : 0;
                         }
@@ -2979,6 +2982,7 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
                             Deb_ASSERT(0);
                     }
                     #if 0
+
                     // debugging
                     //printf("dx \t= %E, dy = %E\n",dx,dy);
                     printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
@@ -2991,33 +2995,44 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
                     RayGeomPos.x[0], RayGeomPos.x[1], RayGeomPos.x[2]);
                     printf("VoxelMax \t= %E %E %E\n", 
                     SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
+
                     #endif
 
                     // see if the photon reach the sampling cell
                     int reached_cell = 1;
                     for (size_t i = 0; i < 3; i++){
-                            size_t side_in = 2 * i;
-                            size_t side_out = side_in + 1;
-                            if ( side_in == side ){
-                                    reached_cell *= 
-                                    ( fabs( SampVp->min.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold) ? 
-                                    1 : 0;
-                                    //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RayGeomPos.x[i] ));
-                                    
-                            }else{
-                                    reached_cell *= 
-                                    (SampVp->min.x[i] <= RayGeomPos.x[i]) ? 1 : 0;
-                            }
-                            if ( side_out == side ){
-                                    reached_cell *= 
-                                    ( fabs( SampVp->max.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold ) ? 
-                                    1 : 0;
-                                    //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RayGeomPos.x[i] ));
-                            }
-                            else{
-                                    reached_cell *= 
-                                    (SampVp->max.x[i] >= RayGeomPos.x[i]) ? 1 : 0;
-                            }
+                        size_t side_in = 2 * i;
+                        size_t side_out = side_in + 1;
+                        if ( side_in == side ){
+                            if ( RayGeomPos.x[i] == 0.0 )
+                                reached_cell *= 
+                                ( fabs( SampVp->min.x[i] - RayGeomPos.x[i] )  < threshold_0) ? 
+                                1 : 0;
+                            else
+                                reached_cell *= 
+                                ( fabs( SampVp->min.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold) ? 
+                                1 : 0;
+                            //printf("diff_in = %E\n",fabs( SampVp->min.x[i] - RayGeomPos.x[i] ));
+                        }
+                        else{
+                            reached_cell *= 
+                            (SampVp->min.x[i] <= RayGeomPos.x[i]) ? 1 : 0;
+                        }
+                        if ( side_out == side ){
+                            if ( RayGeomPos.x[i] == 0.0 )
+                                reached_cell *= 
+                                ( fabs( SampVp->max.x[i] - RayGeomPos.x[i] ) < threshold_0 ) ? 
+                                1 : 0;
+                            else
+                                reached_cell *= 
+                                ( fabs( SampVp->max.x[i] - RayGeomPos.x[i] ) / RayGeomPos.x[i] < threshold ) ? 
+                                1 : 0;
+                            //printf("diff_out = %E\n",fabs( SampVp->max.x[i] - RayGeomPos.x[i] ));
+                        }
+                        else{
+                            reached_cell *= 
+                            (SampVp->max.x[i] >= RayGeomPos.x[i]) ? 1 : 0;
+                        }
                     }
                     
                     // if reached the sampling cell, escape the tau tracer.
@@ -3077,6 +3092,7 @@ static void ContributionTracer( double *contrib, double *tau_nu, Zone *SampZone,
                     zp = Zone_GetNext(zp, &side, &ray);
                 }
             }
+            if(!reached_sampling_zone) printf("SampZone : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]);
             Deb_ASSERT(reached_sampling_zone);
             ContributionOfCell( zp, &ray, SampCartPos, contrib, tau_nu, tid);
         }
