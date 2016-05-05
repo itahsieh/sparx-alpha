@@ -16,7 +16,6 @@ void Mem_CALL_VISUAL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
         switch(geom){
                 case GEOM_SPH1D:
                 case GEOM_SPH3D:
-                        visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
                 {        
                         // Dimension of the visualized resolution
                         size_t nr = visual->sph3d->nr;
@@ -37,8 +36,6 @@ void Mem_CALL_VISUAL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
                         break;
                 case GEOM_CYL3D:
                 {
-                        visual->cyl3d = Mem_CALLOC( 1, visual->cyl3d);
-                        
                         // Dimension of the visualized resolution
                         size_t nr = visual->cyl3d->nr;
                         size_t np = visual->cyl3d->np;
@@ -75,7 +72,7 @@ void Mem_CALL_VISUAL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
         visual->contrib = contrib;
         visual->tau = tau;
         visual->tau_dev = tau_dev;
-        
+
         return;
 }
 

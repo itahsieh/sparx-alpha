@@ -20,7 +20,7 @@ static struct glb {
 		double blc_x, blc_y, trc_x, trc_y;
 		size_t nsub;
 	} *subres;
-        VtkData *visual;
+        VtkData visual;
 } glb;
 
 enum {
@@ -1851,9 +1851,7 @@ static int generic_vtk(void)
         size_t nvelo = glb.v.n;
         
         // declare the memory
-        glb.visual = Mem_CALLOC( 1, glb.visual);
-        VtkData * visual = glb.visual;
-        Mem_CALL_VISUAL(geom, visual, nvelo);
+        VtkData * visual = &glb.visual;
         
         // open VTK file
         FILE *fp;
@@ -1871,10 +1869,15 @@ static int generic_vtk(void)
         size_t n1, n2, n3;
         switch (geom){
             case GEOM_SPH1D:
+                visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
+                    
                 // Dimension of the visualized resolution
                 n1 = visual->sph3d->nr = root->nchildren;
                 n2 = visual->sph3d->nt = 45;
                 n3 = visual->sph3d->np = 90;
+                
+                // initialize memory
+                Mem_CALL_VISUAL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * radius = visual->sph3d->radius;
@@ -1911,12 +1914,17 @@ static int generic_vtk(void)
                 }
                 break;
             case GEOM_SPH3D:
+                visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
+                
                 // Dimension of the visualized resolution
                 n1 = visual->sph3d->nr = root->naxes.x[0];
                 n2 = visual->sph3d->nt = (root->naxes.x[1] == 1) ? 
                         45 : root->naxes.x[1];
                 n3 = visual->sph3d->np = (root->naxes.x[2] == 1) ? 
                         90 : root->naxes.x[2];
+                        
+                // initialize memory
+                Mem_CALL_VISUAL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * radius = visual->sph3d->radius;
@@ -1967,10 +1975,15 @@ static int generic_vtk(void)
                 }
                 break;
             case GEOM_REC3D:
+                visual->rec3d = Mem_CALLOC( 1, visual->rec3d);
+                
                 // Dimension of the visualized resolution
                 n1 = visual->rec3d->nx = root->naxes.x[0];
                 n2 = visual->rec3d->ny = root->naxes.x[1];
                 n3 = visual->rec3d->nz = root->naxes.x[2];
+                
+                // initialize memory
+                Mem_CALL_VISUAL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * x = visual->rec3d->x;
@@ -2001,11 +2014,15 @@ static int generic_vtk(void)
                 }
                 break;
             case GEOM_CYL3D:
+                visual->cyl3d = Mem_CALLOC( 1, visual->cyl3d);
                 // Dimension of the visualized resolution
                 n1 = visual->cyl3d->nr = root->naxes.x[0];
                 n2 = visual->cyl3d->np = (root->naxes.x[1] == 1) ? 
                         72 : root->naxes.x[1];
                 n3 = visual->cyl3d->nz = root->naxes.x[2];
+
+                // initialize memory
+                Mem_CALL_VISUAL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * Rc     = visual->cyl3d->Rc;
@@ -2164,7 +2181,6 @@ static int generic_vtk(void)
         printf("wrote %s\n",filename);
         
         Mem_FREE_VISUAL(geom, visual);
-        free(glb.visual);
         
         return sts;
 }
@@ -2193,7 +2209,7 @@ static void *VtkContributionSph1dTread(void *tid_p)
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
         size_t nvelo = glb.v.n;
-        VtkData *visual = glb.visual;
+        VtkData *visual = &glb.visual;
         
         // Dimension of the visualized resolution
         size_t nr = visual->sph3d->nr;
@@ -2257,7 +2273,7 @@ static void *VtkContributionSph3dTread(void *tid_p)
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
         size_t nvelo = glb.v.n;
-        VtkData *visual = glb.visual;
+        VtkData *visual = &glb.visual;
         
         // Dimension of the visualized resolution
         size_t nr = visual->sph3d->nr;
@@ -2327,7 +2343,7 @@ static void *VtkContributionCyl3dTread(void *tid_p)
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
         size_t nvelo = glb.v.n;
-        VtkData *visual = glb.visual;
+        VtkData *visual = &glb.visual;
         
         // Dimension of the visualized resolution
         size_t nr = visual->cyl3d->nr;
