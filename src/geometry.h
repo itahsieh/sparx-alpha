@@ -166,8 +166,10 @@ GeVec3_d GeVec3_Rotate(const GeVec3_d *vec, const GeCam *cam);
 GeVec3_d GeSubSampPos(int i, int j, int k, double Devide_2nSamp1D, GeVox * vp);
 
 
+GeVec3_d GeVec3_Geom2Cart( GEOM_TYPE geom, GeVec3_d *GeomPt);
 GeVec3_d GeVec3_Sph2Cart( GeVec3_d *SphPt);
 GeVec3_d GeVec3_Cyl2Cart( GeVec3_d *CylPt);
+
 
 
 GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *);

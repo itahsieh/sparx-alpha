@@ -119,7 +119,7 @@ DatINode VISUAL_TYPES[] = {
         {0, 0}
 };
 
-static int generic_vtk(int);
+static int generic_vtk(void);
 
 static int CalcContrib(GEOM_TYPE geom_type);
 
@@ -499,7 +499,7 @@ int SpTask_Telsim(void)
                           if(glb.excit && glb.task->idx == TASK_LINE)
                                 visualization();
                           #if 1
-                          sts = generic_vtk(glb.model.grid->voxel.geom);
+                          sts = generic_vtk();
                           #endif
                           break;
                   case TASK_ZEEMAN:
@@ -1842,11 +1842,12 @@ static void visualization(void)
 
 /*----------------------------------------------------------------------------*/
 
-static int generic_vtk(int geom)
+static int generic_vtk(void)
 {
         int sts = 0;
         
         Zone * root = glb.model.grid;
+        GEOM_TYPE geom = root->voxel.geom;
         size_t nvelo = glb.v.n;
         
         // declare the memory
@@ -1864,7 +1865,7 @@ static int generic_vtk(int geom)
         fprintf(fp,"# vtk DataFile Version 3.0\n");
         fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
         fprintf(fp,"ASCII\n");
-        
+        fprintf(fp,"DATASET STRUCTURED_GRID\n");        
         
         // the dimension and grid
         size_t n1, n2, n3;
@@ -1897,7 +1898,6 @@ static int generic_vtk(int geom)
                         phi[k] = phi[k-1] + delta_phi;
 
                 // define the type of the gridding
-                fprintf(fp,"DATASET STRUCTURED_GRID\n");
                 fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
                 fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
                 for( size_t i = 0; i < n1 + 1; i++)
@@ -1954,7 +1954,6 @@ static int generic_vtk(int geom)
                 }
 
                 // define the type of the gridding
-                fprintf(fp,"DATASET STRUCTURED_GRID\n");
                 fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
                 fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
                 for( size_t i = 0; i < n1 + 1; i++)
@@ -1993,7 +1992,6 @@ static int generic_vtk(int geom)
                         z[k] = root->children[k-1]->voxel.max.x[2];
                 
                 // define the type of the gridding
-                fprintf(fp,"DATASET STRUCTURED_GRID\n");
                 fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
                 fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
                 for( size_t i = 0; i < n1 + 1; i++)
@@ -2037,7 +2035,6 @@ static int generic_vtk(int geom)
                         Z[k] = root->children[k-1]->voxel.max.x[2];
                 
                 // define the type of the gridding
-                fprintf(fp,"DATASET STRUCTURED_GRID\n");
                 fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
                 fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
                 for( size_t i = 0; i < n1 + 1; i++)
@@ -2054,9 +2051,10 @@ static int generic_vtk(int geom)
                 /* Should not happen */
                 Deb_ASSERT(0);
         }
-        size_t nelement = n1 * n2 * n3;
         
-        sts = CalcContrib(geom); 
+        sts = CalcContrib(geom);
+        
+        size_t nelement = n1 * n2 * n3;
         
         // write the artributes
         fprintf(fp,"CELL_DATA %zu\n", nelement );
@@ -2284,14 +2282,7 @@ static void *VtkContributionSph3dTread(void *tid_p)
                         /* Check for thread termination */
                         Sp_CHECKTERMTHREAD();
                         // izone : to coresponding zone index
-                        size_t izone = 
-                          (root->naxes.x[1]==1) ?
-                             (root->naxes.x[2]==1) ?
-                                     i :
-                                     i * root->naxes.x[2] + k :
-                             (root->naxes.x[2]==1) ?
-                                     i * root->naxes.x[1] + j :
-                                     (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                        size_t izone = ZoneIndex( GEOM_SPH3D, i, j, k, root);
                         // copy grid i_zone to sampling zone
                         Zone SampZone = *root->children[izone];
                         // the voxel pointer
@@ -2347,10 +2338,10 @@ static void *VtkContributionCyl3dTread(void *tid_p)
         double * Rc     = visual->cyl3d->Rc;
         double * phi    = visual->cyl3d->phi;
         double * Z      = visual->cyl3d->Z;
-        double ** contrib = visual->contrib;
-        double * contrib_dust = visual->contrib_dust;
-        double ** tau   = visual->tau;
-        double ** tau_dev = visual->tau_dev;
+        double ** contrib       = visual->contrib;
+        double * contrib_dust   = visual->contrib_dust;
+        double ** tau           = visual->tau;
+        double ** tau_dev       = visual->tau_dev;
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
@@ -2361,9 +2352,7 @@ static void *VtkContributionCyl3dTread(void *tid_p)
                         /* Check for thread termination */
                         Sp_CHECKTERMTHREAD();
                         // izone : to coresponding zone index
-                        size_t izone = (root->naxes.x[1]==1) ?
-                                     i * root->naxes.x[2] + k :
-                                     (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                        size_t izone = ZoneIndex( GEOM_CYL3D, i, j, k, root);
                         // copy grid i_zone to sampling zone
                         Zone SampZone = *root->children[izone];
                         // the voxel pointer

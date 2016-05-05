@@ -383,8 +383,8 @@ GeVec3_d GeVec3_Sph2Cart( GeVec3_d *SphPt)
 GeVec3_d GeVec3_Cyl2Cart( GeVec3_d *CylPt)
 {
         double Rc       = CylPt->x[0];
-        double phi      = CylPt->x[0];
-        double Z        = CylPt->x[0];
+        double phi      = CylPt->x[1];
+        double Z        = CylPt->x[2];
         GeVec3_d Cartesian;
         
         // x-ordinate
@@ -395,6 +395,40 @@ GeVec3_d GeVec3_Cyl2Cart( GeVec3_d *CylPt)
         Cartesian.x[2] = Z;
         
         return Cartesian;
+}
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d GeVec3_Rec2Cart( GeVec3_d *RecPt)
+{
+        GeVec3_d Cartesian;
+        
+        // x-ordinate
+        Cartesian.x[0] = RecPt->x[0]; 
+        // y-ordiante
+        Cartesian.x[1] = RecPt->x[1]; 
+        // z-ordinate
+        Cartesian.x[2] = RecPt->x[2];
+        
+        return Cartesian;
+}
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d GeVec3_Geom2Cart( GEOM_TYPE geom, GeVec3_d *GeomPt)
+{
+        switch(geom){
+                case GEOM_SPH1D:
+                case GEOM_SPH3D:
+                        return GeVec3_Sph2Cart(GeomPt);
+                case GEOM_CYL3D:
+                        return GeVec3_Cyl2Cart(GeomPt);
+                case GEOM_REC3D:
+                        return GeVec3_Rec2Cart(GeomPt);
+                default:
+                        /* Should not happen */
+                        Deb_ASSERT(0);
+        }
 }
 
 /*----------------------------------------------------------------------------*/
