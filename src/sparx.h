@@ -74,6 +74,7 @@
 #include "physics.h"
 #include "molec.h"
 #include "kappa.h"
+#include "vtk-wrapper.h"
 
 
 /* Globally useful constants */

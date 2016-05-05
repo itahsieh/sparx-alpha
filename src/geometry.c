@@ -361,9 +361,13 @@ Rotation matrix about z:
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d GeVec3_Sph2Cart( double R, double theta, double phi)
+GeVec3_d GeVec3_Sph2Cart( GeVec3_d *SphPt)
 {
+        double R        = SphPt->x[0];
+        double theta    = SphPt->x[1];
+        double phi      = SphPt->x[2];
         GeVec3_d Cartesian;
+        
         // x-ordinate
         Cartesian.x[0] = R * sin(theta) * cos(phi); 
         // y-ordiante
@@ -376,9 +380,13 @@ GeVec3_d GeVec3_Sph2Cart( double R, double theta, double phi)
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d GeVec3_Cyl2Cart( double Rc, double phi, double Z)
+GeVec3_d GeVec3_Cyl2Cart( GeVec3_d *CylPt)
 {
+        double Rc       = CylPt->x[0];
+        double phi      = CylPt->x[0];
+        double Z        = CylPt->x[0];
         GeVec3_d Cartesian;
+        
         // x-ordinate
         Cartesian.x[0] = Rc * cos(phi); 
         // y-ordiante
@@ -391,7 +399,106 @@ GeVec3_d GeVec3_Cyl2Cart( double Rc, double phi, double Z)
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
+GeVec3_d GeSubSampPos(int i, int j, int k, double Devide_2nSamp1D, GeVox * vp)
+{
+        GeVec3_d Pt;
+        
+        switch (vp->geom){
+                case GEOM_SPH3D:
+                {
+                        double R_in = vp->min.x[0];
+                        double R_out = vp->max.x[0];
+                        double theta_in = vp->min.x[1];
+                        double theta_out = vp->max.x[1];
+                        double phi_in = vp->min.x[2];
+                        double phi_out = vp->max.x[2];
+                        
+                        // radius position
+                        double RFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
+                        #define ONE_THIRD (0.3333333333333333)
+                        double R = ( R_in == 0. ) ? 
+                                R_out * pow(RFrac, ONE_THIRD) : 
+                                R_in * pow((1. + RFrac * (pow(R_out/R_in, 3.) - 1.)), ONE_THIRD);
+                        #undef ONE_THIRD
+                                
+                        // theta position
+                        double ThetaFrac = (double) ( 2 * j + 1 ) * Devide_2nSamp1D;
+                        double theta = ( theta_in == 0. ) ?
+                                acos( 1. + ThetaFrac * ( cos(theta_out) - 1. ) ) :
+                                acos( ( cos(theta_in) - 1. ) * ( 1. + ThetaFrac * ( ( cos(theta_out) - 1. ) / ( cos(theta_in) - 1. ) - 1. ) ) + 1. );
+                                
+                        // phi position
+                        double PhiFrac = (double) ( 2 * k + 1 ) * Devide_2nSamp1D;
+                        double phi = phi_in + PhiFrac * ( phi_out - phi_in );
+                        
+                        Pt.x[0] = R;
+                        Pt.x[1] = theta;
+                        Pt.x[2] = phi;
+                }                                               
+                        break;
+                case GEOM_CYL3D:
+                {
+                        double Rc_in = vp->min.x[0];
+                        double Rc_out = vp->max.x[0];
+                        double phi_in = vp->min.x[1];
+                        double phi_out = vp->max.x[1];
+                        double Z_in = vp->min.x[2];
+                        double Z_out = vp->max.x[2];
+                        
+                        // radius position
+                        double RcFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
+                        double Rc = ( Rc_in == 0. ) ? 
+                                Rc_out * pow(RcFrac, 0.5) : 
+                                Rc_in * pow((1. + RcFrac * (pow(Rc_out/Rc_in, 2.0) - 1.)), 0.5);
+                        // phi position
+                         double PhiFrac = (double) ( 2 * j + 1 ) * Devide_2nSamp1D;
+                         double phi = phi_in + PhiFrac * ( phi_out - phi_in ); 
+                        // Z position
+                        double ZFrac = (double) ( 2 * k + 1 ) * Devide_2nSamp1D;
+                        double Z = Z_in + ZFrac * ( Z_out - Z_in );
+                        
+                        Pt.x[0] = Rc;
+                        Pt.x[1] = phi;
+                        Pt.x[2] = Z;
+                }
+                        break;
+                case GEOM_REC3D:
+                {
+                        double x_max = vp->min.x[0];
+                        double x_min = vp->max.x[0];
+                        double y_max = vp->min.x[1];
+                        double y_min = vp->max.x[1];
+                        double z_max = vp->min.x[2];
+                        double z_min = vp->max.x[2];
+                        
+                        // x position
+                        double xFrac = (double) ( 2 * i + 1 ) * Devide_2nSamp1D;
+                        double x = x_min + xFrac * ( x_max - x_min );
+                        
+                        // x position
+                        double yFrac = (double) ( 2 * j + 1 ) * Devide_2nSamp1D;
+                        double y = y_min + yFrac * ( y_max - y_min );
+                        
+                        // x position
+                        double zFrac = (double) ( 2 * k + 1 ) * Devide_2nSamp1D;
+                        double z = z_min + zFrac * ( z_max - z_min );
+                        
+                        Pt.x[0] = x;
+                        Pt.x[1] = y;
+                        Pt.x[2] = z;
+                }
+                        break;
+                default:
+                        Deb_ASSERT(0);
+        }
+        
+        return Pt;
+}
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *Cartesian)
+{
         double x = Cartesian->x[0];
         double y = Cartesian->x[1];
         double z = Cartesian->x[2];
@@ -420,7 +527,8 @@ GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *Cartesian){
 
 /*----------------------------------------------------------------------------*/
 
-GeVec3_d GeVec3_Cart2Cyl(const GeVec3_d *Cartesian){
+GeVec3_d GeVec3_Cart2Cyl(const GeVec3_d *Cartesian)
+{
         double x = Cartesian->x[0];
         double y = Cartesian->x[1];
         double z = Cartesian->x[2];
@@ -442,6 +550,25 @@ GeVec3_d GeVec3_Cart2Cyl(const GeVec3_d *Cartesian){
         Cylindrical.x[2] = z;
         
         return Cylindrical;
+}
+
+/*----------------------------------------------------------------------------*/
+
+
+GeVec3_d GeGeomPos(GEOM_TYPE geom, const GeVec3_d * CartPos)
+{
+        switch (geom){
+            case GEOM_SPH3D:
+                return GeVec3_Cart2Sph(CartPos);
+            case GEOM_CYL3D:
+                return GeVec3_Cart2Cyl(CartPos);
+            case GEOM_REC3D:
+                return *CartPos;
+            case GEOM_SPH1D:
+                return GeVec3_Cart2Sph(CartPos);
+            default:
+                Deb_ASSERT(0);
+        }
 }
 
 /*----------------------------------------------------------------------------*/

@@ -162,11 +162,17 @@ GeVec3_d GeVec3_Rotate_y(const GeVec3_d *vec, double phi);
 GeVec3_d GeVec3_Rotate_z(const GeVec3_d *vec, double phi);
 GeVec3_d GeVec3_Rotate(const GeVec3_d *vec, const GeCam *cam);
 
-GeVec3_d GeVec3_Sph2Cart( double R, double theta, double phi);
-GeVec3_d GeVec3_Cyl2Cart( double Rc, double phi, double Z);
+
+GeVec3_d GeSubSampPos(int i, int j, int k, double Devide_2nSamp1D, GeVox * vp);
+
+
+GeVec3_d GeVec3_Sph2Cart( GeVec3_d *SphPt);
+GeVec3_d GeVec3_Cyl2Cart( GeVec3_d *CylPt);
+
 
 GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *);
 GeVec3_d GeVec3_Cart2Cyl( const GeVec3_d *);
+GeVec3_d GeGeomPos(GEOM_TYPE geom, const GeVec3_d * CartPos);
 
 int point_in_voxel2(const GeVec3_d *pt, const GeVox *voxel, size_t axis);
 int point_in_voxel_cyl3d(const GeVec3_d *pt, const GeVox *voxel, size_t axis);
@@ -214,6 +220,13 @@ GeRay GeRay_Rand_sph3d(gsl_rng *rng, const GeVox *voxel);
 GeRay GeRay_Rand_rec3d(gsl_rng *rng, const GeVox *voxel);
 GeRay GeRay_Rand_cyl3d(gsl_rng *rng, const GeVox *voxel);
 
+
+
+size_t GeVox_VertIndex2Pos(size_t i, size_t j, size_t k);
+GeVox GeVox_Init(int cosys, double xmin, double ymin, double zmin, double xmax, double ymax, double zmax);
+GeVox GeVox_Init2(int cosys, GeVec3_d min, GeVec3_d max);
+
+
 #if Sp_MIRSUPPORT
 void GeVec3_Cpgpt1(const GeVec3_d *vec, int sty, const GeCam *cam);
 void GeVec3_Cpgline2(const GeVec3_d *v1, const GeVec3_d *v2, const GeCam *cam);
@@ -223,9 +236,6 @@ void GeVox_Cpgplot(const GeVox *voxel, const GeCam *cam);
 void GeRay_Cpgarro(const GeRay *ray, const GeCam *cam);
 #endif
 
-size_t GeVox_VertIndex2Pos(size_t i, size_t j, size_t k);
-GeVox GeVox_Init(int cosys, double xmin, double ymin, double zmin, double xmax, double ymax, double zmax);
-GeVox GeVox_Init2(int cosys, GeVec3_d min, GeVec3_d max);
 
 #endif
 

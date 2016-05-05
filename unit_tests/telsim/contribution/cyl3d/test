@@ -12,6 +12,6 @@ molec='hco+' \
 out=map \
 line=1 \
 npix="[1,1]" \
-chan="[32,'0.1kms^-1']" \
+chan="[8,'0.2kms^-1']" \
 rotate="['0deg', '30deg', '0deg']" \
 subres="[['-10asec','-10asec','10asec','10asec',1]]"

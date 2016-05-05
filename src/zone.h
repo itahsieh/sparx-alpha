@@ -71,6 +71,9 @@ Zone *Zone_Fread(void *(*DataAlloc)(const void *data_parms), const void *data_pa
 	size_t (*DataFread)(void *data, FILE *fp), FILE *fp);
 
 Zone *Zone_GetNext(Zone *zone, size_t *plane, const GeRay *ray);
+
+size_t ZoneIndex( GEOM_TYPE geom, size_t i, size_t j, size_t k, Zone * root);
+
 #endif
 
 

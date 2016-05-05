@@ -764,6 +764,42 @@ Zone *Zone_Fread(void *(*DataAlloc)(const void *data_parms), const void *data_pa
 	return zone;
 }
 
+/*----------------------------------------------------------------------------*/
+
+size_t ZoneIndex( GEOM_TYPE geom, size_t i, size_t j, size_t k, Zone * root)
+{
+        // izone : to coresponding zone index
+        size_t izone;
+        
+        switch(geom){
+                case GEOM_SPH1D:
+                        izone = i;
+                        break;
+                case GEOM_SPH3D:
+                        izone = 
+                        (root->naxes.x[1]==1) ?
+                                (root->naxes.x[2]==1) ?
+                                        i :
+                                        i * root->naxes.x[2] + k :
+                                (root->naxes.x[2]==1) ?
+                                        i * root->naxes.x[1] + j :
+                                        (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                        break;
+                case GEOM_CYL3D:
+                        izone = (root->naxes.x[1]==1) ?
+                                i * root->naxes.x[2] + k :
+                                (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                        break;
+                case GEOM_REC3D:
+                        izone = (i * root->naxes.x[1] + j) * root->naxes.x[2] + k;
+                        break;
+                default:
+                        Deb_ASSERT(0);
+        }
+        
+        return izone;
+}
+
 
 
 
