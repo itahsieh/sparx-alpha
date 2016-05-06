@@ -405,7 +405,7 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
         fclose(fp);
         printf("wrote %s\n",filename);
         
-        
+#if 0
         // for seperate contribution channel as a file
         for( size_t l = 0; l < nvelo; l++){
                 // open VTK file
@@ -432,7 +432,7 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
                 // write the artributes
                 fprintf(fp,"CELL_DATA %zu\n", nelement );
                 // write the contribution of the cells
-                fprintf(fp,"SCALARS DUST_CONTRIBUTION float 1\n");
+                fprintf(fp,"SCALARS CONTRIBUTION float 1\n");
                 fprintf(fp,"LOOKUP_TABLE default\n");
                 for (size_t idx = 0; idx < nelement; idx++)
                         fprintf(fp,"%E ", contrib[idx][l]);
@@ -441,6 +441,6 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
                 fclose(fp);
                 printf("wrote %s\n",filename);
         }
-        
+#endif        
         return;
 }

@@ -101,7 +101,7 @@ static void InitSubPixel( double *dx,
                           size_t jsub, 
                           size_t nsub
                         );
-static void Vtk_nested(void);
+static void Vtk_nested_hyosun(void);
 
 
 
@@ -484,7 +484,7 @@ int SpTask_Telsim(void)
                           #endif
                           /* write excitation visualization to VTK */
                           if(glb.excit && glb.task->idx == TASK_LINE)
-                                Vtk_nested();
+                                Vtk_nested_hyosun();
                           #if 1
                           sts = generic_vtk();
                           #endif
@@ -1670,14 +1670,16 @@ static void InitSubPixel( double *dx, double *dy,
 /*   
 write out VTK file of the excitation temperature for the nested Cartesian Cell in multiblock format 
 */
-static void Vtk_nested(void)
+static void Vtk_nested_hyosun(void)
 {
 	Zone * root = glb.model.grid;
 	static double k = PHYS_CONST_MKS_BOLTZK;
-	FILE * fp=fopen("vis.pvd","w");
+	
+        FILE * fp=fopen("vis.pvd","w");
 	fprintf(fp,"<?xml version=\"1.0\"?>\n");
 	fprintf(fp,"<VTKFile type=\"Collection\" version=\"0.1\" byte_order=\"LittleEndian\" compressor=\"vtkZLibDataCompressor\">\n");
 	fprintf(fp,"  <Collection>\n");
+        
 	mkdir("multiblock", S_IRWXU | S_IRWXG | S_IRWXO);
 	
 	Zone * zp1 = root;
