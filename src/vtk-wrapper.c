@@ -273,6 +273,7 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
 {
         GEOM_TYPE geom = root->voxel.geom;
         size_t nelement = n1 * n2 * n3;
+        size_t npoint = (n3+1) * (n2+1) * (n1+1);
         
         FILE *fp;
         char filename[32];
@@ -289,7 +290,7 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
         // define the type of the gridding
         fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
         fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-        fprintf(fp,"POINTS %zu float\n", nelement );
+        fprintf(fp,"POINTS %zu float\n", npoint );
         for( size_t i = 0; i < n1 + 1; i++)
           for( size_t j = 0; j < n2 + 1; j++)
             for( size_t k = 0; k < n3 + 1; k++){
@@ -419,7 +420,7 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
                 // define the type of the gridding
                 fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
                 fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-                fprintf(fp,"POINTS %zu float\n", nelement );
+                fprintf(fp,"POINTS %zu float\n", npoint );
                 for( size_t i = 0; i < n1 + 1; i++)
                   for( size_t j = 0; j < n2 + 1; j++)
                     for( size_t k = 0; k < n3 + 1; k++){
