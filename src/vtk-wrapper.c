@@ -408,7 +408,7 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
         // for seperate contribution channel as a file
         for( size_t l = 0; l < nvelo; l++){
                 // open VTK file
-                sprintf(filename,"contribution_%4zu.vtk", l);
+                sprintf(filename,"contribution_%04zu.vtk", l);
                 fp=fopen(filename,"w");
                 
                 // write the header
