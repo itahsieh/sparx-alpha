@@ -1,5 +1,5 @@
-#ifndef __MIRIAD_WRAPPERS_H__
-#define __MIRIAD_WRAPPERS_H__
+#ifndef __FITS_MIRIAD_WRAPPERS_H__
+#define __FITS_MIRIAD_WRAPPERS_H__
 
 #include "fitsio.h"
 
