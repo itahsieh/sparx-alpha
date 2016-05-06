@@ -770,18 +770,21 @@ static void *InitModelThread(void *tid_p)
                                 for(k = 0; k < Sp_NTHREAD; k++) {
                                         pp->pops[k] = Mem_CALLOC(pp->mol->nlev, pp->pops[k]);
                                 }
-                                for(j = 0; j < pp->mol->nlev; j++) {
+                                // LTE : Boltzmann distribution
+                                for(j = 0; j < pp->mol->nlev; j++) 
                                         pp->pops[0][j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
-                                        for(k = 1; k < Sp_NTHREAD; k++) {
-                                                pp->pops[k][j] = pp->pops[0][j];
-                                        }
-                                }
+                                
                                 /* Allocate continuum emission/absorption */
                                 for(size_t i = 0; i < nrad; i++) {
                                         freq[i] = pp->mol->rad[i]->freq;
                                 }
                                 SpPhys_InitContWindows(pp, freq, nrad);
                         }
+                        // copy pops for multithreading cache
+                        for(k = 1; k < Sp_NTHREAD; k++) 
+                                for(j = 0; j < pp->mol->nlev; j++) 
+                                        pp->pops[k][j] = pp->pops[0][j];
+
                         pp->width = SpPhys_CalcLineWidth(pp);
                 }
 
@@ -1853,17 +1856,7 @@ static int generic_vtk(void)
         // declare the memory
         VtkData * visual = &glb.visual;
         
-        // open VTK file
-        FILE *fp;
-        char filename[32];
-        sprintf(filename,"vis.vtk");
-        fp=fopen(filename,"w");
-        
-        // write the header
-        fprintf(fp,"# vtk DataFile Version 3.0\n");
-        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
-        fprintf(fp,"ASCII\n");
-        fprintf(fp,"DATASET STRUCTURED_GRID\n");        
+             
         
         // the dimension and grid
         size_t n1, n2, n3;
@@ -1877,7 +1870,7 @@ static int generic_vtk(void)
                 n3 = visual->sph3d->np = 90;
                 
                 // initialize memory
-                Mem_CALL_VISUAL(geom, visual, nvelo);
+                Vtk_Mem_CALL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * radius = visual->sph3d->radius;
@@ -1900,17 +1893,6 @@ static int generic_vtk(void)
                 for (size_t k = 1; k < n3+1; k ++)
                         phi[k] = phi[k-1] + delta_phi;
 
-                // define the type of the gridding
-                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-                fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
-                for( size_t i = 0; i < n1 + 1; i++)
-                  for( size_t j = 0; j < n2 + 1; j++)
-                    for( size_t k = 0; k < n3 + 1; k++){
-                        double x = radius[i] * sin(theta[j]) * cos(phi[k]);
-                        double y = radius[i] * sin(theta[j]) * sin(phi[k]);
-                        double z = radius[i] * cos(theta[j]);
-                        fprintf(fp,"%E %E %E\n", x, y, z);
-                    }
                 }
                 break;
             case GEOM_SPH3D:
@@ -1924,7 +1906,7 @@ static int generic_vtk(void)
                         90 : root->naxes.x[2];
                         
                 // initialize memory
-                Mem_CALL_VISUAL(geom, visual, nvelo);
+                Vtk_Mem_CALL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * radius = visual->sph3d->radius;
@@ -1961,17 +1943,6 @@ static int generic_vtk(void)
                                 phi[k] = root->children[k-1]->voxel.max.x[2];
                 }
 
-                // define the type of the gridding
-                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-                fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
-                for( size_t i = 0; i < n1 + 1; i++)
-                  for( size_t j = 0; j < n2 + 1; j++)
-                    for( size_t k = 0; k < n3 + 1; k++){
-                        double x = radius[i] * sin(theta[j]) * cos(phi[k]);
-                        double y = radius[i] * sin(theta[j]) * sin(phi[k]);
-                        double z = radius[i] * cos(theta[j]);
-                        fprintf(fp,"%E %E %E\n", x, y, z);
-                    }
                 }
                 break;
             case GEOM_REC3D:
@@ -1983,7 +1954,7 @@ static int generic_vtk(void)
                 n3 = visual->rec3d->nz = root->naxes.x[2];
                 
                 // initialize memory
-                Mem_CALL_VISUAL(geom, visual, nvelo);
+                Vtk_Mem_CALL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * x = visual->rec3d->x;
@@ -2004,13 +1975,6 @@ static int generic_vtk(void)
                 for (size_t k = 1; k < n3+1; k ++)
                         z[k] = root->children[k-1]->voxel.max.x[2];
                 
-                // define the type of the gridding
-                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-                fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
-                for( size_t i = 0; i < n1 + 1; i++)
-                  for( size_t j = 0; j < n2 + 1; j++)
-                    for( size_t k = 0; k < n3 + 1; k++)
-                        fprintf(fp,"%E %E %E\n", x[i], y[j], z[k]);
                 }
                 break;
             case GEOM_CYL3D:
@@ -2022,7 +1986,7 @@ static int generic_vtk(void)
                 n3 = visual->cyl3d->nz = root->naxes.x[2];
 
                 // initialize memory
-                Mem_CALL_VISUAL(geom, visual, nvelo);
+                Vtk_Mem_CALL(geom, visual, nvelo);
                 {
                 // link to the global pointer
                 double * Rc     = visual->cyl3d->Rc;
@@ -2051,17 +2015,6 @@ static int generic_vtk(void)
                 for (size_t k = 1; k < n3+1; k ++)
                         Z[k] = root->children[k-1]->voxel.max.x[2];
                 
-                // define the type of the gridding
-                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-                fprintf(fp,"POINTS %zu float\n", (n1+1) * (n2+1) * (n3+1) );
-                for( size_t i = 0; i < n1 + 1; i++)
-                  for( size_t j = 0; j < n2 + 1; j++)
-                    for( size_t k = 0; k < n3 + 1; k++){
-                        double x = Rc[i] * cos(phi[j]);
-                        double y = Rc[i] * sin(phi[j]);
-                        double z = Z[k];
-                        fprintf(fp,"%E %E %E\n", x, y, z);
-                    }
                 }
                 break;
             default:
@@ -2073,9 +2026,32 @@ static int generic_vtk(void)
         
         size_t nelement = n1 * n2 * n3;
         
+        FILE *fp;
+        char filename[32];
+        
+        // open VTK file
+        sprintf(filename,"vis.vtk");
+        fp=fopen(filename,"w");
+        
+        // write the header
+        fprintf(fp,"# vtk DataFile Version 3.0\n");
+        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
+        fprintf(fp,"ASCII\n");
+        
+        // define the type of the gridding
+        fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
+        fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
+        fprintf(fp,"POINTS %zu float\n", nelement );
+        for( size_t i = 0; i < n1 + 1; i++)
+          for( size_t j = 0; j < n2 + 1; j++)
+            for( size_t k = 0; k < n3 + 1; k++){
+                GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual);
+                GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
+                fprintf(fp,"%E %E %E\n", CartPos.x[0],  CartPos.x[1],  CartPos.x[2]);
+            }
+        
         // write the artributes
         fprintf(fp,"CELL_DATA %zu\n", nelement );
-        
         // H2 number density
         fprintf(fp,"SCALARS H2_Number_Density float 1\n");
         fprintf(fp,"LOOKUP_TABLE default\n");
@@ -2180,7 +2156,45 @@ static int generic_vtk(void)
         fclose(fp);
         printf("wrote %s\n",filename);
         
-        Mem_FREE_VISUAL(geom, visual);
+        
+        // for seperate contribution channel as a file
+        for( size_t l = 0; l < nvelo; l++){
+                // open VTK file
+                sprintf(filename,"contribution_%4zu.vtk", l);
+                fp=fopen(filename,"w");
+                
+                // write the header
+                fprintf(fp,"# vtk DataFile Version 3.0\n");
+                fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
+                fprintf(fp,"ASCII\n");
+                
+                // define the type of the gridding
+                fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
+                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
+                fprintf(fp,"POINTS %zu float\n", nelement );
+                for( size_t i = 0; i < n1 + 1; i++)
+                  for( size_t j = 0; j < n2 + 1; j++)
+                    for( size_t k = 0; k < n3 + 1; k++){
+                        GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual);
+                        GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
+                        fprintf(fp,"%E %E %E\n", CartPos.x[0],  CartPos.x[1],  CartPos.x[2]);
+                }
+                
+                // write the artributes
+                fprintf(fp,"CELL_DATA %zu\n", nelement );
+                // write the contribution of the cells
+                fprintf(fp,"SCALARS DUST_CONTRIBUTION float 1\n");
+                fprintf(fp,"LOOKUP_TABLE default\n");
+                for (size_t idx = 0; idx < nelement; idx++)
+                        fprintf(fp,"%E ", contrib[idx][l]);
+                fprintf(fp,"\n");
+                
+                fclose(fp);
+                printf("wrote %s\n",filename);
+        }
+        
+        
+        Vtk_Mem_FREE(geom, visual);
         
         return sts;
 }

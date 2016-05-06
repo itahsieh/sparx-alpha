@@ -1,4 +1,5 @@
 #include "geometry.h"
+#include <math.h>
 #include <stdio.h>
 
 
@@ -23,5 +24,8 @@ typedef struct VtkData{
 } VtkData;
 
 
-void Mem_CALL_VISUAL(GEOM_TYPE geom, VtkData * visual, size_t nvelo);
-void Mem_FREE_VISUAL(GEOM_TYPE geom, VtkData * visual);
+void Vtk_Mem_CALL(GEOM_TYPE geom, VtkData * visual, size_t nvelo);
+void Vtk_Mem_FREE(GEOM_TYPE geom, VtkData * visual);
+
+GeVec3_d Vtk_Index2GeomPos(size_t i, size_t j, size_t k, GEOM_TYPE geom, VtkData * visual);
+GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos);

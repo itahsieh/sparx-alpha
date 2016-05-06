@@ -7,7 +7,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-void Mem_CALL_VISUAL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
+void Vtk_Mem_CALL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
 {
         
         
@@ -78,7 +78,7 @@ void Mem_CALL_VISUAL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
 
 /*----------------------------------------------------------------------------*/
 
-void Mem_FREE_VISUAL(GEOM_TYPE geom, VtkData * visual)
+void Vtk_Mem_FREE(GEOM_TYPE geom, VtkData * visual)
 {
         size_t nelement;
         
@@ -131,3 +131,119 @@ void Mem_FREE_VISUAL(GEOM_TYPE geom, VtkData * visual)
         
         return;
 }
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d Vtk_Index2GeomPos(size_t i, size_t j, size_t k, GEOM_TYPE geom, VtkData * visual)
+{
+        GeVec3_d GeomPos;
+        
+        switch (geom){
+            case GEOM_SPH1D:
+                {
+                // link to the global pointer
+                double * radius = visual->sph3d->radius;
+                double * theta = visual->sph3d->theta;
+                double * phi = visual->sph3d->phi;
+
+                GeomPos.x[0] = radius[i];
+                GeomPos.x[1] = theta[j];
+                GeomPos.x[2] = phi[k];
+                }
+                break;
+            case GEOM_SPH3D:
+                {
+                // link to the global pointer
+                double * radius = visual->sph3d->radius;
+                double * theta = visual->sph3d->theta;
+                double * phi = visual->sph3d->phi;
+                
+                GeomPos.x[0] = radius[i];
+                GeomPos.x[1] = theta[j];
+                GeomPos.x[2] = phi[k];
+                }
+                break;
+            case GEOM_REC3D:
+                {
+                // link to the global pointer
+                double * x = visual->rec3d->x;
+                double * y = visual->rec3d->y;
+                double * z = visual->rec3d->z;
+                
+                GeomPos.x[0] = x[i];
+                GeomPos.x[1] = y[j];
+                GeomPos.x[2] = z[k];
+                }
+                break;
+            case GEOM_CYL3D:
+                {
+                // link to the global pointer
+                double * Rc     = visual->cyl3d->Rc;
+                double * phi    = visual->cyl3d->phi;
+                double * Z      = visual->cyl3d->Z;
+                
+                GeomPos.x[0] = Rc[i];
+                GeomPos.x[1] = phi[j];
+                GeomPos.x[2] = Z[k];
+                }
+                break;
+            default:
+                /* Should not happen */
+                Deb_ASSERT(0);
+        }
+        
+        return GeomPos;
+}
+
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos)
+{
+        GeVec3_d CartPos;
+        
+        switch (geom){
+            case GEOM_SPH1D:
+                {
+                double radius   = GeomPos->x[0];
+                double theta    = GeomPos->x[1];
+                double phi      = GeomPos->x[2];
+
+                CartPos.x[0] = radius * sin(theta) * cos(phi);
+                CartPos.x[1] = radius * sin(theta) * sin(phi);
+                CartPos.x[2] = radius * cos(theta);
+                }
+                break;
+            case GEOM_SPH3D:
+                {
+                double radius   = GeomPos->x[0];
+                double theta    = GeomPos->x[1];
+                double phi      = GeomPos->x[2];
+
+                CartPos.x[0] = radius * sin(theta) * cos(phi);
+                CartPos.x[1] = radius * sin(theta) * sin(phi);
+                CartPos.x[2] = radius * cos(theta);
+                }
+                break;
+            case GEOM_REC3D:
+                CartPos = *GeomPos;
+                break;
+            case GEOM_CYL3D:
+                {
+                // link to the global pointer
+                double Rc  = GeomPos->x[0];
+                double phi = GeomPos->x[1];
+                double Z   = GeomPos->x[2];
+                
+                CartPos.x[0] = Rc * cos(phi);
+                CartPos.x[1] = Rc * sin(phi);
+                CartPos.x[2] = Z;
+                }
+                break;
+            default:
+                /* Should not happen */
+                Deb_ASSERT(0);
+        }
+        
+        return CartPos;
+}
+
