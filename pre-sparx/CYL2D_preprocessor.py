@@ -185,7 +185,7 @@ def writegrid(direc,lev,naxes,Raxis,Paxis,Zaxis,nc):
 				phi = particle['X_cen'][1]
 				Z = particle['X_cen'][2]
 				R = sqrt( Rc * Rc + Z * Z)
-				theta = acos( Rc / sqrt( Rc*Rc + Z*Z ) )
+				theta = acos( Z / R )
 				
 				pp = R/Rd-1.
 				qq = -cos(theta)*R/Rd
@@ -239,7 +239,11 @@ def writegrid(direc,lev,naxes,Raxis,Paxis,Zaxis,nc):
 				
 				
 				particle['n_H2'] = density[i,j,k]
-				particle['V_cen'] = [km2m*Vr, km2m*Vt, km2m*Vp]
+				particle['V_cen'] = [
+                                        km2m * ( Vr*sin(theta) + Vt*cos(theta) ), 
+                                        km2m * Vp, 
+                                        km2m * ( Vr*cos(theta) - Vt*sin(theta) )
+                                              ]
 				particle['T_k'] = temperature[i,j,k]
 				if ( temperature[i,j,k] >= 90.0 ):
 					particle['X_mol'] = X_mol

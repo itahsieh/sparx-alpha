@@ -2010,9 +2010,9 @@ static int generic_vtk(void)
                 /* Should not happen */
                 Deb_ASSERT(0);
         }
-        
+#if 1
         sts = CalcContrib(geom);
-        
+#endif        
         Vtk_Output(n1, n2, n3, visual, root, glb.line, nvelo);
         
         Vtk_Mem_FREE(geom, visual);

@@ -81,7 +81,8 @@ int SpUtil_Threads2(size_t nthread, void *(*ThreadFunc)(void *))
 	}
 
 	/* All threads joined, terminate monitor thread */
-	pthread_kill(mon_thread, SIGTERM);
+	//pthread_kill(mon_thread, SIGTERM);
+	pthread_cancel(mon_thread);
 
 	/* Unblock signals for main thread */
 	pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
