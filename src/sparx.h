@@ -318,11 +318,12 @@ enum {
 	Sp_TRUNC
 };
 
+
+
 typedef struct SpFile {
 	char *name;
 	FILE *fp;
 	hid_t h5f_id;
-
 } SpFile;
 
 SpFile *SpIO_OpenFile(const char *fname, int mode); /* mode=Sp_NEW or Sp_OLD */

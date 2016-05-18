@@ -9,6 +9,10 @@
 #include <gsl/gsl_rng.h>
 #include "data_structs.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338327950288419716939937510
+#endif
+
 typedef enum {
 	GEOM_SPH1D,
 	GEOM_SPH3D,
@@ -169,6 +173,7 @@ GeVec3_d GeSubSampPos(int i, int j, int k, double Devide_2nSamp1D, GeVox * vp);
 GeVec3_d GeVec3_Geom2Cart( GEOM_TYPE geom, GeVec3_d *GeomPt);
 GeVec3_d GeVec3_Sph2Cart( GeVec3_d *SphPt);
 GeVec3_d GeVec3_Cyl2Cart( GeVec3_d *CylPt);
+GeVec3_d GeVec3_Rec2Cart( GeVec3_d *RecPt);
 
 
 

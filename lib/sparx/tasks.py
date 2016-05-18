@@ -2213,7 +2213,10 @@ telsim_keys = [
                 ),
 	Key("subres", Type.Custom([[Type.Angle, Type.Angle, Type.Angle, Type.Angle, Type.PosInt]]), Type.Optional, 
                 "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]"
-                )	
+                ),
+        Key("vis", Type.Bool, "False", 
+                                "VTK output for visualization purpose"
+                                )
 ]
 
 ##

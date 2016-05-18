@@ -6,6 +6,7 @@ printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
 
 sparx run task_lineobs \
 source=../storage/1Dpops/pops \
+vis='True' \
 out=map \
 line=1 \
 tau=tau \

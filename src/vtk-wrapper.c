@@ -9,28 +9,11 @@
 
 
 
-enum{
-        VISUAL_CONTRIBUTION,
-        VISUAL_TAU,
-        VISUAL_TAU_DEV,
-        VISUAL_EXITATION
-};
-
-DatINode VISUAL_TYPES[] = {
-        {"contribution", VISUAL_CONTRIBUTION},
-        {"optical_depth", VISUAL_TAU},
-        {"optical_depth_deviation", VISUAL_TAU_DEV},
-        {"exitation_temperature", VISUAL_EXITATION},
-        {0, 0}
-};
-
 
 /*----------------------------------------------------------------------------*/
 
 void Vtk_Mem_CALL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
 {
-        
-        
         size_t nelement;
         
         switch(geom){
@@ -269,7 +252,174 @@ GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos)
 
 /*----------------------------------------------------------------------------*/
 
-void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, size_t line, size_t nvelo)
+void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom)
+{
+        switch (geom){
+            case GEOM_SPH1D:
+                visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
+                    
+                // Dimension of the visualized resolution
+                *n1 = visual->sph3d->nr = root->nchildren;
+                *n2 = visual->sph3d->nt = 45;
+                *n3 = visual->sph3d->np = 90;
+                
+                // initialize memory
+                Vtk_Mem_CALL(geom, visual, nvelo);
+                {
+                // link to the global pointer
+                double * radius = visual->sph3d->radius;
+                double * theta = visual->sph3d->theta;
+                double * phi = visual->sph3d->phi;
+                
+                // construct the expanding SPH3D mesh
+                // radius
+                radius[0] = root->children[0]->voxel.min.x[0];
+                for(size_t i = 1; i < *n1 + 1; i++)
+                        radius[i] = root->children[i-1]->voxel.max.x[0];
+                // theta
+                double delta_theta = M_PI / (double) *n2;
+                theta[0] = 0.;
+                for ( size_t j = 1; j < *n2 + 1; j++)
+                        theta[j] = theta[j-1] + delta_theta;
+                //phi
+                double delta_phi = 2.0 * M_PI / (double) *n3;
+                phi[0] = 0.;
+                for (size_t k = 1; k < *n3 + 1; k ++)
+                        phi[k] = phi[k-1] + delta_phi;
+
+                }
+                break;
+            case GEOM_SPH3D:
+                visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
+                
+                // Dimension of the visualized resolution
+                *n1 = visual->sph3d->nr = root->naxes.x[0];
+                *n2 = visual->sph3d->nt = (root->naxes.x[1] == 1) ? 
+                        45 : root->naxes.x[1];
+                *n3 = visual->sph3d->np = (root->naxes.x[2] == 1) ? 
+                        90 : root->naxes.x[2];
+                        
+                // initialize memory
+                Vtk_Mem_CALL(geom, visual, nvelo);
+                {
+                // link to the global pointer
+                double * radius = visual->sph3d->radius;
+                double * theta = visual->sph3d->theta;
+                double * phi = visual->sph3d->phi;
+                
+                // construct the expanding SPH3D mesh
+                // radius
+                radius[0] = root->children[0]->voxel.min.x[0];
+                for(size_t i = 1; i < *n1 + 1; i++)
+                        radius[i] = root->children[ (i-1)*root->naxes.x[1]*root->naxes.x[2] ]->voxel.max.x[0];
+                // theta
+                if (root->naxes.x[1] == 1){
+                        double delta_theta = M_PI / (double) *n2;
+                        theta[0] = 0.;
+                        for ( size_t j = 1; j < *n2 + 1; j++)
+                                theta[j] = theta[j-1] + delta_theta;
+                }
+                else{
+                        theta[0] = root->children[0]->voxel.min.x[1];
+                        for ( size_t j = 1; j < *n2 + 1; j++)
+                                theta[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[1];
+                }
+                //phi
+                if (root->naxes.x[2] == 1){
+                        double delta_phi = 2. * M_PI / (double) *n3;
+                        phi[0] = 0.;
+                        for (size_t k = 1; k < *n3 + 1; k ++)
+                                phi[k] = phi[k-1] + delta_phi;
+                }
+                else{
+                        phi[0] = root->children[0]->voxel.min.x[2];
+                        for (size_t k = 1; k < *n3 + 1; k ++)
+                                phi[k] = root->children[k-1]->voxel.max.x[2];
+                }
+
+                }
+                break;
+            case GEOM_REC3D:
+                visual->rec3d = Mem_CALLOC( 1, visual->rec3d);
+                
+                // Dimension of the visualized resolution
+                *n1 = visual->rec3d->nx = root->naxes.x[0];
+                *n2 = visual->rec3d->ny = root->naxes.x[1];
+                *n3 = visual->rec3d->nz = root->naxes.x[2];
+                
+                // initialize memory
+                Vtk_Mem_CALL(geom, visual, nvelo);
+                {
+                // link to the global pointer
+                double * x = visual->rec3d->x;
+                double * y = visual->rec3d->y;
+                double * z = visual->rec3d->z;
+                
+                // construct the expanding CYL3D mesh
+                // for x
+                x[0] = root->children[0]->voxel.min.x[0];
+                for(size_t i = 1; i < *n1 + 1; i++)
+                        x[i] = root->children[ (i-1)*root->naxes.x[1]*root->naxes.x[2] ]->voxel.max.x[0];
+                // for y
+                y[0] = root->children[0]->voxel.min.x[0];
+                for(size_t j = 1; j < *n2 + 1; j++)
+                        y[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[0];
+                // for z
+                z[0] = root->children[0]->voxel.min.x[2];
+                for (size_t k = 1; k < *n3 + 1; k ++)
+                        z[k] = root->children[k-1]->voxel.max.x[2];
+                
+                }
+                break;
+            case GEOM_CYL3D:
+                visual->cyl3d = Mem_CALLOC( 1, visual->cyl3d);
+                // Dimension of the visualized resolution
+                *n1 = visual->cyl3d->nr = root->naxes.x[0];
+                *n2 = visual->cyl3d->np = (root->naxes.x[1] == 1) ? 
+                        72 : root->naxes.x[1];
+                *n3 = visual->cyl3d->nz = root->naxes.x[2];
+
+                // initialize memory
+                Vtk_Mem_CALL(geom, visual, nvelo);
+                {
+                // link to the global pointer
+                double * Rc     = visual->cyl3d->Rc;
+                double * phi    = visual->cyl3d->phi;
+                double * Z      = visual->cyl3d->Z;
+                
+                // construct the expanding CYL3D mesh
+                // for Rc
+                Rc[0] = root->children[0]->voxel.min.x[0];
+                for(size_t i = 1; i < *n1 + 1; i++)
+                        Rc[i] = root->children[ (i-1) * root->naxes.x[1] * root->naxes.x[2] ]->voxel.max.x[0];
+                // for phi
+                if (root->naxes.x[1] == 1){
+                        double delta_phi = 2.0 * M_PI / (double) *n2;
+                        phi[0] = 0.;
+                        for ( size_t j = 1; j < *n2 + 1; j++)
+                                phi[j] = phi[j-1] + delta_phi;
+                }
+                else{
+                        phi[0] = root->children[0]->voxel.min.x[1];
+                        for ( size_t j = 1; j < *n2 + 1; j++)
+                                phi[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[1];
+                }
+                // for Z
+                Z[0] = root->children[0]->voxel.min.x[2];
+                for (size_t k = 1; k < *n3 + 1; k ++)
+                        Z[k] = root->children[k-1]->voxel.max.x[2];
+                
+                }
+                break;
+            default:
+                /* Should not happen */
+                Deb_ASSERT(0);
+        }
+}
+
+/*----------------------------------------------------------------------------*/
+
+void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task)
 {
         GEOM_TYPE geom = root->voxel.geom;
         size_t nelement = n1 * n2 * n3;
@@ -284,11 +434,6 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
         FILE *fp;
         char filename[32];
 
-#define INTEGRATED 1
-#define SEPERATED 1
-#define VFIELD 1
-        
-#if INTEGRATED
         // open VTK file
         sprintf(filename,"vis.vtk");
         fp=fopen(filename,"w");
@@ -347,133 +492,7 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
            }
            fprintf(fp,"\n");
          }
-        
-        // exitation temperature
-        fprintf(fp,"SCALARS Tex float 1\n");
-        fprintf(fp,"LOOKUP_TABLE default\n");
-        for( size_t i = 0; i < n1; i++)
-         for( size_t j = 0; j < n2; j++){
-          for( size_t k = 0; k < n3; k++){
-                size_t izone = ZoneIndex( geom, i, j, k, root);
-                SpPhys *pp = root->children[izone]->data;
-                if(pp->X_mol == 0.0){
-                        fprintf(fp,"%E ", 0.0);
-                }
-                else{
-                        MolTrRad *trans = pp->mol->rad[line];
-                        size_t up = trans->up;
-                        size_t lo = trans->lo;
-                        double n_u = pp->pops[0][up];
-                        double n_l = pp->pops[0][lo];
-                        double E_u = pp->mol->lev[up]->E;
-                        double E_l = pp->mol->lev[lo]->E;
-                        double g_u = pp->mol->lev[up]->g;
-                        double g_l = pp->mol->lev[lo]->g;
-                        double Tex = (E_l-E_u)
-                                / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
-                        fprintf(fp,"%E ", Tex/(pp->T_k));
-                }
-           }
-           fprintf(fp,"\n");
-         }
-        
-        // write the dust contribution of the cells
-        fprintf(fp,"SCALARS DUST_CONTRIBUTION float 1\n");
-        fprintf(fp,"LOOKUP_TABLE default\n");
-        for (size_t idx = 0; idx < nelement; idx++)
-                fprintf(fp,"%E ", contrib_dust[idx]);
-        fprintf(fp,"\n");
-        
-        
-        fprintf(fp,"FIELD CONTRIBUTION_TAU 3\n");
-        // write the contribution of the cells
-        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[0].name, nvelo, nelement);
-        for (size_t idx = 0; idx < nelement; idx++){
-                for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", contrib[idx][l]);
-                fprintf(fp,"\n");
-        }
-        
-        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[1].name, nvelo, nelement);
-        for (size_t idx = 0; idx < nelement; idx++){
-                for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau[idx][l]);
-                fprintf(fp,"\n");
-        }
-        fprintf(fp,"%s %zu %zu float\n", VISUAL_TYPES[2].name, nvelo, nelement);
-        for (size_t idx = 0; idx < nelement; idx++){
-                for ( size_t l = 0; l < nvelo; l++)
-                        fprintf(fp,"%E ", tau_dev[idx][l]);
-                fprintf(fp,"\n");
-        }        
-        
-        fclose(fp);
-        printf("wrote %s\n",filename);
-#endif 
-        
-#if SEPERATED
-        // for seperate contribution channel as a file
-        for( size_t l = 0; l < nvelo; l++){
-                // open VTK file
-                sprintf(filename,"contribution_%04zu.vtk", l);
-                fp=fopen(filename,"w");
-                
-                // write the header
-                fprintf(fp,"# vtk DataFile Version 3.0\n");
-                fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
-                fprintf(fp,"ASCII\n");
-                
-                // define the type of the gridding
-                fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
-                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-                fprintf(fp,"POINTS %zu float\n", npoint );
-                for( size_t i = 0; i < n1 + 1; i++)
-                  for( size_t j = 0; j < n2 + 1; j++)
-                    for( size_t k = 0; k < n3 + 1; k++){
-                        GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual);
-                        GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
-                        fprintf(fp,"%E %E %E\n", CartPos.x[0],  CartPos.x[1],  CartPos.x[2]);
-                }
-                
-                // write the artributes
-                fprintf(fp,"CELL_DATA %zu\n", nelement );
-                // write the contribution of the cells
-                fprintf(fp,"SCALARS CONTRIBUTION float 1\n");
-                fprintf(fp,"LOOKUP_TABLE default\n");
-                for (size_t idx = 0; idx < nelement; idx++)
-                        fprintf(fp,"%E ", contrib[idx][l]);
-                fprintf(fp,"\n");
-                
-                fclose(fp);
-                printf("wrote %s\n",filename);
-        }
-#endif
-
-#if VFIELD
-        // open VTK file
-        sprintf(filename,"vfield.vtk");
-        fp=fopen(filename,"w");
-
-        // write the header
-        fprintf(fp,"# vtk DataFile Version 3.0\n");
-        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
-        fprintf(fp,"ASCII\n");
-
-        // define the type of the gridding
-        fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
-        fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-        fprintf(fp,"POINTS %zu float\n", npoint );
-        for( size_t i = 0; i < n1 + 1; i++)
-          for( size_t j = 0; j < n2 + 1; j++)
-            for( size_t k = 0; k < n3 + 1; k++){
-                GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual);
-                GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
-                fprintf(fp,"%E %E %E\n", CartPos.x[0],  CartPos.x[1],  CartPos.x[2]);
-        }
-
-        // write the artributes
-        fprintf(fp,"CELL_DATA %zu\n", nelement );
-        // write the contribution of the cells
+        // write the velocity field
         fprintf(fp,"VECTORS velocity float\n");
         for( size_t i = 0; i < n1; i++)
           for( size_t j = 0; j < n2; j++)
@@ -493,14 +512,87 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
                 GeVec3_d VCart = SpPhys_GetVgas(&CartPos, zp);
                 fprintf(fp,"%E %E %E\n", VCart.x[0], VCart.x[1], VCart.x[2]);
            }
-
+           
+        if(task == TASK_LINE){
+            // exitation temperature
+            fprintf(fp,"SCALARS Tex float 1\n");
+            fprintf(fp,"LOOKUP_TABLE default\n");
+            for( size_t i = 0; i < n1; i++)
+              for( size_t j = 0; j < n2; j++){
+                for( size_t k = 0; k < n3; k++){
+                  size_t izone = ZoneIndex( geom, i, j, k, root);
+                  SpPhys *pp = root->children[izone]->data;
+                  if(pp->X_mol == 0.0){
+                          fprintf(fp,"%E ", 0.0);
+                  }
+                  else{
+                          MolTrRad *trans = pp->mol->rad[line];
+                          size_t up = trans->up;
+                          size_t lo = trans->lo;
+                          double n_u = pp->pops[0][up];
+                          double n_l = pp->pops[0][lo];
+                          double E_u = pp->mol->lev[up]->E;
+                          double E_l = pp->mol->lev[lo]->E;
+                          double g_u = pp->mol->lev[up]->g;
+                          double g_l = pp->mol->lev[lo]->g;
+                          double Tex = (E_l-E_u)
+                                  / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
+                          fprintf(fp,"%E ", Tex/(pp->T_k));
+                  }
+                }
+              fprintf(fp,"\n");
+            }
+        }
+        if(task == TASK_LINE || task == TASK_CONT){
+            // write the dust contribution of the cells
+            fprintf(fp,"SCALARS DUST_CONTRIBUTION float 1\n");
+            fprintf(fp,"LOOKUP_TABLE default\n");
+            for (size_t idx = 0; idx < nelement; idx++)
+                    fprintf(fp,"%E ", contrib_dust[idx]);
+            fprintf(fp,"\n");
+        }
+        
         fclose(fp);
         printf("wrote %s\n",filename);
-#endif
-
         
-#undef INTEGRATED 0
-#undef SEPERATED 1
-#undef VFIELD 1       
+        
+        if(task == TASK_LINE){
+            // for seperate contribution channel as a file
+            for( size_t l = 0; l < nvelo; l++){
+                // open VTK file
+                sprintf(filename,"contribution_%04zu.vtk", l);
+                fp=fopen(filename,"w");
+                
+                // write the header
+                fprintf(fp,"# vtk DataFile Version 3.0\n");
+                fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
+                fprintf(fp,"ASCII\n");
+                
+                // define the type of the gridding
+                fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
+                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
+                fprintf(fp,"POINTS %zu float\n", npoint );
+                for( size_t i = 0; i < n1 + 1; i++)
+                  for( size_t j = 0; j < n2 + 1; j++)
+                    for( size_t k = 0; k < n3 + 1; k++){
+                        GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual);
+                        GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
+                        fprintf(fp,"%E %E %E\n", CartPos.x[0], CartPos.x[1], CartPos.x[2]);
+                    }
+                
+                // write the artributes
+                fprintf(fp,"CELL_DATA %zu\n", nelement );
+                // write the contribution of the cells
+                fprintf(fp,"SCALARS CONTRIBUTION float 1\n");
+                fprintf(fp,"LOOKUP_TABLE default\n");
+                for (size_t idx = 0; idx < nelement; idx++)
+                        fprintf(fp,"%E ", contrib[idx][l]);
+                fprintf(fp,"\n");
+                
+                fclose(fp);
+                printf("wrote %s\n",filename);
+            }
+        }
+ 
         return;
 }

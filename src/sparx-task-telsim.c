@@ -1,11 +1,13 @@
 #include "sparx.h"
+#include "task.h"
 
 /* Global parameter struct */
 static struct glb {
 	DatINode *task;
         int     overlap,
                 lte,
-                excit;
+                excit,
+                vis;
 	DatINode *unit;
 	double ucon, overlap_vel;
 	MirImg_Axis x, y, v;
@@ -36,21 +38,6 @@ static DatINode UNITS[] = {
         {"MKS", UNIT_MKS},
         {"CGS", UNIT_MKS},
 	{0, 0}
-};
-
-
-enum {
-        TASK_LINE,
-        TASK_ZEEMAN,
-        TASK_CONT,
-        TASK_COLDENS
-};
-static DatINode TASKS[] = {
-        {"line", TASK_LINE},
-        {"zeeman", TASK_ZEEMAN},
-        {"cont", TASK_CONT},
-        {"coldens", TASK_COLDENS},
-        {0, 0}
 };
 
 #define MEAN_INT(ix, iy)\
@@ -106,7 +93,7 @@ static void Vtk_nested_hyosun(void);
 
 
 
-static int generic_vtk(void);
+static int generic_vtk(Zone * root, size_t nvelo, TASK_TYPE task);
 
 static int CalcContrib(GEOM_TYPE geom_type);
 
@@ -201,17 +188,19 @@ int SpTask_Telsim(void)
                 }
                 SpPy_XDECREF(o);
         }
+        /* vis : vtk output switch */
+        if(!sts) sts = SpPy_GetInput_bool("vis", &glb.vis);
 
 /*    1-2 get the task-based parameters */
 	/* obs */
 	if(!sts && !(sts = SpPy_GetInput_PyObj("obs", &o))) {
-                PyObject *o_task;
+                
                 /* task */
+                PyObject *o_task;
                 o_task = PyObject_GetAttrString(o, "task");
                 glb.task = Dat_IList_NameLookup(TASKS, Sp_PYSTR(o_task));
                 SpPy_XDECREF(o_task);	
                 
-                PyObject *o_line;
                 PyObject *o1, *o2, *o3;
                 switch (glb.task->idx){
                   // for task-contobs 
@@ -229,11 +218,12 @@ int SpTask_Telsim(void)
                   
                   // for task-lineobs
                   case TASK_ZEEMAN:
-                          // get line transition
+                        { // get line transition
+                          PyObject *o_line;
                           o_line = PyObject_GetAttrString(o, "line");
                           glb.line = Sp_PYSIZE(o_line);
                           SpPy_XDECREF(o_line);
-                          
+                        }
                           if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
                           if(!sts){
                                   if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
@@ -247,11 +237,12 @@ int SpTask_Telsim(void)
                           break;
                   // for task-lineobs
                   case TASK_LINE:
-                          // get line transition
+                        { // get line transition
+                          PyObject *o1;
                           o1 = PyObject_GetAttrString(o, "line");
                           glb.line = Sp_PYSIZE(o1);
                           SpPy_XDECREF(o1);
-                          
+                        }
                           if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
                           if(!sts){
                                   if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
@@ -267,16 +258,18 @@ int SpTask_Telsim(void)
                                   sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
                           }
 
-                          // get overlap switch
+                        { // get overlap switch
+                          PyObject *o2;
                           o2 = PyObject_GetAttrString(o, "overlap_int");
                           glb.overlap = Sp_PYINT(o2);
-                          
-                          // get overlap velocity
+                          SpPy_XDECREF(o2);
+                        } 
+                        { // get overlap velocity
+                          PyObject *o3;
                           o3 = PyObject_GetAttrString(o, "overlap_vel");
                           glb.overlap_vel = Sp_PYDBL(o3);
-                          SpPy_XDECREF(o2);
                           SpPy_XDECREF(o3);
-                          
+                        }
                           /* excitation visualization */
                           if(!sts) 
                                   sts = SpPy_GetInput_bool("excit", &glb.excit);
@@ -485,9 +478,6 @@ int SpTask_Telsim(void)
                           /* write excitation visualization to VTK */
                           if(glb.excit && glb.task->idx == TASK_LINE)
                                 Vtk_nested_hyosun();
-                          #if 1
-                          sts = generic_vtk();
-                          #endif
                           break;
                   case TASK_ZEEMAN:
                           scale_factor = glb.I_norm/glb.ucon;
@@ -515,6 +505,10 @@ int SpTask_Telsim(void)
                         MirXY_Close(glb.tau_imgf);
                         #endif
                 }
+                
+                // VTK visualization
+                if (glb.vis)
+                    sts = generic_vtk( glb.model.grid, glb.v.n, glb.task->idx);
                 
         }
 
@@ -1831,194 +1825,32 @@ static void Vtk_nested_hyosun(void)
         
         return;
 }
-
 /*----------------------------------------------------------------------------*/
 
-static int generic_vtk(void)
+static int generic_vtk(Zone * root, size_t nvelo, TASK_TYPE task)
 {
         int sts = 0;
         
-        Zone * root = glb.model.grid;
         GEOM_TYPE geom = root->voxel.geom;
-        size_t nvelo = glb.v.n;
-        
+
         // declare the memory
         VtkData * visual = &glb.visual;
         
-             
-        
         // the dimension and grid
         size_t n1, n2, n3;
-        switch (geom){
-            case GEOM_SPH1D:
-                visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
-                    
-                // Dimension of the visualized resolution
-                n1 = visual->sph3d->nr = root->nchildren;
-                n2 = visual->sph3d->nt = 45;
-                n3 = visual->sph3d->np = 90;
-                
-                // initialize memory
-                Vtk_Mem_CALL(geom, visual, nvelo);
-                {
-                // link to the global pointer
-                double * radius = visual->sph3d->radius;
-                double * theta = visual->sph3d->theta;
-                double * phi = visual->sph3d->phi;
-                
-                // construct the expanding SPH3D mesh
-                // radius
-                radius[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < n1+1; i++)
-                        radius[i] = root->children[i-1]->voxel.max.x[0];
-                // theta
-                double delta_theta = M_PI / (double) n2;
-                theta[0] = 0.;
-                for ( size_t j = 1; j < n2+1; j++)
-                        theta[j] = theta[j-1] + delta_theta;
-                //phi
-                double delta_phi = 2.0 * M_PI / (double) n3;
-                phi[0] = 0.;
-                for (size_t k = 1; k < n3+1; k ++)
-                        phi[k] = phi[k-1] + delta_phi;
-
-                }
-                break;
-            case GEOM_SPH3D:
-                visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
-                
-                // Dimension of the visualized resolution
-                n1 = visual->sph3d->nr = root->naxes.x[0];
-                n2 = visual->sph3d->nt = (root->naxes.x[1] == 1) ? 
-                        45 : root->naxes.x[1];
-                n3 = visual->sph3d->np = (root->naxes.x[2] == 1) ? 
-                        90 : root->naxes.x[2];
-                        
-                // initialize memory
-                Vtk_Mem_CALL(geom, visual, nvelo);
-                {
-                // link to the global pointer
-                double * radius = visual->sph3d->radius;
-                double * theta = visual->sph3d->theta;
-                double * phi = visual->sph3d->phi;
-                
-                // construct the expanding SPH3D mesh
-                // radius
-                radius[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < n1+1; i++)
-                        radius[i] = root->children[ (i-1)*root->naxes.x[1]*root->naxes.x[2] ]->voxel.max.x[0];
-                // theta
-                if (root->naxes.x[1] == 1){
-                        double delta_theta = M_PI / (double) n2;
-                        theta[0] = 0.;
-                        for ( size_t j = 1; j < n2+1; j++)
-                                theta[j] = theta[j-1] + delta_theta;
-                }
-                else{
-                        theta[0] = root->children[0]->voxel.min.x[1];
-                        for ( size_t j = 1; j < n2+1; j++)
-                                theta[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[1];
-                }
-                //phi
-                if (root->naxes.x[2] == 1){
-                        double delta_phi = 2. * M_PI / (double) n3;
-                        phi[0] = 0.;
-                        for (size_t k = 1; k < n3+1; k ++)
-                                phi[k] = phi[k-1] + delta_phi;
-                }
-                else{
-                        phi[0] = root->children[0]->voxel.min.x[2];
-                        for (size_t k = 1; k < n3+1; k ++)
-                                phi[k] = root->children[k-1]->voxel.max.x[2];
-                }
-
-                }
-                break;
-            case GEOM_REC3D:
-                visual->rec3d = Mem_CALLOC( 1, visual->rec3d);
-                
-                // Dimension of the visualized resolution
-                n1 = visual->rec3d->nx = root->naxes.x[0];
-                n2 = visual->rec3d->ny = root->naxes.x[1];
-                n3 = visual->rec3d->nz = root->naxes.x[2];
-                
-                // initialize memory
-                Vtk_Mem_CALL(geom, visual, nvelo);
-                {
-                // link to the global pointer
-                double * x = visual->rec3d->x;
-                double * y = visual->rec3d->y;
-                double * z = visual->rec3d->z;
-                
-                // construct the expanding CYL3D mesh
-                // for x
-                x[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < n1+1; i++)
-                        x[i] = root->children[ (i-1)*root->naxes.x[1]*root->naxes.x[2] ]->voxel.max.x[0];
-                // for y
-                y[0] = root->children[0]->voxel.min.x[0];
-                for(size_t j = 1; j < n1+1; j++)
-                        y[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[0];
-                // for z
-                z[0] = root->children[0]->voxel.min.x[2];
-                for (size_t k = 1; k < n3+1; k ++)
-                        z[k] = root->children[k-1]->voxel.max.x[2];
-                
-                }
-                break;
-            case GEOM_CYL3D:
-                visual->cyl3d = Mem_CALLOC( 1, visual->cyl3d);
-                // Dimension of the visualized resolution
-                n1 = visual->cyl3d->nr = root->naxes.x[0];
-                n2 = visual->cyl3d->np = (root->naxes.x[1] == 1) ? 
-                        72 : root->naxes.x[1];
-                n3 = visual->cyl3d->nz = root->naxes.x[2];
-
-                // initialize memory
-                Vtk_Mem_CALL(geom, visual, nvelo);
-                {
-                // link to the global pointer
-                double * Rc     = visual->cyl3d->Rc;
-                double * phi    = visual->cyl3d->phi;
-                double * Z      = visual->cyl3d->Z;
-                
-                // construct the expanding CYL3D mesh
-                // for Rc
-                Rc[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < n1+1; i++)
-                        Rc[i] = root->children[ (i-1) * root->naxes.x[1] * root->naxes.x[2] ]->voxel.max.x[0];
-                // for phi
-                if (root->naxes.x[1] == 1){
-                        double delta_phi = 2.0 * M_PI / (double) n2;
-                        phi[0] = 0.;
-                        for ( size_t j = 1; j < n2+1; j++)
-                                phi[j] = phi[j-1] + delta_phi;
-                }
-                else{
-                        phi[0] = root->children[0]->voxel.min.x[1];
-                        for ( size_t j = 1; j < n2+1; j++)
-                                phi[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[1];
-                }
-                // for Z
-                Z[0] = root->children[0]->voxel.min.x[2];
-                for (size_t k = 1; k < n3+1; k ++)
-                        Z[k] = root->children[k-1]->voxel.max.x[2];
-                
-                }
-                break;
-            default:
-                /* Should not happen */
-                Deb_ASSERT(0);
-        }
-#if 1
-        sts = CalcContrib(geom);
-#endif        
-        Vtk_Output(n1, n2, n3, visual, root, glb.line, nvelo);
+        Vtk_InitializeGrid(&n1, &n2, &n3, nvelo, root, visual, geom);
+        
+        
+        if( task == TASK_LINE)
+                sts = CalcContrib(geom);
+      
+        Vtk_Output(n1, n2, n3, visual, root, glb.line, nvelo, task);
         
         Vtk_Mem_FREE(geom, visual);
         
         return sts;
 }
+
 
 /*----------------------------------------------------------------------------*/
 

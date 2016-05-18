@@ -14,7 +14,7 @@
 #include "numerical.h"
 #include "geometry.h"
 
-#define M_PI 3.14159265358979323846264338327950288419716939937510
+
 
 DatINode GEOM_TYPES[] = {
 	{"sph1d", GEOM_SPH1D},
@@ -1613,14 +1613,7 @@ Side 4&5: lower/upper Height
 }
 
 /*----------------------------------------------------------------------------*/
-/* This samples a random number uniformly in the
- * interval [0, 1) */
-#define RAND()\
-	gsl_rng_uniform(rng)
-/* This samples a random number uniformly in the
- * interval (0, 1) */
-#define PRAND()\
-	gsl_rng_uniform_pos(rng)
+
 
 GeRay GeRay_Rand(gsl_rng *rng, const GeVox *voxel)
 {
@@ -1652,7 +1645,14 @@ GeRay GeRay_Rand(gsl_rng *rng, const GeVox *voxel)
 }
 
 /*----------------------------------------------------------------------------*/
-
+/* This samples a random number uniformly in the
+ * interval [0, 1) */
+#define RAND()\
+        gsl_rng_uniform(rng)
+/* This samples a random number uniformly in the
+ * interval (0, 1) */
+#define PRAND()\
+        gsl_rng_uniform_pos(rng)
 GeRay GeRay_Rand_sph1d(gsl_rng *rng, const GeVox *voxel)
 {
 	
@@ -1705,8 +1705,8 @@ GeRay GeRay_Rand_sph3d(gsl_rng *rng, const GeVox *voxel)
 		phi_in = GeVec3_X(voxel->min, 2),
 		phi_out = GeVec3_X(voxel->max, 2);
 	double phi, cost, sint;
-	#define ONE_THIRD (0.3333333333333333)
-	#define USE_RNG 1
+	
+	
 
 	/* Reset ray */
         GeRay ray;
@@ -1715,16 +1715,20 @@ GeRay GeRay_Rand_sph3d(gsl_rng *rng, const GeVox *voxel)
 	
 
 	/* Set random ray origin in rectangular coordinates */
+	#define USE_RNG 1
 	#if USE_RNG
+	#define ONE_THIRD (0.3333333333333333)
 	if( r_in != 0.0 )
 		Er = r_in * pow((1.0 + PRAND() * (pow(r_out/r_in, 3.0) - 1.0)), ONE_THIRD);
 	else
 		Er = r_out * pow(PRAND(), ONE_THIRD);
-	
-	if( theta_in != 0.0)
+	#undef ONE_THIRD
+        
+        if( theta_in != 0.0)
 		Et = acos( (cos(theta_in)-1.0) * (1.0+PRAND()*((cos(theta_out)-1.0)/(cos(theta_in)-1.0)-1.0)) + 1.0 );
 	else
 		Et = acos( 1.0+PRAND()*(cos(theta_out)-1.0) );
+        
 	Ep = phi_in + PRAND()*(phi_out-phi_in);
 	#else
 	Er = GeVec3_X(voxel->cen, 0);

@@ -10,6 +10,7 @@ printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
 
 sparx run task_lineobs \
 source=../storage/cyl2d_model/model_env_disk \
+vis='True' \
 lte='True' \
 molec='hco+' \
 out=map \
