@@ -221,13 +221,18 @@ void GeRay_TraverseVoxel_sph3d(const GeRay *ray, const GeVox *voxel, double *tmi
 void GeRay_TraverseVoxel_rec3d(const GeRay *ray, const GeVox *voxel, double *tmin, size_t *side);
 void GeRay_TraverseVoxel_cyl3d(const GeRay *ray, const GeVox *voxel, double *tmin, size_t *side);
 
+/* Random ray generator */
 GeRay GeRay_Rand(gsl_rng *rng, const GeVox *voxel);
 GeRay GeRay_Rand_sph1d(gsl_rng *rng, const GeVox *voxel);
 GeRay GeRay_Rand_sph3d(gsl_rng *rng, const GeVox *voxel);
 GeRay GeRay_Rand_rec3d(gsl_rng *rng, const GeVox *voxel);
 GeRay GeRay_Rand_cyl3d(gsl_rng *rng, const GeVox *voxel);
-
-
+/* Quasi-Random ray generator */
+GeRay GeRay_QRand(const double *QRanNumber, const GeVox *voxel);
+GeRay GeRay_QRand_sph1d(const double *QRanNumber, const GeVox *voxel);
+GeRay GeRay_QRand_sph3d(const double *QRanNumber, const GeVox *voxel);
+GeRay GeRay_QRand_rec3d(const double *QRanNumber, const GeVox *voxel);
+GeRay GeRay_QRand_cyl3d(const double *QRanNumber, const GeVox *voxel);
 
 size_t GeVox_VertIndex2Pos(size_t i, size_t j, size_t k);
 GeVox GeVox_Init(int cosys, double xmin, double ymin, double zmin, double xmax, double ymax, double zmax);

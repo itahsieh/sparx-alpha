@@ -8,9 +8,9 @@
  * ... etc.
  */
 
-#define Num_PI 3.14159
-#define Num_TWOPI 6.28318
-#define Num_HALFPI 1.5707949999999999
+#define Num_PI 3.141592653589793238462643383279502884197
+#define Num_TWOPI  6.283185307179586
+#define Num_HALFPI 1.5707963267948966
 
 #define Num_MAX(a, b)\
 	((a) > (b) ? (a) : (b))
@@ -43,5 +43,6 @@ void NumFFT_Swap2d(double *arr, size_t idim, size_t jdim);
 double Num_GaussNormal(double x, double width);
 double Num_GaussNormal2(double x, double width);
 void Num_RanDir3D(gsl_rng *rng, double *cost, double *sint, double *phi);
+void Num_QRanDir3D(const double *QRN, double *cost, double *sint, double *phi);
 
 #endif

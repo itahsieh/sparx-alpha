@@ -1848,6 +1848,222 @@ GeRay GeRay_Rand_cyl3d(gsl_rng *rng, const GeVox *voxel)
 
 	return ray;
 }
+#undef PRAND
+#undef RAND
+
+/*----------------------------------------------------------------------------*/
+
+
+GeRay GeRay_QRand(const double *QRN, const GeVox *voxel)
+{
+        GeRay ray;
+
+        switch(voxel->geom) {
+                case GEOM_SPH1D:
+                        ray = GeRay_QRand_sph1d(QRN, voxel);
+                        break;
+
+                case GEOM_SPH3D:
+                        ray = GeRay_QRand_sph3d(QRN, voxel);
+                        break;
+                                                
+                case GEOM_REC3D:
+                        ray = GeRay_QRand_rec3d(QRN, voxel);
+                        break;
+                        
+                case GEOM_CYL3D:
+                        ray = GeRay_QRand_cyl3d(QRN, voxel);
+                        break;
+
+                default: /* Shouldn't reach here */
+                        Deb_PRINT("Uh oh, voxel->geom holds an unidentified geometry code '%d'\n", voxel->geom);
+                        Deb_ASSERT(0);
+        }
+
+        return ray;
+}
+
+/*----------------------------------------------------------------------------*/
+
+GeRay GeRay_QRand_sph1d(const double *QRN, const GeVox *voxel)
+{
+        
+        double r, phi, cost, sint,
+                r_in = GeVec3_X(voxel->min, 0),
+                r_out = GeVec3_X(voxel->max, 0);
+
+        #define ONE_THIRD (0.3333333333333333)
+        /* Calculate random ray origin in spherical coordinates */
+        if(r_in > 0) {
+                r = r_in * pow((1.0 + QRN[0] * (pow(r_out/r_in, 3.0) - 1.0)), ONE_THIRD);
+        }
+        else {
+                r = r_out * pow( QRN[0], ONE_THIRD);
+        }
+        #undef ONE_THIRD
+        /* Reset ray */
+        GeRay ray;
+        Mem_BZERO(&ray);
+        /* Since this is a 1D problem, starting every ray from the
+           +Z axis is good enough */
+        GeRay_E(ray, 2) = r;
+        /* Generate random 3D direction */
+        Num_QRanDir3D(QRN, &cost, &sint, &phi);
+        /* Convert to rectangular coordinates */
+        GeRay_D(ray, 0) = sint * cos(phi);
+        GeRay_D(ray, 1) = sint * sin(phi);
+        GeRay_D(ray, 2) = cost;
+
+        return ray;
+}
+/*----------------------------------------------------------------------------*/
+
+GeRay GeRay_QRand_sph3d(const double *QRN, const GeVox *voxel)
+/* Generate a randomly directed ray starting from a random position within
+   the voxel */
+{
+        double Er, Et, Ep;
+        double r_in = GeVec3_X(voxel->min, 0),
+                r_out = GeVec3_X(voxel->max, 0),
+                theta_in = GeVec3_X(voxel->min, 1),
+                theta_out = GeVec3_X(voxel->max, 1),
+                phi_in = GeVec3_X(voxel->min, 2),
+                phi_out = GeVec3_X(voxel->max, 2);
+        double phi, cost, sint;
+        /* Reset ray */
+        GeRay ray;
+        Mem_BZERO(&ray);
+        /* Set random ray origin in rectangular coordinates */
+        #define USE_RNG 1
+        #if USE_RNG
+        #define ONE_THIRD (0.3333333333333333)
+        if( r_in != 0.0 )
+                Er = r_in * pow((1.0 + QRN[0] * (pow(r_out/r_in, 3.0) - 1.0)), ONE_THIRD);
+        else
+                Er = r_out * pow(QRN[0], ONE_THIRD);
+        #undef ONE_THIRD
+        
+        if( theta_in != 0.0)
+                Et = acos( (cos(theta_in)-1.0) * ( 1.0 + QRN[1] * ((cos(theta_out)-1.0) / (cos(theta_in)-1.0) - 1.0) ) + 1.0 );
+        else
+                Et = acos( 1.0 + QRN[1] * (cos(theta_out)-1.0) );
+        
+        Ep = phi_in + QRN[2] * (phi_out-phi_in);
+        #else
+        Er = GeVec3_X(voxel->cen, 0);
+        Et = GeVec3_X(voxel->cen, 1);
+        Ep = GeVec3_X(voxel->cen, 2);
+        #endif
+        
+        #if 0 //debug
+        Deb_PRINT("Er=%g r_in=%g r_out=%g\n",Er,r_in,r_out);
+        Deb_PRINT("Et=%g theta_in=%g theta_out=%g\n",Et,theta_in,theta_out);
+        Deb_PRINT("Ep=%g phi_in=%g phi_out=%g\n",Ep,phi_in,phi_out);
+        #endif
+        GeRay_E(ray, 0) = Er * sin(Et) * cos(Ep);
+        GeRay_E(ray, 1) = Er * sin(Et) * sin(Ep);
+        GeRay_E(ray, 2) = Er * cos(Et);
+        /* Generate random 3D direction */
+        Num_QRanDir3D(QRN, &cost, &sint, &phi);
+        /* Convert to rectangular coordinates */
+        GeRay_D(ray, 0) = sint * cos(phi);
+        GeRay_D(ray, 1) = sint * sin(phi);
+        GeRay_D(ray, 2) = cost;
+
+        return ray;
+}
+
+
+/*----------------------------------------------------------------------------*/
+
+GeRay GeRay_QRand_rec3d(const double *QRN, const GeVox *voxel)
+/* Generate a randomly directed ray starting from a random position within
+   the voxel */
+{
+        GeRay ray;
+        double phi, cost, sint;
+
+        /* Reset ray */
+        Mem_BZERO(&ray);
+
+        /* Set random ray origin in rectangular coordinates */
+        for(size_t i = 0; i < 3; i++) {
+                #if 1
+                GeRay_E(ray, i) = GeVec3_X(voxel->cen, i) + (QRN[i] - 0.5) * GeVec3_X(voxel->delta, i);
+                #else
+                GeRay_E(ray, i) = GeVec3_X(voxel->min, i) + QRN[i] * GeVec3_X(voxel->delta, i)
+                #endif
+        }
+
+        /* Generate random 3D direction */
+        Num_QRanDir3D(QRN, &cost, &sint, &phi);
+
+        /* Convert to rectangular coordinates */
+        GeRay_D(ray, 0) = sint * cos(phi);
+        GeRay_D(ray, 1) = sint * sin(phi);
+        GeRay_D(ray, 2) = cost;
+
+        return ray;
+}
+/*----------------------------------------------------------------------------*/
+
+GeRay GeRay_QRand_cyl3d(const double *QRN, const GeVox *voxel)
+/* Generate a randomly directed ray starting from a random position within
+   the voxel */
+{
+        
+        double ERc, Ez, Ep;
+        double  Rc_in = GeVec3_X(voxel->min, 0),
+                Rc_out = GeVec3_X(voxel->max, 0),
+                phi_in = GeVec3_X(voxel->min, 1),
+                phi_out = GeVec3_X(voxel->max, 1),
+                Hz_l = GeVec3_X(voxel->min, 2),
+                Hz_u = GeVec3_X(voxel->max, 2);
+                
+        double phi, cost, sint;
+        #define USE_RNG 1
+
+        /* Reset ray */
+        GeRay ray;
+        Mem_BZERO(&ray);
+
+        /* Set random ray origin in rectangular coordinates */
+        #if USE_RNG
+        ERc = ( Rc_in != 0.0 )?
+                Rc_out * pow( QRN[0] , 0.5) :
+                Rc_in * pow((1.0 + QRN[0] * (pow(Rc_out/Rc_in, 2.0) - 1.0)), 0.5);
+
+        Ep = phi_in + QRN[1] * ( phi_out - phi_in );
+        Ez = Hz_l + QRN[2] * ( Hz_u - Hz_l );
+        #else
+        ERc = GeVec3_X(voxel->cen, 0);
+        Ep = GeVec3_X(voxel->cen, 1);
+        Ez = GeVec3_X(voxel->cen, 2);
+        #endif
+        
+        #if 0 //debug
+        Deb_PRINT("Er=%g r_in=%g r_out=%g\n",Er,r_in,r_out);
+        Deb_PRINT("Et=%g theta_in=%g theta_out=%g\n",Et,theta_in,theta_out);
+        Deb_PRINT("Ep=%g phi_in=%g phi_out=%g\n",Ep,phi_in,phi_out);
+        #endif
+        GeRay_E(ray, 0) = ERc * cos(Ep);
+        GeRay_E(ray, 1) = ERc * sin(Ep);
+        GeRay_E(ray, 2) = Ez;
+
+
+        /* Generate random 3D direction */
+        Num_QRanDir3D(QRN, &cost, &sint, &phi);
+
+        /* Convert to rectangular coordinates */
+        GeRay_D(ray, 0) = sint * cos(phi);
+        GeRay_D(ray, 1) = sint * sin(phi);
+        GeRay_D(ray, 2) = cost;
+
+        return ray;
+}
+
+
+
 /*----------------------------------------------------------------------------*/
 #if Sp_MIRSUPPORT
 void GeVox_Cpgplot(const GeVox *voxel, const GeCam *cam)

@@ -563,6 +563,19 @@ void Num_RanDir3D(gsl_rng *rng, double *cost, double *sint, double *phi)
 }
 
 
+/*----------------------------------------------------------------------------*/
+
+void Num_QRanDir3D(const double *QRN, double *cost, double *sint, double *phi)
+/* Generate a random direction in 3D space */
+{
+        *cost = 2.0 * QRN[3] - 1.0;
+        *sint = sqrt(1.0 - (*cost) * (*cost));
+        *phi = QRN[4] * Num_TWOPI;
+
+        return;
+}
+
+
 
 
 

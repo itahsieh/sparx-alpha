@@ -1,5 +1,6 @@
 #include "sparx.h"
 #include <gsl/gsl_rng.h>
+#include <gsl/gsl_qrng.h>
 
 enum {
 	STAGE_FIX,
@@ -7,6 +8,8 @@ enum {
 	STAGE_FIN,
 	STAGE_N
 };
+
+#define QRAN_DIM 6
 
 /* Global parameter struct */
 static struct glb {
@@ -16,9 +19,10 @@ static struct glb {
 	Zone **zones;
 	size_t *zone_rank, *zone_tid;
 	gsl_rng *rng[Sp_NTHREAD];
+        gsl_qrng *qrng[Sp_NTHREAD];
 	unsigned long seed;
 	double tolerance, minpop, snr, *I_norm, *I_cmb, max_diff, overlap_vel;
-	int stage, fully_random, lte, overlap, trace, popsold;
+	int stage, fully_random, lte, overlap, trace, popsold, qmc;
 
 	pthread_mutex_t exc_mutex;
 } glb;
@@ -96,6 +100,7 @@ int SpTask_Amc(void)
 	if(!sts) glb.fixi -= 1;
 	if(!sts) glb.rani -= 1;
 	if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+        if(!sts) sts = SpPy_GetInput_bool("qmc", &glb.qmc);
 	if(!sts) sts = SpPy_GetInput_bool("trace", &glb.trace);
 	if(!sts) sts = SpPy_GetInput_dbl("tolerance", &glb.tolerance);
 	if(!sts) sts = SpPy_GetInput_dbl("snr", &glb.snr);
@@ -143,6 +148,29 @@ int SpTask_Amc(void)
 		glb.rng[i] = gsl_rng_alloc(gsl_rng_ranlux);
 		gsl_rng_set(glb.rng[i], glb.seed);
 	}
+	
+#if 0
+	int n=1024;
+        int dim=6;
+	double v[dim];
+        
+        char filename[32];
+        sprintf(filename,"qmc.dat");
+        FILE *fp=fopen(filename,"w+");
+        gsl_qrng * g = gsl_qrng_alloc(gsl_qrng_niederreiter_2, dim);
+        gsl_qrng_get(g, v);
+        for (int i = 0; i < n; i++){
+                gsl_qrng_get(g, v);
+                for (int j = 0; j < dim; j++)
+                        fprintf(fp, "%f ", v[j]);
+                fprintf(fp,"\n");
+        }
+        gsl_qrng_free(g);
+        fclose(fp);
+        
+	exit(0);
+#endif	
+	
 
 	/* Init model */
 	if(!sts)
@@ -426,20 +454,41 @@ static int CalcExc(void)
 		/* Sleep for 1 second just in case things went too fast */
 		glb.fully_random = (glb.stage == STAGE_RAN) ? 1 : 0;
 
-		/* Get new seed for each stage */
-		glb.seed = (unsigned long)time(NULL);
-
+                if(glb.qmc){
+                        if(glb.fully_random){
+                                // reset QMC random seed
+                                for (size_t i =0; i < Sp_NTHREAD; i++){
+                                        glb.qrng[i] = gsl_qrng_alloc(gsl_qrng_niederreiter_2, QRAN_DIM);
+                                        // skip the initial zero-array 
+                                        double QRN[QRAN_DIM];
+                                        gsl_qrng_get(glb.qrng[i], QRN);
+                                }
+                        }
+                }
+                else{
+                        /* Get new seed for each stage */
+                        glb.seed = (unsigned long)time(NULL);
+                }
+                
 		/* Reset number of converged zones */
 		glb.nconv = 0;
 		
 		/* Some pretty output for the user's convenience */
 		if(!glb.fully_random) {
 			Sp_PRINT("\n");
-			Sp_PRINT("Iterating for convergence with FIXED set of random rays, seed=%lu\n", glb.seed);
+			Sp_PRINT("Iterating for convergence with FIXED set of random rays, ");
+                        if(glb.qmc)
+                                Sp_PRINT(" Quasi Random Ray\n");
+                        else
+                                Sp_PRINT(" seed=%lu\n", glb.seed);
 		}
 		else {
 			Sp_PRINT("\n");
-			Sp_PRINT("Iterating for convergence with FULLY RANDOM rays, initial seed=%lu\n", glb.seed);
+			Sp_PRINT("Iterating for convergence with FULLY RANDOM rays, ");
+                        if(glb.qmc)
+                                Sp_PRINT(" Quasi Random Ray\n");
+                        else
+                                Sp_PRINT(" initial seed=%lu\n", glb.seed);
 		}
 
 		Sp_PRINT("%6s|%15s|%10s|%10s|%10s|%9s|%20s\n", "Iter.", "Converged/Total", "Prcntg.", "Max diff.", "Goal", "Elapsed", "Status");
@@ -447,7 +496,9 @@ static int CalcExc(void)
 		
 
 		//for(iter = 0; !sts && (glb.nconv < glb.nzone ); iter++) {
-		for(size_t iter = 0; !sts && (glb.nconv < ( glb.fully_random ? ran_min_nconv:glb.nzone) ); iter++) {
+		for (size_t iter = 0; 
+                     !sts && (glb.nconv < ( glb.fully_random ? ran_min_nconv : glb.nzone ) );
+                     iter++){
 			/* Check for thread termination */
 			if(SpUtil_TermThread()) {
 				sts = 1;
@@ -458,8 +509,6 @@ static int CalcExc(void)
 			glb.nconv = 0;
 			glb.max_diff = 0;
 			glb.nray_tot = 0;
-			
-
 
 			/* Calculate excitation */
 			SpUtil_Threads2(Sp_NTHREAD, CalcExcThread);
@@ -512,129 +561,122 @@ static int CalcExc(void)
 			}
 			
 			/* Redistribute parallelization by weighting nray (added by I-Ta)*/
-			//if(Sp_MPISIZE > 1){
-				if(glb.stage == STAGE_RAN){
-					size_t temp_nray_tot = 0;
-					for(size_t izone = 0; izone < glb.nzone; izone++) {
-						Zone *zp = glb.zones[izone];
-						SpPhys *pp = zp->data;
-						temp_nray_tot+=pp->nray;
+			if(glb.stage == STAGE_RAN){
+				size_t temp_nray_tot = 0;
+				for(size_t izone = 0; izone < glb.nzone; izone++) {
+					Zone *zp = glb.zones[izone];
+					SpPhys *pp = zp->data;
+					temp_nray_tot+=pp->nray;
+				}
+				if(temp_nray_tot!=glb.nray_tot){
+					if(Sp_MPIRANK == 0){
+						printf("total number of ray isn't consistent: %13g\n", (double)temp_nray_tot);
 					}
-					if(temp_nray_tot!=glb.nray_tot){
-						if(Sp_MPIRANK == 0){
-							printf("total number of ray isn't consistent: %13g\n", (double)temp_nray_tot);
-						}
-						glb.nray_tot=temp_nray_tot;
-					}
-					temp_nray_tot=0;
-					size_t ithread=0;
-					double average_nray = (double)glb.nray_tot/(double)(Sp_MPISIZE*Sp_NTHREAD);
-					double critical_nray = average_nray;		
-					for(size_t izone = 0; izone < glb.nzone; izone++) {
-						Zone *zp = glb.zones[izone];
-						SpPhys *pp = zp->data;
-						size_t temp_old = temp_nray_tot;
-						temp_nray_tot=temp_nray_tot+pp->nray;
-						if ( (double)temp_nray_tot > critical_nray ){	
-							if( (double)temp_nray_tot-critical_nray > critical_nray-(double)temp_old ){
-								ithread=ithread+1;
-								glb.zone_tid[izone] = ithread % Sp_NTHREAD;
-								glb.zone_rank[izone] = (ithread/Sp_NTHREAD) % Sp_MPISIZE;
-							}
-							else{
-								glb.zone_tid[izone] = ithread % Sp_NTHREAD;
-								glb.zone_rank[izone] = (ithread/Sp_NTHREAD) % Sp_MPISIZE;
-								ithread=ithread+1;
-							}
-							critical_nray=critical_nray+average_nray;
+					glb.nray_tot=temp_nray_tot;
+				}
+				temp_nray_tot=0;
+				size_t ithread=0;
+				double average_nray = (double)glb.nray_tot/(double)(Sp_MPISIZE*Sp_NTHREAD);
+				double critical_nray = average_nray;		
+				for(size_t izone = 0; izone < glb.nzone; izone++) {
+					Zone *zp = glb.zones[izone];
+					SpPhys *pp = zp->data;
+					size_t temp_old = temp_nray_tot;
+					temp_nray_tot=temp_nray_tot+pp->nray;
+					if ( (double)temp_nray_tot > critical_nray ){	
+						if( (double)temp_nray_tot-critical_nray > critical_nray-(double)temp_old ){
+							ithread=ithread+1;
+							glb.zone_tid[izone] = ithread % Sp_NTHREAD;
+							glb.zone_rank[izone] = (ithread/Sp_NTHREAD) % Sp_MPISIZE;
 						}
 						else{
 							glb.zone_tid[izone] = ithread % Sp_NTHREAD;
 							glb.zone_rank[izone] = (ithread/Sp_NTHREAD) % Sp_MPISIZE;
+							ithread=ithread+1;
 						}
+						critical_nray=critical_nray+average_nray;
+					}
+					else{
+						glb.zone_tid[izone] = ithread % Sp_NTHREAD;
+						glb.zone_rank[izone] = (ithread/Sp_NTHREAD) % Sp_MPISIZE;
 					}
 				}
-			//}
-
-			
-			/* Write out convergent information for visualization */
+			}
 #if 0
-			//int record=0; /* write out visuallizing file or not */
-			if(record){
-				if(glb.stage==1 && Sp_MPIRANK == 0){
-                                        char filename[13];
-					sprintf(filename,"SPARX%4.4zu.vtk",iter);
-					FILE *fp = fopen(filename,"w");
-					fprintf(fp,"# vtk DataFile Version 3.0\n");
-					fprintf(fp,"SPARX\n");
-					fprintf(fp,"ASCII\n");
-					fprintf(fp,"DATASET STRUCTURED_GRID\n");
-					fprintf(fp,"DIMENSIONS %zu %zu %zu \n",glb.model.grid->naxes.x[0],glb.model.grid->naxes.x[1],glb.model.grid->naxes.x[2]);
-					//fprintf(fp,"POINTS %zu float\n",glb.nzone);
-					fprintf(fp,"POINTS %zu float\n",zone->nchildren);
-					//for(size_t izone = 0; izone < glb.nzone; izone++){					
-					for(size_t izone=0; izone < zone->nchildren; izone++ ){
-						//zp = glb.zones[izone];
-						Zone *zp = zone->children[izone];
-						fprintf(fp,"%11.4e %11.4e %11.4e\n",zp->voxel.cen.x[0],zp->voxel.cen.x[1],zp->voxel.cen.x[2]);
-					}
-					//fprintf(fp,"POINT_DATA %zu\n",glb.nzone);
-					fprintf(fp,"POINT_DATA %zu\n",zone->nchildren);
-					fprintf(fp,"SCALARS Intensity_1-0 float 1 \n");
-					fprintf(fp,"LOOKUP_TABLE default\n");
-					//for(size_t izone = 0; izone < glb.nzone; izone++){
-					for(size_t izone=0; izone < zone->nchildren; izone++ ){
-						//zp = glb.zones[izone];
-						Zone *zp = zone->children[izone];
-						SpPhys *pp = zp->data;
-						if(pp->non_empty_leaf){fprintf(fp,"%11.4e\n",pp->J_bar[0]);}
-					 	else{fprintf(fp,"%11.4e\n",glb.I_cmb[0]*glb.I_norm[0]);}
-					}
-					fprintf(fp,"SCALARS Intensity_4-3 float 1 \n");
-					fprintf(fp,"LOOKUP_TABLE default\n");
-					for(size_t izone=0; izone < zone->nchildren; izone++ ){
-						Zone *zp = zone->children[izone];
-						SpPhys *pp = zp->data;
-						if(pp->non_empty_leaf){fprintf(fp,"%11.4e\n",pp->J_bar[3]);}
-					 	else{fprintf(fp,"%11.4e\n",glb.I_cmb[3]*glb.I_norm[3]);}
-					}
-					fprintf(fp,"SCALARS Population float 9 \n");
-					fprintf(fp,"LOOKUP_TABLE default\n");
-					for(size_t izone=0; izone < zone->nchildren; izone++ ){
-						Zone *zp = zone->children[izone];
-						SpPhys *pp = zp->data;
-						if(pp->non_empty_leaf){
-							fprintf(fp,"%11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",\
-							pp->pops[0][0],pp->pops[0][1],pp->pops[0][2],pp->pops[0][3],pp->pops[0][4],pp->pops[0][5],\
-							pp->pops[0][6],pp->pops[0][7],pp->pops[0][8]);
-						}
-					 	else{fprintf(fp,"0 0 0 0 0 0 0 0 0\n");}
-					}
-					
-					fprintf(fp,"SCALARS noise float 1\n");
-					fprintf(fp,"LOOKUP_TABLE default\n");
-					for(size_t izone = 0; izone < glb.nzone; izone++){
-						Zone *zp = glb.zones[izone];
-						SpPhys *pp = zp->data;
-					 	fprintf(fp,"%11.4e\n",pp->diff);
-					}
-					fprintf(fp,"SCALARS nray float 1\n");
-					fprintf(fp,"LOOKUP_TABLE default\n");
-					for(size_t izone = 0; izone < glb.nzone; izone++){
-						Zone *zp = glb.zones[izone];
-						SpPhys *pp = zp->data;
-					 	fprintf(fp,"%8zu\n",pp->nray);
-					}
-					fprintf(fp,"SCALARS converged float 1\n");
-					fprintf(fp,"LOOKUP_TABLE default\n");
-					for(size_t izone = 0; izone < glb.nzone; izone++){
-						Zone *zp = glb.zones[izone];
-						SpPhys *pp = zp->data;
-					 	fprintf(fp,"%1zu\n",pp->converged );
-					}
-					
-					fclose(fp);
+			/* Write out convergent information for visualization */
+			if(glb.stage==1 && Sp_MPIRANK == 0){
+                                char filename[13];
+				sprintf(filename,"SPARX%4.4zu.vtk",iter);
+				FILE *fp = fopen(filename,"w");
+				fprintf(fp,"# vtk DataFile Version 3.0\n");
+				fprintf(fp,"SPARX\n");
+				fprintf(fp,"ASCII\n");
+				fprintf(fp,"DATASET STRUCTURED_GRID\n");
+				fprintf(fp,"DIMENSIONS %zu %zu %zu \n",glb.model.grid->naxes.x[0],glb.model.grid->naxes.x[1],glb.model.grid->naxes.x[2]);
+				//fprintf(fp,"POINTS %zu float\n",glb.nzone);
+				fprintf(fp,"POINTS %zu float\n",zone->nchildren);
+				//for(size_t izone = 0; izone < glb.nzone; izone++){					
+				for(size_t izone=0; izone < zone->nchildren; izone++ ){
+					//zp = glb.zones[izone];
+					Zone *zp = zone->children[izone];
+					fprintf(fp,"%11.4e %11.4e %11.4e\n",zp->voxel.cen.x[0],zp->voxel.cen.x[1],zp->voxel.cen.x[2]);
 				}
+				//fprintf(fp,"POINT_DATA %zu\n",glb.nzone);
+				fprintf(fp,"POINT_DATA %zu\n",zone->nchildren);
+				fprintf(fp,"SCALARS Intensity_1-0 float 1 \n");
+				fprintf(fp,"LOOKUP_TABLE default\n");
+				//for(size_t izone = 0; izone < glb.nzone; izone++){
+				for(size_t izone=0; izone < zone->nchildren; izone++ ){
+					//zp = glb.zones[izone];
+					Zone *zp = zone->children[izone];
+					SpPhys *pp = zp->data;
+					if(pp->non_empty_leaf){fprintf(fp,"%11.4e\n",pp->J_bar[0]);}
+				 	else{fprintf(fp,"%11.4e\n",glb.I_cmb[0]*glb.I_norm[0]);}
+				}
+				fprintf(fp,"SCALARS Intensity_4-3 float 1 \n");
+				fprintf(fp,"LOOKUP_TABLE default\n");
+				for(size_t izone=0; izone < zone->nchildren; izone++ ){
+					Zone *zp = zone->children[izone];
+					SpPhys *pp = zp->data;
+					if(pp->non_empty_leaf){fprintf(fp,"%11.4e\n",pp->J_bar[3]);}
+				 	else{fprintf(fp,"%11.4e\n",glb.I_cmb[3]*glb.I_norm[3]);}
+				}
+				fprintf(fp,"SCALARS Population float 9 \n");
+				fprintf(fp,"LOOKUP_TABLE default\n");
+				for(size_t izone=0; izone < zone->nchildren; izone++ ){
+					Zone *zp = zone->children[izone];
+					SpPhys *pp = zp->data;
+					if(pp->non_empty_leaf){
+						fprintf(fp,"%11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",\
+						pp->pops[0][0],pp->pops[0][1],pp->pops[0][2],pp->pops[0][3],pp->pops[0][4],pp->pops[0][5],\
+						pp->pops[0][6],pp->pops[0][7],pp->pops[0][8]);
+					}
+				 	else{fprintf(fp,"0 0 0 0 0 0 0 0 0\n");}
+				}
+				
+				fprintf(fp,"SCALARS noise float 1\n");
+				fprintf(fp,"LOOKUP_TABLE default\n");
+				for(size_t izone = 0; izone < glb.nzone; izone++){
+					Zone *zp = glb.zones[izone];
+					SpPhys *pp = zp->data;
+				 	fprintf(fp,"%11.4e\n",pp->diff);
+				}
+				fprintf(fp,"SCALARS nray float 1\n");
+				fprintf(fp,"LOOKUP_TABLE default\n");
+				for(size_t izone = 0; izone < glb.nzone; izone++){
+					Zone *zp = glb.zones[izone];
+					SpPhys *pp = zp->data;
+				 	fprintf(fp,"%8zu\n",pp->nray);
+				}
+				fprintf(fp,"SCALARS converged float 1\n");
+				fprintf(fp,"LOOKUP_TABLE default\n");
+				for(size_t izone = 0; izone < glb.nzone; izone++){
+					Zone *zp = glb.zones[izone];
+					SpPhys *pp = zp->data;
+				 	fprintf(fp,"%1zu\n",pp->converged );
+				}
+				
+				fclose(fp);
 			}
 #endif
 #if 0
@@ -652,16 +694,18 @@ static int CalcExc(void)
 				fclose(fp);
 			}
 #endif
-			
-
 			#ifdef HAVE_MPI
 			if(Sp_MPISIZE > 1)
 				MPI_Barrier(MPI_COMM_WORLD);
 			#endif
 		}
+		
+		if(glb.qmc && glb.fully_random)
+                        for (size_t i =0; i < Sp_NTHREAD; i++)
+                                gsl_qrng_free(glb.qrng[i]);
 	}
-	
-	if(0 && Sp_MPIRANK == 0){  
+#if 0	
+	if(Sp_MPIRANK == 0){  
                 char filename[13];
 	  	sprintf(filename,"SPARX_final.vtk");
 		FILE *fp=fopen(filename,"w");
@@ -699,7 +743,7 @@ static int CalcExc(void)
 		}
 		fclose(fp);
 	}
-	if(0 && Sp_MPIRANK == 0){
+	if(Sp_MPIRANK == 0){
                 char filename[13];
 		sprintf(filename,"pops.dat");
 		FILE *fp=fopen(filename,"w");
@@ -718,7 +762,7 @@ static int CalcExc(void)
 		}
 		fclose(fp);
 	}
-
+#endif
 	/* Check for Python exceptions */
 	if(!sts && PyErr_Occurred()) {
 		sts = 1;
@@ -757,25 +801,36 @@ static void *CalcExcThread(void *tid_p)
 		double *vfac0 = Mem_CALLOC(pp->nray, vfac0);
 		double *intensity = Mem_CALLOC(pp->nray * NRAD, intensity);
 		double *tau = Mem_CALLOC(pp->nray * NRAD, tau);
-
+                
+                if(!glb.fully_random){
+                        if(glb.qmc){
+                                // reset QMC random seed
+                                glb.qrng[tid] = gsl_qrng_alloc(gsl_qrng_niederreiter_2, QRAN_DIM);
+                                // skip the initial zero-array 
+                                double QRN[QRAN_DIM];
+                                gsl_qrng_get(glb.qrng[tid], QRN);
+                        }
+                        else{
+                        // reset random seed while in the fixed-ray stage
+                                gsl_rng_set(glb.rng[tid], glb.seed);
+                        }
+                }
+                
 		/* Calculate NHIST times for statistics */
 		for(size_t ihist = 0; ihist < (glb.stage == STAGE_RAN? NHIST:1); ihist++) {
-			if(!glb.fully_random)
-				gsl_rng_set(glb.rng[tid], glb.seed);
-
                         #if 1
-				CalcRays(tid, zp, ds0, vfac0, intensity, tau);
-			
+			CalcRays(tid, zp, ds0, vfac0, intensity, tau);
                         #else 
-				#define XI()\
-					gsl_rng_uniform(glb.rng[tid])
-				for(size_t i = 0; i < pp->nray; i++) {
-					ds0[i] = XI() * 0.1 * Sp_LENFAC;
-					double vel = (XI() - 0.5) * 4.3 * pp->width;
-					vfac0[i] = Num_GaussNormal(vel, pp->width);
-				}
-				#undef XI
+			#define XI()\
+				gsl_rng_uniform(glb.rng[tid])
+			for(size_t i = 0; i < pp->nray; i++) {
+				ds0[i] = XI() * 0.1 * Sp_LENFAC;
+				double vel = (XI() - 0.5) * 4.3 * pp->width;
+				vfac0[i] = Num_GaussNormal(vel, pp->width);
+			}
+			#undef XI
                         #endif
+
 			CalcDetailedBalance(tid, pp, ds0, vfac0, intensity, tau);
 
 			if(glb.stage == STAGE_RAN){
@@ -784,7 +839,9 @@ static void *CalcExcThread(void *tid_p)
 				}
 			}
 		}
-		
+
+                if(glb.qmc && !glb.fully_random)
+                        gsl_qrng_free(glb.qrng[tid]);
 		
 		/* ================ */
 		/* modified by I-Ta */
@@ -1001,22 +1058,40 @@ static void CalcRays(size_t tid, Zone *zone, double *ds0, double *vfac0,
 
 	for(size_t i = 0; i < pp->nray; i++) {
 		/* Set random ray origin and direction */
-		GeRay ray = GeRay_Rand(glb.rng[tid], &zone->voxel);
+                GeRay ray;
+                double RN;
+                if(glb.qmc){
+#if 0
+                        if(glb.stage == 1){
+                                printf("OK %zu\n",glb.qrng[tid]->state_size);
+                                exit(0);
+                        } 
+#endif
+                        double QRanNumber[QRAN_DIM];
+                        gsl_qrng_get(glb.qrng[tid], QRanNumber);
+                        ray = GeRay_QRand(QRanNumber, &zone->voxel);
+                        RN = QRanNumber[5];//printf("QMC\n");exit(0);
+                }
+                else{
+                        /* This samples a random number uniformly in the
+                        * interval [0, 1) */
+                        #define RAND()\
+                                gsl_rng_uniform(glb.rng[tid])
+                        /* This samples a random number uniformly in the
+                        * interval (0, 1) */
+                        #define PRAND()\
+                                gsl_rng_uniform_pos(glb.rng[tid])
+                        /* Set random velocity within local linewidth: PRAND() is used
+                        * so that the sampling is uniform within the line width */
+                        ray = GeRay_Rand(glb.rng[tid], &zone->voxel);
+                        RN = PRAND();//printf("FMC\n");exit(0);
+                        #undef RAND
+                        #undef PRAND
+                }
 
-		/* This samples a random number uniformly in the
-		 * interval [0, 1) */
-		#define RAND()\
-			gsl_rng_uniform(glb.rng[tid])
-
-		/* This samples a random number uniformly in the
-		 * interval (0, 1) */
-		#define PRAND()\
-			gsl_rng_uniform_pos(glb.rng[tid])
-
-		/* Set random velocity within local linewidth: PRAND() is used
-		 * so that the sampling is uniform within the line width */
 		GeVec3_d v_gas = SpPhys_GetVgas(&ray.e, zone);
-		double vel = (PRAND() - 0.5) * 4.3 * pp->width + GeVec3_DotProd(&v_gas, &ray.d);
+                double vel = ( RN - 0.5) * 4.3 * pp->width 
+                        + GeVec3_DotProd(&v_gas, &ray.d);
 
 		/* Calculate radiative transfer along this direction */
 		RadiativeXfer(tid, zone, &ray, vel, &ds0[i], &vfac0[i], &INTENSITY(i, 0), &TAU(i, 0));
@@ -1029,9 +1104,6 @@ static void CalcRays(size_t tid, Zone *zone, double *ds0, double *vfac0,
 
 	/* Calculate average path length */
 	pp->ds /= (double)pp->nray;
-
-	#undef RAND
-	#undef PRAND
 
 	#if debug_ray
 	cpgclos();

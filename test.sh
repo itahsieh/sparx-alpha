@@ -58,6 +58,9 @@ case $CASE in
   "LINE")
         source ../telsim/line/test       | tee -a test.log
         ;;
+  "QMC")
+        source ../algorithm/AMC_accuracy/test       | tee -a test.log
+        ;;
   *)
         exit 1
         ;;

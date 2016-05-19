@@ -2162,6 +2162,7 @@ class Task_AMC(Task):
 			#              prevent false convergence (just an empirical guess)
 			Key("fixiter", Type.PosInt, "5", "Minimum number of iterations for fixed rays stage"),
 			Key("raniter", Type.PosInt, "5", "Minimum number of iterations for random rays stage"),
+			Key("qmc", Type.Bool, "True", "Quasi-Monte-Carlo method"),
 		]
 
 		# C function to call
