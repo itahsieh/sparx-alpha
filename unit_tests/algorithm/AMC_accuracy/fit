@@ -1,0 +1,51 @@
+
+
+set logscale xy
+
+# 1st plot
+set terminal wxt 1 enhanced font 'Verdana,10' persist
+f(x)=a*x
+a=1.0
+fit f(x) 'RAYS_QMC.dat' via a
+
+g(x)=b*x*x
+b=1.0
+fit g(x) 'RAYS_FMC.dat' via b
+
+set key top left 
+plot 'RAYS_QMC.dat' title 'Quasi Random', \
+     'RAYS_FMC.dat' title 'Pseudo Random', \
+     f(x) notitle, \
+     g(x) notitle
+
+# 2nd plot
+# set terminal wxt 2 enhanced font 'Verdana,10' persist
+# f(x)=-x+a
+# a=1.0
+# fit f(x) 'QMC_FMC_error_snr.dat' using (log($1)):(log($2)) via a
+# 
+# g(x)=-x+b
+# b=1.0
+# fit g(x) 'QMC_FMC_error_snr.dat' using (log($1)):(log($3)) via b
+# 
+# set key bottom left
+# plot 'QMC_FMC_error_snr.dat' using 1:2 title 'L-2 error', \
+#      '' using 1:3 title 'L-inf error' ,\
+#      exp(a)/x notitle, \
+#      exp(b)/x notitle
+# 
+# # 3rd plot
+# f(x)=sqrt( (a/x)*(a/x) + (0.01*a)**2 ) 
+# a=0.5
+# fit f(x) "<awk '$1 != 100 {print $1,$4}' QMC_FMC_error_snr.dat" via a
+# 
+# g(x)=sqrt( (c/x)*(c/x) + (0.01*a)**2 )
+# c=1.0
+# fit g(x) "<awk '{print $1,$6}'           QMC_FMC_error_snr.dat" via c
+# 
+# set object circle at first 100,0.01*a radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+# 
+# set key bottom left
+# plot "<awk '$1 != 100 {print $1,$4}'    QMC_FMC_error_snr.dat" title 'FMC', f(x) notitle, \
+#      "<awk '{print $1,$6}'              QMC_FMC_error_snr.dat" title 'QMC', g(x) notitle
+

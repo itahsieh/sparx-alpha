@@ -1858,6 +1858,75 @@ install_task(Task_Hollow3D("task_hollow3d"))
 
 ################################################################################
 
+class Task_Cosine1D(Task):
+        """
+        Cosine density and infall velocity model, 1D version
+        For testing numerical accuracy purpose
+        """
+        ##
+        ## Task configuration
+        ##
+        def configure(self):
+                # Name: defined when task is registered
+
+                # Description
+                self.desc = "Cosine 1D model"
+
+                # Explanation
+                self.expl = ""
+
+                # Keys
+                self.keys = [
+                        Key("out", Type.NewFile, None, "Output model file"),
+                        Key("n_max", Type.NumDens, '1e14m^-3', "Gas density"),
+                        Key("Vin", Type.Velo, '0.1kms^-1', "Infall velocity"),
+                        Key("ndiv", Type.PosInt, 64, "Number of shells"),
+                        Key("abundance", Type.Fraction, None, "Molecular abundance")
+                ]
+
+                # C function to call
+                self.cfunc = _sparx.task_pygrid
+
+        ##
+        ## Task procedures
+        ##
+        def main(self):
+                from sparx.grid import Grid_sph1d
+                from math import pi,cos
+                # Setup dimensions and gridding
+                radius_out = 0.1 # [pc] cloud radius
+                radius_in = 0.0 # [pc] cloud radius
+                n = INP_DICT["ndiv"]
+                dr =(radius_out-radius_in)/n
+                v_max=2*INP_DICT["Vin"]
+                
+                from numpy import zeros
+                manual_grid=zeros(n+1)
+                for pos in range(0,n+1):
+                        manual_grid[pos] = radius_in+pos*dr
+
+                # Generate grid and attach to input
+                INP_DICT["pygrid"] = grid = Grid_sph1d(n, radius_out)
+
+                # Setup model parameters
+                grid.gas_to_dust = 0
+                grid.T_cmb = 0.0 # K
+                xmol=INP_DICT["abundance"]
+                        
+                for pos in np.ndindex(n, 1, 1):
+                        # Manually regrid if requested
+                        id = pos[0]
+                        # Set physical parameters
+                        grid.n_H2[pos] = INP_DICT["n_max"] * ( 1.0 + cos( pi * grid.cen_i[pos]/radius_out) ) # m^-3
+                        grid.T_k[pos] = 10.0 # K
+                        grid.X_mol[pos] = xmol # Fraction
+                        grid.V_t[pos] = 200. # [m/s]
+                        grid.V_i[pos] = -v_max * ( 1.0 + cos( pi * grid.cen_i[pos]/radius_out) ) # m/s
+                return
+
+install_task(Task_Cosine1D("task_cosine1d"))
+
+################################################################################
 
 class Task_Shu1D(Task):
 	"""
@@ -2153,7 +2222,7 @@ class Task_AMC(Task):
 			Key("overlap", Type.Velo, '0kms^-1', "overlapping calculation (for hyperfine splitting)"),
 			Key("lte", Type.Bool, "False", "Whether to start convergence from LTE conditions"),
 			Key("trace", Type.Bool, "False", "Whether to trace convergence history"),
-			Key("tolerance", Type.Fraction, "5e-3", "Convergence criterion for fixed rays stage"),
+			#Key("tolerance", Type.Fraction, "5e-3", "Convergence criterion for fixed rays stage"),
 			Key("snr", Type.Float, "20", "Upper limit of Monte Carlo noise level"),
 			Key("minpop", Type.Fraction, "1e-6", "Minimum pops to test for convergence"),
 			Key("nrays", Type.PosInt, "1000", "Number of initial rays per zone"),

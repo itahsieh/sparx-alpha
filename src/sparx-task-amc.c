@@ -102,8 +102,9 @@ int SpTask_Amc(void)
 	if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
         if(!sts) sts = SpPy_GetInput_bool("qmc", &glb.qmc);
 	if(!sts) sts = SpPy_GetInput_bool("trace", &glb.trace);
-	if(!sts) sts = SpPy_GetInput_dbl("tolerance", &glb.tolerance);
+	//if(!sts) sts = SpPy_GetInput_dbl("tolerance", &glb.tolerance);
 	if(!sts) sts = SpPy_GetInput_dbl("snr", &glb.snr);
+        glb.tolerance = 0.1/glb.snr;
 	if(!sts) sts = SpPy_GetInput_dbl("minpop", &glb.minpop);
         
         PyObject *o;
@@ -476,19 +477,17 @@ static int CalcExc(void)
 		/* Some pretty output for the user's convenience */
 		if(!glb.fully_random) {
 			Sp_PRINT("\n");
-			Sp_PRINT("Iterating for convergence with FIXED set of random rays, ");
                         if(glb.qmc)
-                                Sp_PRINT(" Quasi Random Ray\n");
+                                Sp_PRINT("Iterating for convergence with FIXED set of random rays, Quasi Random Ray\n");
                         else
-                                Sp_PRINT(" seed=%lu\n", glb.seed);
+                                Sp_PRINT("Iterating for convergence with FIXED set of random rays, seed=%lu\n", glb.seed);
 		}
 		else {
 			Sp_PRINT("\n");
-			Sp_PRINT("Iterating for convergence with FULLY RANDOM rays, ");
                         if(glb.qmc)
-                                Sp_PRINT(" Quasi Random Ray\n");
+                                Sp_PRINT("Iterating for convergence with FULLY RANDOM rays,  Quasi Random Ray\n");
                         else
-                                Sp_PRINT(" initial seed=%lu\n", glb.seed);
+                                Sp_PRINT("Iterating for convergence with FULLY RANDOM rays,  initial seed=%lu\n", glb.seed);
 		}
 
 		Sp_PRINT("%6s|%15s|%10s|%10s|%10s|%9s|%20s\n", "Iter.", "Converged/Total", "Prcntg.", "Max diff.", "Goal", "Elapsed", "Status");
@@ -530,18 +529,17 @@ static int CalcExc(void)
 				!glb.fully_random ? TOLERANCE : MCNOISE,
 				Phys_SecsToHMS_Str((int)difftime(t_iter, t_start)));
 				
-			if (glb.nconv >= ((glb.fully_random) ? ran_min_nconv:glb.nzone)) {
+			Sp_PRINTF("|->%13g rays\n", (double)glb.nray_tot);
+                        if (glb.nconv >= ((glb.fully_random) ? ran_min_nconv:glb.nzone)) {
 				if(iter < (glb.fully_random ? glb.rani : glb.fixi)) {
-					Sp_PRINTF("|      %3d more iters\n", (glb.fully_random ? glb.rani : glb.fixi) - iter);
+					Sp_PRINTF("%5d more iters\n", (glb.fully_random ? glb.rani : glb.fixi) - iter);
 					glb.nconv = 0;
 				}
 				else {
-					Sp_PRINTF("|%20s\n", "Converged!");
+					Sp_PRINTF("%16s\n", "Converged!");
 				}
 			}
-			else {
-				Sp_PRINTF("|->%13g rays\n", (double)glb.nray_tot);
-			}
+
 
 			#ifdef HAVE_MPI
 			if(Sp_MPISIZE > 1)
@@ -743,22 +741,26 @@ static int CalcExc(void)
 		}
 		fclose(fp);
 	}
+#endif
+#if 1
 	if(Sp_MPIRANK == 0){
                 char filename[13];
-		sprintf(filename,"pops.dat");
+		sprintf(filename,"%s.dat",glb.outf->name);
 		FILE *fp=fopen(filename,"w");
 		for(size_t izone = 0; izone < glb.nzone; izone++){
 			Zone *zp = glb.zones[izone];
 			SpPhys *pp = zp->data;
 			
-			double tempR = sqrt( (zp->voxel.cen.x[0]-zone->voxel.cen.x[0])*(zp->voxel.cen.x[0]-zone->voxel.cen.x[0])+\
-			            (zp->voxel.cen.x[1]-zone->voxel.cen.x[1])*(zp->voxel.cen.x[1]-zone->voxel.cen.x[1])+\
-			            (zp->voxel.cen.x[2]-zone->voxel.cen.x[2])*(zp->voxel.cen.x[2]-zone->voxel.cen.x[2]) );
+//                         double x = zp->voxel.cen.x[0]-zone->voxel.cen.x[0];
+//                         double y = zp->voxel.cen.x[1]-zone->voxel.cen.x[1];
+//                         double z = zp->voxel.cen.x[2]-zone->voxel.cen.x[2];
+//                         double tempR = sqrt( x*x + y*y+ z*z );
 			
-			//tempR=zp->voxel.cen.x[0];
-			fprintf(fp,"%11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",\
-				tempR,pp->pops[0][0],pp->pops[0][1],pp->pops[0][2],pp->pops[0][3],pp->pops[0][4],pp->pops[0][5],\
-				      pp->pops[0][6],pp->pops[0][7],pp->pops[0][8]);
+			double tempR=zp->voxel.cen.x[0];
+                        fprintf(fp,"%11.4e ", tempR);
+                        for (size_t j = 0; j < pp->mol->nlev; j++ )
+                                fprintf(fp,"%11.4e ", pp->pops[0][j]);
+                        fprintf(fp,"\n");
 		}
 		fclose(fp);
 	}
