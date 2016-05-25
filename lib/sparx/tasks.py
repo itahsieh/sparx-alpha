@@ -1878,7 +1878,7 @@ class Task_Cosine1D(Task):
                 # Keys
                 self.keys = [
                         Key("out", Type.NewFile, None, "Output model file"),
-                        Key("n_max", Type.NumDens, '1e14m^-3', "Gas density"),
+                        Key("n_max", Type.NumDens, '1e12m^-3', "Gas density"),
                         Key("Vin", Type.Velo, '0.1kms^-1', "Infall velocity"),
                         Key("ndiv", Type.PosInt, 64, "Number of shells"),
                         Key("abundance", Type.Fraction, None, "Molecular abundance")

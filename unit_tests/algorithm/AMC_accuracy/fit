@@ -4,48 +4,122 @@ set logscale xy
 
 # 1st plot
 set terminal wxt 1 enhanced font 'Verdana,10' persist
+
+QuasiRay='Shu1dQuasiRAYS_1.dat'
+PseudoRay= \
+"<cat \
+Shu1dPseudoRAYS_1.dat \
+Shu1dPseudoRAYS_2.dat \
+Shu1dPseudoRAYS_3.dat \
+Shu1dPseudoRAYS_4.dat \
+Shu1dPseudoRAYS_5.dat \
+Shu1dPseudoRAYS_6.dat \
+Shu1dPseudoRAYS_7.dat \
+Shu1dPseudoRAYS_8.dat \
+Shu1dPseudoRAYS_9.dat \
+Shu1dPseudoRAYS_10.dat \
+"
+
 f(x)=a*x
 a=1.0
-fit f(x) 'RAYS_QMC.dat' via a
+fit f(x) QuasiRay via a
 
 g(x)=b*x*x
 b=1.0
-fit g(x) 'RAYS_FMC.dat' via b
+fit g(x) PseudoRay via b
 
-set key top left 
-plot 'RAYS_QMC.dat' title 'Quasi Random', \
-     'RAYS_FMC.dat' title 'Pseudo Random', \
+set key top left
+set title "Shu's 1D collapsing cloud"
+set ylabel 'Number of Rays'
+set xlabel 'Demanding SNR'
+plot QuasiRay title 'Quasi Random', \
+     PseudoRay title 'Pseudo Random', \
      f(x) notitle, \
      g(x) notitle
-
+     
 # 2nd plot
-# set terminal wxt 2 enhanced font 'Verdana,10' persist
-# f(x)=-x+a
-# a=1.0
-# fit f(x) 'QMC_FMC_error_snr.dat' using (log($1)):(log($2)) via a
-# 
-# g(x)=-x+b
-# b=1.0
-# fit g(x) 'QMC_FMC_error_snr.dat' using (log($1)):(log($3)) via b
-# 
-# set key bottom left
-# plot 'QMC_FMC_error_snr.dat' using 1:2 title 'L-2 error', \
-#      '' using 1:3 title 'L-inf error' ,\
-#      exp(a)/x notitle, \
-#      exp(b)/x notitle
-# 
-# # 3rd plot
-# f(x)=sqrt( (a/x)*(a/x) + (0.01*a)**2 ) 
-# a=0.5
-# fit f(x) "<awk '$1 != 100 {print $1,$4}' QMC_FMC_error_snr.dat" via a
-# 
-# g(x)=sqrt( (c/x)*(c/x) + (0.01*a)**2 )
-# c=1.0
-# fit g(x) "<awk '{print $1,$6}'           QMC_FMC_error_snr.dat" via c
-# 
-# set object circle at first 100,0.01*a radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
-# 
-# set key bottom left
-# plot "<awk '$1 != 100 {print $1,$4}'    QMC_FMC_error_snr.dat" title 'FMC', f(x) notitle, \
-#      "<awk '{print $1,$6}'              QMC_FMC_error_snr.dat" title 'QMC', g(x) notitle
+set terminal wxt 2 enhanced font 'Verdana,10' persist
 
+QuasiRay='CosineQuasiRAYS_1.dat'
+PseudoRay= \
+"<cat \
+CosinePseudoRAYS_1.dat \
+CosinePseudoRAYS_2.dat \
+CosinePseudoRAYS_3.dat \
+CosinePseudoRAYS_4.dat \
+CosinePseudoRAYS_5.dat \
+CosinePseudoRAYS_6.dat \
+CosinePseudoRAYS_7.dat \
+CosinePseudoRAYS_8.dat \
+CosinePseudoRAYS_9.dat \
+CosinePseudoRAYS_10.dat \
+"
+
+f(x)=a*x
+a=1.0
+fit f(x) QuasiRay via a
+
+g(x)=b*x*x
+b=1.0
+fit g(x) PseudoRay via b
+
+set key top left
+set title "Cosine Model"
+set ylabel 'Number of Rays'
+set xlabel 'Demanding SNR'
+plot QuasiRay title 'Quasi Random', \
+     PseudoRay title 'Pseudo Random', \
+     f(x) notitle, \
+     g(x) notitle
+     
+
+# 3rd plot
+set terminal wxt 3 enhanced font 'Verdana,10' persist
+PseudoError="<awk '{print $1,$2,$3}' Shu1d_error.dat"
+QuasiError="<awk '$1 != 800 {print $1,$6}' Shu1d_error.dat"
+
+g(x)=sqrt( (c/x)*(c/x) + (c/800)**2 )
+c=1.0
+fit g(x) QuasiError via c
+
+f(x)=sqrt( (a/x)*(a/x) + (c/800)**2 ) 
+a=1.0
+fit f(x) PseudoError via a
+
+set object circle at first 800,c/800 radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+
+set key bottom left
+set title "Shu's 1D collapsing cloud"
+set ylabel 'Error'
+set xlabel 'Demanding SNR'
+plot PseudoError using 1:2:3 with errorbars title 'Pseudo Random', \
+     QuasiError with points title 'Quasi Random', \
+     g(x) with lines notitle, \
+     f(x) with lines notitle
+unset object
+     
+     
+# 4th plot
+set terminal wxt 4 enhanced font 'Verdana,10' persist
+PseudoError="<awk '{print $1,$2,$3}' Cosine_error.dat"
+QuasiError="<awk '$1 != 800 {print $1,$6}' Cosine_error.dat"
+
+g(x)=sqrt( (c/x)*(c/x) + (c/800)**2 )
+c=1.0
+fit g(x) QuasiError using 1:2 via c
+
+f(x)=sqrt( (a/x)*(a/x) + (c/800)**2 ) 
+a=1.0
+fit f(x) PseudoError using 1:2 via a
+
+set object circle at first 800,c/800 radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+
+set key bottom left
+set title "Cosine Model"
+set ylabel 'Error'
+set xlabel 'Demanding SNR'
+plot PseudoError  using 1:2:3 with errorbars title 'Pseudo Random', \
+     QuasiError with points title 'Quasi Random', \
+     f(x) with lines notitle, \
+     g(x) with lines notitle
+unset object

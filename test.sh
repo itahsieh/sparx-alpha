@@ -59,9 +59,9 @@ case $CASE in
         source ../telsim/line/test       | tee -a test.log
         ;;
   "QMC")
-        source ../algorithm/AMC_accuracy/test       | tee -a test.log
-        #gfortran ../algorithm/AMC_accuracy/pops_error.f90 -o pops_error
-        #./pops_error
+        #source ../algorithm/AMC_accuracy/test       | tee -a test.log
+        gfortran ../algorithm/AMC_accuracy/pops_error.f90 -o pops_error
+        ./pops_error
         #gnuplot ../algorithm/AMC_accuracy/fit  | tee -a test.log
         ;;
   *)
