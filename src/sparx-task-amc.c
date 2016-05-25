@@ -35,8 +35,20 @@ static int CalcExc(void);
 static void *CalcExcThread(void *tid_p);
 static void SyncProcs(void);
 static void SyncPops(size_t izone);
-static void CalcRays(size_t tid, Zone *zone, double *ds0, double *vfac0,
-	double *intensity, double *tau);
+static void CalcRays_RNG(
+        size_t tid, 
+        Zone *zone, 
+        double *ds0, 
+        double *vfac0,
+	double *intensity, 
+        double *tau);
+static void CalcRays_QRNG(
+        size_t tid, 
+        Zone *zone, 
+        double *ds0, 
+        double *vfac0,
+        double *intensity, 
+        double *tau);
 static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double *ds0,
 	double *vfac0, double *intensity, double *tau);
 static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
@@ -821,7 +833,10 @@ static void *CalcExcThread(void *tid_p)
 		/* Calculate NHIST times for statistics */
 		for(size_t ihist = 0; ihist < (glb.stage == STAGE_RAN? NHIST:1); ihist++) {
                         #if 1
-			CalcRays(tid, zp, ds0, vfac0, intensity, tau);
+                        if(glb.qmc)
+                                CalcRays_QRNG(tid, zp, ds0, vfac0, intensity, tau);
+                        else
+                                CalcRays_RNG(tid, zp, ds0, vfac0, intensity, tau);
                         #else 
 			#define XI()\
 				gsl_rng_uniform(glb.rng[tid])
@@ -1035,7 +1050,7 @@ static void SyncPops(size_t izone)
 
 /*----------------------------------------------------------------------------*/
 
-static void CalcRays(size_t tid, Zone *zone, double *ds0, double *vfac0,
+static void CalcRays_RNG(size_t tid, Zone *zone, double *ds0, double *vfac0,
 	double *intensity, double *tau)
 /* Collect `external' contribution to local mean radiation field (J_bar)
  * by shooting NRAY rays in random directions and calculating the
@@ -1060,41 +1075,24 @@ static void CalcRays(size_t tid, Zone *zone, double *ds0, double *vfac0,
 
 	for(size_t i = 0; i < pp->nray; i++) {
 		/* Set random ray origin and direction */
-                GeRay ray;
-                double RN;
-                if(glb.qmc){
-#if 0
-                        if(glb.stage == 1){
-                                printf("OK %zu\n",glb.qrng[tid]->state_size);
-                                exit(0);
-                        } 
-#endif
-                        double QRanNumber[QRAN_DIM];
-                        gsl_qrng_get(glb.qrng[tid], QRanNumber);
-                        ray = GeRay_QRand(QRanNumber, &zone->voxel);
-                        RN = QRanNumber[5];//printf("QMC\n");exit(0);
-                }
-                else{
-                        /* This samples a random number uniformly in the
-                        * interval [0, 1) */
-                        #define RAND()\
-                                gsl_rng_uniform(glb.rng[tid])
-                        /* This samples a random number uniformly in the
-                        * interval (0, 1) */
-                        #define PRAND()\
-                                gsl_rng_uniform_pos(glb.rng[tid])
-                        /* Set random velocity within local linewidth: PRAND() is used
-                        * so that the sampling is uniform within the line width */
-                        ray = GeRay_Rand(glb.rng[tid], &zone->voxel);
-                        RN = PRAND();//printf("FMC\n");exit(0);
-                        #undef RAND
-                        #undef PRAND
-                }
+                GeRay ray = GeRay_Rand(glb.rng[tid], &zone->voxel);
 
+                /* This samples a random number uniformly in the
+                * interval [0, 1) */
+                #define RAND()\
+                        gsl_rng_uniform(glb.rng[tid])
+                /* This samples a random number uniformly in the
+                * interval (0, 1) */
+                #define PRAND()\
+                        gsl_rng_uniform_pos(glb.rng[tid])
+                /* Set random velocity within local linewidth: PRAND() is used
+                * so that the sampling is uniform within the line width */
 		GeVec3_d v_gas = SpPhys_GetVgas(&ray.e, zone);
-                double vel = ( RN - 0.5) * 4.3 * pp->width 
+                double vel = ( PRAND() - 0.5) * 4.3 * pp->width 
                         + GeVec3_DotProd(&v_gas, &ray.d);
-
+                #undef RAND
+                #undef PRAND
+                        
 		/* Calculate radiative transfer along this direction */
 		RadiativeXfer(tid, zone, &ray, vel, &ds0[i], &vfac0[i], &INTENSITY(i, 0), &TAU(i, 0));
 	}
@@ -1107,12 +1105,45 @@ static void CalcRays(size_t tid, Zone *zone, double *ds0, double *vfac0,
 	/* Calculate average path length */
 	pp->ds /= (double)pp->nray;
 
-	#if debug_ray
-	cpgclos();
-	Deb_PAUSE();
-	#endif
-
 	return;
+}
+
+/*----------------------------------------------------------------------------*/
+
+static void CalcRays_QRNG(size_t tid, Zone *zone, double *ds0, double *vfac0,
+        double *intensity, double *tau)
+/* Collect `external' contribution to local mean radiation field (J_bar)
+ * by shooting NRAY rays in random directions and calculating the
+ * corresponding intensity.
+ */
+{
+        SpPhys *pp = zone->data;
+        Deb_ASSERT(pp->nray > 0); /* Just in case */
+
+        /* Reset pp->ds */
+        pp->ds = 0;
+
+        /* Reset tau */
+        Mem_BZERO2(tau, pp->nray * NRAD);
+
+        for(size_t i = 0; i < pp->nray; i++) {
+                /* Set random ray origin and direction */
+                double QRanNumber[QRAN_DIM];
+                gsl_qrng_get(glb.qrng[tid], QRanNumber);
+                GeRay ray = GeRay_QRand(QRanNumber, &zone->voxel);
+
+                GeVec3_d v_gas = SpPhys_GetVgas(&ray.e, zone);
+                double vel = ( QRanNumber[5] - 0.5) * 4.3 * pp->width 
+                        + GeVec3_DotProd(&v_gas, &ray.d);
+
+                /* Calculate radiative transfer along this direction */
+                RadiativeXfer(tid, zone, &ray, vel, &ds0[i], &vfac0[i], &INTENSITY(i, 0), &TAU(i, 0));
+        }
+
+        /* Calculate average path length */
+        pp->ds /= (double)pp->nray;
+
+        return;
 }
 
 /*----------------------------------------------------------------------------*/

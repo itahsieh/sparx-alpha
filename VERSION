@@ -23,10 +23,11 @@ alpha-2.3.0     Feb 2016        complete all the unit tests of telsim and realea
 alpha-2.3.1     Mar 2016        fix CRPIX consitent between MIRIAD&FITS
 alpha-2.3.2     Mar 2016        improvement of portability
 alpha-2.3.3     Apr 2016        Visualization / contribution chart
+alpha-2.4.0     May 2016        Quasi Monte-Carlo scheme (&validated)
 
 ## STATUS : PENDING
-alpha-2.4.0                     Algorithm update : QMC & SOR
-alpha-2.5.0                     PRE-SPARX : integrated preprocessor
+alpha-2.4                       Algorithm update : QMC & SOR
+alpha-2.5                       PRE-SPARX : integrated preprocessor
 
 
 ######################################################

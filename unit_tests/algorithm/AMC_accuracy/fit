@@ -1,5 +1,3 @@
-
-
 set logscale xy
 
 # 1st plot
@@ -78,15 +76,19 @@ set terminal wxt 3 enhanced font 'Verdana,10' persist
 PseudoError="<awk '{print $1,$2,$3}' Shu1d_error.dat"
 QuasiError="<awk '$1 != 800 {print $1,$6}' Shu1d_error.dat"
 
-g(x)=sqrt( (c/x)*(c/x) + (c/800)**2 )
-c=1.0
-fit g(x) QuasiError via c
+ref_snr=800
 
-f(x)=sqrt( (a/x)*(a/x) + (c/800)**2 ) 
-a=1.0
-fit f(x) PseudoError via a
+g(x)=sqrt( (c/x)**2 + d*d )
+c=0.1
+d=1e-2
+fit log(g(x)) QuasiError using 1:(log($2)) via c,d
 
-set object circle at first 800,c/800 radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+f(x)=sqrt( (a/x)**2 + b*b )
+a=0.1
+b=1e-2
+fit log(f(x)) PseudoError using 1:(log($2)) via a,b
+
+set object circle at first ref_snr,abs(d) radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
 
 set key bottom left
 set title "Shu's 1D collapsing cloud"
@@ -94,8 +96,8 @@ set ylabel 'Error'
 set xlabel 'Demanding SNR'
 plot PseudoError using 1:2:3 with errorbars title 'Pseudo Random', \
      QuasiError with points title 'Quasi Random', \
-     g(x) with lines notitle, \
-     f(x) with lines notitle
+     f(x) with lines notitle, \
+     g(x) with lines notitle
 unset object
      
      
@@ -104,15 +106,17 @@ set terminal wxt 4 enhanced font 'Verdana,10' persist
 PseudoError="<awk '{print $1,$2,$3}' Cosine_error.dat"
 QuasiError="<awk '$1 != 800 {print $1,$6}' Cosine_error.dat"
 
-g(x)=sqrt( (c/x)*(c/x) + (c/800)**2 )
-c=1.0
-fit g(x) QuasiError using 1:2 via c
+g(x)=sqrt( (c/x)**2 + d*d )
+c=0.1
+d=1e-2
+fit log(g(x)) QuasiError using 1:(log($2)) via c,d
 
-f(x)=sqrt( (a/x)*(a/x) + (c/800)**2 ) 
-a=1.0
-fit f(x) PseudoError using 1:2 via a
+f(x)=sqrt( (a/x)**2 + b*b ) 
+a=0.1
+b=1e-2
+fit log(f(x)) PseudoError using 1:(log($2)) via a,b
 
-set object circle at first 800,c/800 radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+set object circle at first 800,abs(d) radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
 
 set key bottom left
 set title "Cosine Model"
