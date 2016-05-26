@@ -78,17 +78,17 @@ QuasiError="<awk '$1 != 800 {print $1,$6}' Shu1d_error.dat"
 
 ref_snr=800
 
-g(x)=sqrt( (c/x)**2 + d*d )
+g(x)=sqrt( (c/x)**2 + (c/ref_snr)**2 )
 c=0.1
 d=1e-2
-fit log(g(x)) QuasiError using 1:(log($2)) via c,d
+fit log(g(x)) QuasiError using 1:(log($2)) via c
 
-f(x)=sqrt( (a/x)**2 + b*b )
+f(x)=sqrt( (a/x)**2 + (a/ref_snr)**2 )
 a=0.1
 b=1e-2
-fit log(f(x)) PseudoError using 1:(log($2)) via a,b
+fit log(f(x)) PseudoError using 1:(log($2)) via a
 
-set object circle at first ref_snr,abs(d) radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+set object circle at first ref_snr,c/ref_snr radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
 
 set key bottom left
 set title "Shu's 1D collapsing cloud"
@@ -96,8 +96,8 @@ set ylabel 'Error'
 set xlabel 'Demanding SNR'
 plot PseudoError using 1:2:3 with errorbars title 'Pseudo Random', \
      QuasiError with points title 'Quasi Random', \
-     f(x) with lines notitle, \
-     g(x) with lines notitle
+     c/x with lines notitle, \
+     a/x with lines notitle
 unset object
      
      
@@ -106,17 +106,17 @@ set terminal wxt 4 enhanced font 'Verdana,10' persist
 PseudoError="<awk '{print $1,$2,$3}' Cosine_error.dat"
 QuasiError="<awk '$1 != 800 {print $1,$6}' Cosine_error.dat"
 
-g(x)=sqrt( (c/x)**2 + d*d )
+g(x)=sqrt( (c/x)**2 + (c/ref_snr)**2 )
 c=0.1
 d=1e-2
-fit log(g(x)) QuasiError using 1:(log($2)) via c,d
+fit log(g(x)) QuasiError using 1:(log($2)) via c
 
-f(x)=sqrt( (a/x)**2 + b*b ) 
+f(x)=sqrt( (a/x)**2 + (a/ref_snr)**2 ) 
 a=0.1
 b=1e-2
-fit log(f(x)) PseudoError using 1:(log($2)) via a,b
+fit log(f(x)) PseudoError using 1:(log($2)) via a
 
-set object circle at first 800,abs(d) radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+set object circle at first 800,c/ref_snr radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
 
 set key bottom left
 set title "Cosine Model"
@@ -124,6 +124,6 @@ set ylabel 'Error'
 set xlabel 'Demanding SNR'
 plot PseudoError  using 1:2:3 with errorbars title 'Pseudo Random', \
      QuasiError with points title 'Quasi Random', \
-     f(x) with lines notitle, \
-     g(x) with lines notitle
+     c/x with lines notitle, \
+     a/x with lines notitle
 unset object
