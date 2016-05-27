@@ -64,6 +64,9 @@ case $CASE in
         ./pops_error
         #gnuplot ../algorithm/AMC_accuracy/fit  | tee -a test.log
         ;;
+  "SOR")
+        source ../algorithm/SOR_convergency/test       | tee -a test.log
+        ;;
   *)
         exit 1
         ;;

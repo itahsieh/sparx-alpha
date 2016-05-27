@@ -639,6 +639,60 @@ install_task(Task_Empty("task_empty"))
 
 ################################################################################
 
+class Task_Uniform1D(Task):
+        """
+        Validate line radiative transfer, 1D version
+        """
+        ##
+        ## Task configuration
+        ##
+        def configure(self):
+                # Name: defined when task is registered
+
+                # Description
+                self.desc = "uniform 1D spherical cloud to test the convergency of Lambda iteration"
+
+                # Explanation
+                self.expl = "constant profile model"
+
+                # Keys
+                self.keys = [
+                        Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
+                        Key("ndiv", Type.PosInt, 64, "Number of shells"),
+                        Key("abundance", Type.Fraction, None, "Molecular abundance"),
+                ]
+
+                # C function to call
+                self.cfunc = _sparx.task_pygrid
+
+        ##
+        ## Task procedures
+        ##
+        def main(self):
+                from sparx.grid import Grid_sph1d
+                # Setup dimensions
+                n = INP_DICT["ndiv"]
+                x_mol = INP_DICT["abundance"]
+                radius_out = 0.1 # pc
+
+                # Generate grid and attach to input
+                INP_DICT["pygrid"] = grid = Grid_sph1d(n, radius_out)
+
+                # Set model parameters
+                grid.gas_to_dust = 0
+                for i in range(n):
+                        pos = i,0,0
+                        grid.n_H2[pos] = 1e4 * 1e6 # m^-3
+                        grid.T_k[pos] = 40.0 # K
+                        grid.X_mol[pos] = x_mol # fraction
+                        grid.V_i[pos] = 0.0 # [m/s]
+                        grid.V_t[pos] = 200.0 # [m/s]
+                return
+
+install_task(Task_Uniform1D("task_uniform1d"))
+
+################################################################################
+
 class Task_ValDust1D(Task):
 	"""
 	Validate dust radiative transfer, 1D version
@@ -2232,6 +2286,7 @@ class Task_AMC(Task):
 			Key("fixiter", Type.PosInt, "5", "Minimum number of iterations for fixed rays stage"),
 			Key("raniter", Type.PosInt, "5", "Minimum number of iterations for random rays stage"),
 			Key("qmc", Type.Bool, "True", "Quasi-Monte-Carlo method"),
+			Key("sor", Type.Float, "0.0", "Upper limit of Monte Carlo noise level"),
 		]
 
 		# C function to call
@@ -2245,13 +2300,7 @@ class Task_AMC(Task):
 				popsold=0
 			else:
 				popsold=1
-			
-		        
-		        overlap_vel = INP_DICT["overlap"]
-			if ( overlap_vel == 0.0):
-			        overlap_int=0
-			else:
-			        overlap_int=1
+
 		INP_DICT["amc"] = amc
 		return
 

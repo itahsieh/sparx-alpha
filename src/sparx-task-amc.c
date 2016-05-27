@@ -123,10 +123,10 @@ int SpTask_Amc(void)
 	sts = SpPy_GetInput_PyObj("amc", &o);
 	PyObject *popsobj = PyObject_GetAttrString(o, "popsold");
 	glb.popsold = Sp_PYINT(popsobj);
-	PyObject *overlapj = PyObject_GetAttrString(o, "overlap_int");
-	glb.overlap = Sp_PYINT(overlapj);
-	overlapj = PyObject_GetAttrString(o, "overlap_vel");
+	overlapj = PyObject_GetAttrString(o, "overlap");
 	glb.overlap_vel = Sp_PYINT(overlapj);
+        glb.overlap = (glb.overlap_vel == 0.0) ? 0 : 1;
+
 	
 	if( glb.popsold ){
 		if(!sts) sts = SpPy_GetInput_model("source","pops", &glb.model);

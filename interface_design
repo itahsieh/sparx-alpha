@@ -23,5 +23,7 @@ postprocessor :
        
        
 line-fitting :
-  sparx run tasl_linefitting
+  (Goal) template :
+        ./linefitting
+         
          

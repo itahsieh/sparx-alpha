@@ -3,6 +3,7 @@
 ######################################################
 
 ## STATUS : DONE
+
 alpha-2         Jul 2014        summer wrap-up
 alpha-2.0.1     May 2015        fix subres position bug
 alpha-2.1.0     Dec 2015        add FITS output
@@ -26,8 +27,13 @@ alpha-2.3.3     Apr 2016        Visualization / contribution chart
 alpha-2.4.0     May 2016        Quasi Monte-Carlo scheme (&validated)
 
 ## STATUS : PENDING
-alpha-2.4                       Algorithm update : QMC & SOR
+
+alpha-2.4.1                     Algorithm update : SOR
 alpha-2.5                       PRE-SPARX : integrated preprocessor
+alpha-2.6                       Line fitting template
+
+alpha-3.0                       stable version release
+alpha-3.1                       unstructured grid supported
 
 
 ######################################################
@@ -46,9 +52,8 @@ alpha-2.5                       PRE-SPARX : integrated preprocessor
         * consistency of the intialization for molecule 
           with HDF format and data structures
                                                 (Medium-Low)
-        * 1-D solver could be simplified        (Low)
         * automatic converged mapping           (Low)
-        * arbitrary bounday / painter's algorithm 
+        * arbitrary boundary / painter's algorithm 
           -- for user's flexibility             (Low)
 
         

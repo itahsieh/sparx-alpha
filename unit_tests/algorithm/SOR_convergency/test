@@ -1,0 +1,7 @@
+#!/bin/bash
+
+
+rm -f model
+sparx run task_uniform1d \
+out=model \
+abundance=1e-8
