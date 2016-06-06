@@ -2,6 +2,8 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_qrng.h>
 
+#include <time.h>
+
 enum {
 	STAGE_FIX,
 	STAGE_RAN,
@@ -21,8 +23,8 @@ static struct glb {
 	gsl_rng *rng[Sp_NTHREAD];
         gsl_qrng *qrng[Sp_NTHREAD];
 	unsigned long seed;
-	double tolerance, minpop, snr, *I_norm, *I_cmb, max_diff, overlap_vel;
-	int stage, fully_random, lte, overlap, trace, popsold, qmc;
+	double tolerance, minpop, snr, *I_norm, *I_cmb, max_diff, overlap_vel, sor;
+	int stage, fully_random, lte, overlap, trace, popsold, qmc, ali, dat;
 
 	pthread_mutex_t exc_mutex;
 } glb;
@@ -104,6 +106,7 @@ int SpTask_Amc(void)
 	/*
 	 * Process inputs
 	 */
+// 1. get parameters from python interface
 	if(!sts) sts = SpPy_GetInput_sizt("nrays", &glb.nray);
 	if(!sts) sts = SpPy_GetInput_sizt("maxiter", &glb.maxi);
 	if(!sts) sts = SpPy_GetInput_sizt("fixiter", &glb.fixi);
@@ -112,19 +115,22 @@ int SpTask_Amc(void)
 	if(!sts) glb.fixi -= 1;
 	if(!sts) glb.rani -= 1;
 	if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-        if(!sts) sts = SpPy_GetInput_bool("qmc", &glb.qmc);
 	if(!sts) sts = SpPy_GetInput_bool("trace", &glb.trace);
 	//if(!sts) sts = SpPy_GetInput_dbl("tolerance", &glb.tolerance);
+        if(!sts) sts = SpPy_GetInput_bool("qmc", &glb.qmc);
+        if(!sts) sts = SpPy_GetInput_bool("ali", &glb.ali);
+        if(!sts) sts = SpPy_GetInput_bool("dat", &glb.dat);
 	if(!sts) sts = SpPy_GetInput_dbl("snr", &glb.snr);
         glb.tolerance = 0.1/glb.snr;
 	if(!sts) sts = SpPy_GetInput_dbl("minpop", &glb.minpop);
+        if(!sts) sts = SpPy_GetInput_dbl("sor", &glb.sor);
         
         PyObject *o;
 	sts = SpPy_GetInput_PyObj("amc", &o);
 	PyObject *popsobj = PyObject_GetAttrString(o, "popsold");
 	glb.popsold = Sp_PYINT(popsobj);
-	overlapj = PyObject_GetAttrString(o, "overlap");
-	glb.overlap_vel = Sp_PYINT(overlapj);
+	PyObject *overlap_obj = PyObject_GetAttrString(o, "overlap");
+	glb.overlap_vel = Sp_PYINT(overlap_obj);
         glb.overlap = (glb.overlap_vel == 0.0) ? 0 : 1;
 
 	
@@ -459,10 +465,12 @@ static int CalcExc(void)
 	Sp_PRINT("Model geometry is `%s'\n", Geom_CodeToName(glb.model.grid->voxel.geom));
 	Sp_PRINT("Solving excitation for %s\n", glb.model.parms.mol->chemname);
 	Sp_PRINT("Total %d levels, %d lines\n", glb.model.parms.mol->nlev, glb.model.parms.mol->nrad);
-	Sp_PRINT("Beginning convergence from %s conditions\n", glb.lte ? "LTE" : "optically thin");
+	Sp_PRINT("Beginning convergence from %s conditions\n", glb.lte ? "LTE" : "GROUND STATE");
 
         int sts = 0;
-	for(glb.stage = 0; !sts && (glb.stage < STAGE_N); glb.stage++) {
+	for(glb.stage = 0;
+            !sts && (glb.stage < (glb.ali ? 1 : STAGE_N)); 
+            glb.stage++) {
 		
 		/* Sleep for 1 second just in case things went too fast */
 		glb.fully_random = (glb.stage == STAGE_RAN) ? 1 : 0;
@@ -754,29 +762,38 @@ static int CalcExc(void)
 		fclose(fp);
 	}
 #endif
-#if 1
-	if(Sp_MPIRANK == 0){
-                char filename[13];
-		sprintf(filename,"%s.dat",glb.outf->name);
-		FILE *fp=fopen(filename,"w");
-		for(size_t izone = 0; izone < glb.nzone; izone++){
-			Zone *zp = glb.zones[izone];
-			SpPhys *pp = zp->data;
-			
-//                         double x = zp->voxel.cen.x[0]-zone->voxel.cen.x[0];
-//                         double y = zp->voxel.cen.x[1]-zone->voxel.cen.x[1];
-//                         double z = zp->voxel.cen.x[2]-zone->voxel.cen.x[2];
-//                         double tempR = sqrt( x*x + y*y+ z*z );
-			
-			double tempR=zp->voxel.cen.x[0];
+        if(glb.dat){
+            if(Sp_MPIRANK == 0){
+                char filename[32];
+                sprintf(filename,"%s.dat",glb.outf->name);
+                FILE *fp=fopen(filename,"w");
+                for(size_t izone = 0; izone < glb.nzone; izone++){
+                        Zone *zp = glb.zones[izone];
+                        SpPhys *pp = zp->data;
+                        double tempR;
+                        switch (zp->voxel.geom){
+                                case GEOM_REC3D:{
+                                        double x = zp->voxel.cen.x[0]-zone->voxel.cen.x[0];
+                                        double y = zp->voxel.cen.x[1]-zone->voxel.cen.x[1];
+                                        double z = zp->voxel.cen.x[2]-zone->voxel.cen.x[2];
+                                        tempR = sqrt( x*x + y*y+ z*z );
+                                }
+                                        break;
+                                case GEOM_SPH1D:
+                                        tempR = zp->voxel.cen.x[0];
+                                        break;
+                                default:
+                                        Deb_ASSERT(0);
+                        
+                        }
                         fprintf(fp,"%11.4e ", tempR);
                         for (size_t j = 0; j < pp->mol->nlev; j++ )
                                 fprintf(fp,"%11.4e ", pp->pops[0][j]);
                         fprintf(fp,"\n");
-		}
-		fclose(fp);
-	}
-#endif
+                }
+                fclose(fp);
+            }
+        }
 	/* Check for Python exceptions */
 	if(!sts && PyErr_Occurred()) {
 		sts = 1;
@@ -792,7 +809,14 @@ static void *CalcExcThread(void *tid_p)
 	size_t tid = *((size_t *)tid_p);
 	double *hist = Mem_CALLOC(NHIST * NLEV, hist);
 	double *popsold = Mem_CALLOC(NLEV, popsold);
-
+        
+#define TIMER 1
+#if  TIMER        
+        // Timer
+        float Tmc_thread = 0.0;
+        float Tdb_thread = 0.0;
+        float Tall_thread = 0.0;
+#endif
 	for(size_t izone = 0; izone < glb.nzone; izone++) {
 		/* Skip zones that don't belong to this rank/thread */
 		if((glb.zone_tid[izone] != tid) || (glb.zone_rank[izone] != Sp_MPIRANK))
@@ -832,6 +856,9 @@ static void *CalcExcThread(void *tid_p)
                 
 		/* Calculate NHIST times for statistics */
 		for(size_t ihist = 0; ihist < (glb.stage == STAGE_RAN? NHIST:1); ihist++) {
+#if  TIMER
+                        clock_t start = clock();
+#endif
                         #if 1
                         if(glb.qmc)
                                 CalcRays_QRNG(tid, zp, ds0, vfac0, intensity, tau);
@@ -847,9 +874,18 @@ static void *CalcExcThread(void *tid_p)
 			}
 			#undef XI
                         #endif
-
+#if  TIMER
+                        float Tmc = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
+#endif
 			CalcDetailedBalance(tid, pp, ds0, vfac0, intensity, tau);
-
+#if  TIMER
+                        float Tall = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
+                        float Tdb =  Tall - Tmc;
+                        
+                        Tmc_thread += Tmc;
+                        Tdb_thread += Tdb;
+                        Tall_thread += Tall;
+#endif
 			if(glb.stage == STAGE_RAN){
 				for(size_t i = 0; i < NLEV; i++) {
 					HIST(ihist, i) = pp->pops[tid][i];
@@ -934,7 +970,10 @@ static void *CalcExcThread(void *tid_p)
 		free(intensity);
 		free(tau);
 	}
-	
+#if TIMER	
+	printf("Tid = %zu MC : %f %% , Detailed Balance : %f %% \n", tid, 100*Tmc_thread/Tall_thread, 100*Tdb_thread/Tall_thread);
+#endif
+#undef TIMER	
 
 	free(hist);
 	free(popsold);
@@ -1383,7 +1422,7 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 {
 	size_t  max_diff_lev = 0;
 	double diff = 0;
-	const double MAXDIFF = TOLERANCE * 0.1;
+	const double MAXDIFF = glb.minpop;//TOLERANCE * 0.1;
 
 	/* Allocate J_bar array (no need now) */
 	double *J_bar = Mem_CALLOC(NRAD, J_bar);

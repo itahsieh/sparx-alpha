@@ -10,7 +10,7 @@ MIRSUPPORT = 0
 ENABLE_MULTITREADING = 1
 if ENABLE_MULTITREADING:
         import multiprocessing
-        NumberOfThread = 2 * multiprocessing.cpu_count()
+        NumberOfThread = multiprocessing.cpu_count()
 else:
         NumberOfThread = 1
 print 'Number Of Thread=',NumberOfThread

@@ -682,7 +682,7 @@ class Task_Uniform1D(Task):
                 grid.gas_to_dust = 0
                 for i in range(n):
                         pos = i,0,0
-                        grid.n_H2[pos] = 1e4 * 1e6 # m^-3
+                        grid.n_H2[pos] = 1e6 * 1e6 # m^-3
                         grid.T_k[pos] = 40.0 # K
                         grid.X_mol[pos] = x_mol # fraction
                         grid.V_i[pos] = 0.0 # [m/s]
@@ -2286,7 +2286,9 @@ class Task_AMC(Task):
 			Key("fixiter", Type.PosInt, "5", "Minimum number of iterations for fixed rays stage"),
 			Key("raniter", Type.PosInt, "5", "Minimum number of iterations for random rays stage"),
 			Key("qmc", Type.Bool, "True", "Quasi-Monte-Carlo method"),
-			Key("sor", Type.Float, "0.0", "Upper limit of Monte Carlo noise level"),
+			Key("ali", Type.Bool, "False", "Lambda iteration only / Three-staged Monte-Carlo convergent automation"),
+			Key("dat", Type.Bool, "False", "1-D level populations ascii file ouput"),
+			Key("sor", Type.Float, "1.0", "successive and over-relaxation method"),
 		]
 
 		# C function to call

@@ -15,6 +15,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 
+
 cd unit_tests
 # create "tmp" directory only if it doesn't exist. then enter it
 mkdir -p tmp; cd tmp
@@ -66,6 +67,9 @@ case $CASE in
         ;;
   "SOR")
         source ../algorithm/SOR_convergency/test       | tee -a test.log
+        #gfortran ../algorithm/SOR_convergency/pops_error.f90 -o pops_error
+        #./pops_error
+        #gnuplot ../algorithm/SOR_convergency/plot  | tee -a test.log
         ;;
   *)
         exit 1
