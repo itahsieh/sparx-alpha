@@ -8,8 +8,7 @@ sparx run task_amc \
 source=model \
 out=pops \
 molec=hco+ \
-trace='True' \
-qmc='False'
+trace='True' 
 
 # Generating CH3CN pops for overlap-emission test
 #$sparx_version run task_amc \

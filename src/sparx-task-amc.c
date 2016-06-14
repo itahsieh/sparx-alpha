@@ -811,12 +811,14 @@ static void *CalcExcThread(void *tid_p)
 	double *popsold = Mem_CALLOC(NLEV, popsold);
         
         #define TIMER 0
+        
         #if  TIMER        
         // Timer
         float Tmc_thread = 0.0;
         float Tdb_thread = 0.0;
         float Tall_thread = 0.0;
         #endif
+        
 	for(size_t izone = 0; izone < glb.nzone; izone++) {
 		/* Skip zones that don't belong to this rank/thread */
 		if((glb.zone_tid[izone] != tid) || (glb.zone_rank[izone] != Sp_MPIRANK))
@@ -856,9 +858,11 @@ static void *CalcExcThread(void *tid_p)
                 
 		/* Calculate NHIST times for statistics */
 		for(size_t ihist = 0; ihist < (glb.stage == STAGE_RAN? NHIST:1); ihist++) {
+                        
                         #if  TIMER
                         clock_t start = clock();
                         #endif
+                        
                         #if 1
                         if(glb.qmc)
                                 CalcRays_QRNG(tid, zp, ds0, vfac0, intensity, tau);
@@ -874,6 +878,7 @@ static void *CalcExcThread(void *tid_p)
 			}
 			#undef XI
                         #endif
+                        
                         #if  TIMER
                         float Tmc = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
                         #endif
@@ -1418,7 +1423,7 @@ static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vf
 
 /*----------------------------------------------------------------------------*/
 
-static void CalcDetailedBalanceQR(size_t tid, SpPhys *pp, const double *ds0,
+static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 	const double *vfac0, const double *intensity, const double *tau)
 /* Calculate and invert detailed balance equations to solve for level
  * populations, and save results in pp */
@@ -1465,7 +1470,13 @@ static void CalcDetailedBalanceQR(size_t tid, SpPhys *pp, const double *ds0,
 			CalcJbar(tid, pp, ds0, vfac0, intensity, tau, J_bar);
 
 			/* Reset rates matrix */
+                        #if QR
 			Mem_BZERO2(rmat, (NLEV + 1) * NLEV);
+                        #elif LU
+                        Mem_BZERO2(rmat, NLEV * NLEV);
+                        #else
+                        Deb_ASSERT(0);
+                        #endif
 
                         #define RMAT(i, j)\
                                 rmat[(j) + NLEV * (i)]
@@ -1521,7 +1532,7 @@ static void CalcDetailedBalanceQR(size_t tid, SpPhys *pp, const double *ds0,
                         Deb_ASSERT(0);
                         
                         #endif
-                        
+
                         #undef RMAT
                         #undef CMAT
                         
