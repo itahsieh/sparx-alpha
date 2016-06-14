@@ -179,7 +179,6 @@ void Num_QRDecompSolve(double *A, size_t M, size_t N, const double *b, double *x
  * must == M
  */
 {
-	size_t i;
 	gsl_matrix_view
 		QR = gsl_matrix_view_array(A, M, N);
 	gsl_vector_const_view
@@ -192,7 +191,7 @@ void Num_QRDecompSolve(double *A, size_t M, size_t N, const double *b, double *x
 	gsl_linalg_QR_decomp(&QR.matrix, tau);
 	gsl_linalg_QR_lssolve(&QR.matrix, tau, &bb.vector, xx, residual);
 
-	for(i = 0; i < N; i++)
+	for(size_t i = 0; i < N; i++)
 		x[i] = gsl_vector_get(xx, i);
 
 	gsl_vector_free(tau);
@@ -230,6 +229,41 @@ void Num_SVDecompSolve(double *A, size_t M, size_t N, const double *b, double *x
 		x[i] = gsl_vector_get(xx, i);
 
 	return;
+}
+
+/*----------------------------------------------------------------------------*/
+
+void Num_LUDecompSolve(double *A, size_t N, const double *b, double *x)
+/* Solve the linear system A x = b by doing QR decomposition and
+ * least-squares solution, where A is a general M by N matrix.
+ *
+ * Note on gsl_linalg_QR_* routines:
+ * in gsl_linalg_QR_decomp(), dim(tau) must == \min(M, N) and
+ * gsl_linalg_QR_lssolve(), dim(x) must == N, while dim(b) & dim(residual)
+ * must == M
+ */
+{
+        gsl_matrix_view
+                LU = gsl_matrix_view_array(A, N, N);
+        gsl_vector_const_view
+                bb = gsl_vector_const_view_array(b, N);
+        gsl_vector
+                *xx = gsl_vector_alloc(N);
+        gsl_permutation 
+                *p = gsl_permutation_alloc (N);
+        int s;
+
+        gsl_linalg_LU_decomp(&LU.matrix, p, &s);
+        
+        gsl_linalg_LU_solve(&LU.matrix, p, &bb.vector, xx);
+
+        for(size_t i = 0; i < N; i++)
+                x[i] = gsl_vector_get(xx, i);
+
+        gsl_vector_free(xx);
+        gsl_permutation_free (p);
+
+        return;
 }
 
 /*----------------------------------------------------------------------------*/

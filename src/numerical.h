@@ -33,8 +33,11 @@ double Num_InterpLinear(double x, double x_0, double x_1, double y_0, double y_1
 double Num_InterpPoly(double x, const double *xa, const double *ya, size_t n, size_t m);
 double Num_InterpPoly2d(double x1, double x2, const double *x1a, const double *x2a,
 	const double *ya, size_t n1, size_t n2, size_t m1, size_t m2);
+
 void Num_QRDecompSolve(double *A, size_t M, size_t N, const double *b, double *x);
 void Num_SVDecompSolve(double *A, size_t M, size_t N, const double *b, double *x);
+void Num_LUDecompSolve(double *A, size_t N, const double *b, double *x);
+
 void Num_Qsort_d(double array[], size_t n);
 void Num_QuadraticRoots(double a, double b, double c, double *x1, double *x2);
 void NumFFT_Xform2d(double *arr, size_t idim, size_t jdim, double *real, double *imag);

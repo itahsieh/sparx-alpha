@@ -2,12 +2,12 @@
 
 
 # Initial condition : hot / cold
-INITIAL=cold
+INITIAL=hot
 # ABUNDANCE
-#ABD_ARRAY=(1E-2 1E-3 1E-4 1E-5 1E-6 1E-7 1E-8)
-#SNR_ARRAY=(20 40 60 80 100 200 400 1000 2000)
-ABD_ARRAY=(1E-9)
-SNR_ARRAY=(20)
+ABD_ARRAY=(1E-3 1E-4 1E-5 1E-6 1E-7 1E-8 1E-9)
+SNR_ARRAY=(20 40 60 80 100 200 400 1000 2000)
+#ABD_ARRAY=(1E-7)
+#SNR_ARRAY=(20)
 
 if [ $INITIAL == 'hot' ]; then
   LTE='lte=True'
@@ -40,12 +40,13 @@ do
     molec='hco+' \
     snr=$SNR \
     $LTE \
-    nrays=50 \
+    nrays=256 \
     raniter=1 \
     fixiter=1 \
     sor=1.0 \
     ali='True' \
     dat='True' \
     | tee $OUT.log
+    
   done
 done

@@ -277,7 +277,7 @@ static int InitModel(void)
 			for(size_t j=0; j<NRAD; j++){
 				glb.model.parms.mol->OL[NRAD*i+j] = Mem_CALLOC(1,glb.model.parms.mol->OL[NRAD*i+j]);
 				RELVEL(i,j) = ( 1e0-FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
-				if( fabs(RELVEL(i,j)) < glb.overlap_vel ){
+				if( fabs(RELVEL(i,j)) <= glb.overlap_vel ){
 					OVERLAP(i,j)=1;
 				}
 				else{
@@ -810,13 +810,13 @@ static void *CalcExcThread(void *tid_p)
 	double *hist = Mem_CALLOC(NHIST * NLEV, hist);
 	double *popsold = Mem_CALLOC(NLEV, popsold);
         
-#define TIMER 1
-#if  TIMER        
+        #define TIMER 0
+        #if  TIMER        
         // Timer
         float Tmc_thread = 0.0;
         float Tdb_thread = 0.0;
         float Tall_thread = 0.0;
-#endif
+        #endif
 	for(size_t izone = 0; izone < glb.nzone; izone++) {
 		/* Skip zones that don't belong to this rank/thread */
 		if((glb.zone_tid[izone] != tid) || (glb.zone_rank[izone] != Sp_MPIRANK))
@@ -856,9 +856,9 @@ static void *CalcExcThread(void *tid_p)
                 
 		/* Calculate NHIST times for statistics */
 		for(size_t ihist = 0; ihist < (glb.stage == STAGE_RAN? NHIST:1); ihist++) {
-#if  TIMER
+                        #if  TIMER
                         clock_t start = clock();
-#endif
+                        #endif
                         #if 1
                         if(glb.qmc)
                                 CalcRays_QRNG(tid, zp, ds0, vfac0, intensity, tau);
@@ -874,18 +874,21 @@ static void *CalcExcThread(void *tid_p)
 			}
 			#undef XI
                         #endif
-#if  TIMER
+                        #if  TIMER
                         float Tmc = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
-#endif
-			CalcDetailedBalance(tid, pp, ds0, vfac0, intensity, tau);
-#if  TIMER
+                        #endif
+
+                        CalcDetailedBalance(tid, pp, ds0, vfac0, intensity, tau);
+
+                        #if  TIMER
                         float Tall = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
                         float Tdb =  Tall - Tmc;
                         
                         Tmc_thread += Tmc;
                         Tdb_thread += Tdb;
                         Tall_thread += Tall;
-#endif
+                        #endif
+                        
 			if(glb.stage == STAGE_RAN){
 				for(size_t i = 0; i < NLEV; i++) {
 					HIST(ihist, i) = pp->pops[tid][i];
@@ -1415,31 +1418,43 @@ static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vf
 
 /*----------------------------------------------------------------------------*/
 
-static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
+static void CalcDetailedBalanceQR(size_t tid, SpPhys *pp, const double *ds0,
 	const double *vfac0, const double *intensity, const double *tau)
 /* Calculate and invert detailed balance equations to solve for level
  * populations, and save results in pp */
 {
 	size_t  max_diff_lev = 0;
 	double diff = 0;
-	const double MAXDIFF = glb.minpop;//TOLERANCE * 0.1;
+	const double MAXDIFF = glb.minpop;
+        //const double MAXDIFF = TOLERANCE * 0.1;
 
 	/* Allocate J_bar array (no need now) */
 	double *J_bar = Mem_CALLOC(NRAD, J_bar);
-
+        
+#define QR 0
+#define LU 1
+        
+        #if QR
 	/* Allocate rates matrix: (NLEV + 1) x NLEV,
 	 * where the additional row is for the constraint
 	 * that all levels must sum to unity */
-	double *rmat = Mem_CALLOC((NLEV + 1) * NLEV, rmat);
+        double *rmat = Mem_CALLOC((NLEV + 1) * NLEV, rmat);
+        /* RHS of rate equation */
+        double *rhs = Mem_CALLOC(NLEV + 1, rhs);
+        rhs[NLEV] = 1.0;
+        
+        #elif LU
+        double *rmat = Mem_CALLOC(NLEV * NLEV, rmat);
+        /* RHS of rate equation */
+        double *rhs = Mem_CALLOC(NLEV, rhs);
+        rhs[NLEV-1] = 1.0;
+        
+        #else
+        Deb_ASSERT(0);
+                
+        #endif
 
-	#define RMAT(i, j)\
-		rmat[(j) + NLEV * (i)]
-	#define CMAT(i, j)\
-		(pp->cmat[(j) + NLEV * (i)])
-
-	/* RHS of rate equation */
-	double *rhs = Mem_CALLOC(NLEV + 1, rhs);
-	rhs[NLEV] = 1.0;
+	
 
 	/* Allocate hist array */
 	double *hist = Mem_CALLOC(NHIST * NLEV, hist);
@@ -1452,6 +1467,11 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 			/* Reset rates matrix */
 			Mem_BZERO2(rmat, (NLEV + 1) * NLEV);
 
+                        #define RMAT(i, j)\
+                                rmat[(j) + NLEV * (i)]
+                        #define CMAT(i, j)\
+                                (pp->cmat[(j) + NLEV * (i)])
+                        
 			/* Add radiative terms to rates matrix */
 			for(size_t i = 0; i < NRAD; i++) {
 				size_t up = RAD(i)->up;
@@ -1466,37 +1486,51 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 				RMAT(lo, up) += (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
 			}
 
+			#if QR
 			/* Add collisional terms to rates matrix */
 			for(size_t i = 0; i < NLEV; i++) {
 				for(size_t j = 0; j < NLEV; j++) {
-					if(i == j) {
-					/* Diagonal terms are minus the sums of the rates from all
-					 * collisional transitions `out of' state i */
-						for(size_t k = 0; k < NLEV; k++)
-							RMAT(i, j) -= CMAT(i, k);
-					}
-					else {
-					/* Off-diagonal terms are sums of rates from state j
-					 * `into' state i */
-						RMAT(i, j) += CMAT(j, i);
-					}
+					RMAT(i, j) += CMAT(i, j);
 				}
 				/* Last row is the constraint that all level densities
 				 * must sum to unity */
 				RMAT(NLEV, i) = 1.0;
 			}
-
+			
 			/* Invert matrix with QR decomposition and solve for
 			 * level populations */
 			Num_QRDecompSolve(rmat, NLEV + 1, NLEV, rhs, pp->pops[tid]);
-
-			/* Zero out negative/uncertain pops */
+			
+                        #elif LU
+                        /* Add collisional terms to rates matrix */
+                        for(size_t i = 0; i < NLEV-1; i++) {
+                                for(size_t j = 0; j < NLEV; j++) {
+                                        RMAT(i, j) += CMAT(i, j);
+                                }
+                        }
+                        /* Last row is the constraint that all level densities
+                         * must sum to unity */
+                        for(size_t j = 0; j < NLEV; j++) 
+                                RMAT(NLEV-1, j) = 1.0;
+                        
+                        /* Invert matrix with QR decomposition and solve for
+                         * level populations */
+                        Num_LUDecompSolve(rmat, NLEV, rhs, pp->pops[tid]);
+                        
+                        #else
+                        Deb_ASSERT(0);
+                        
+                        #endif
+                        
+                        #undef RMAT
+                        #undef CMAT
+                        
 			for(size_t i = 0; i < NLEV; i++) {
-				if(pp->pops[tid][i] < 0)
-					pp->pops[tid][i] = 0.0;
-			}
-
-			for(size_t i = 0; i < NLEV; i++) {
+                                /* Zero out negative/uncertain pops */
+                                if(pp->pops[tid][i] < 0)
+                                        pp->pops[tid][i] = 0.0;
+                                
+                                /* restore the history of iteration */
 				HIST(ihist, i) = pp->pops[tid][i];
 			}
 		}
@@ -1509,6 +1543,10 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 			break;
 	}
 
+#undef QR
+#undef LU	
+	
+	
 	/* Warn for non-convergence */
 	if(diff > MAXDIFF) {
 		Sp_PWARN("non-convergence detected at level %lu in zone <%lu,%lu,%lu> (diff=%.3e MAXDIFF=%.3e %.3e %.3e )\n",
@@ -1518,9 +1556,6 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 			GeVec3_X(pp->zp->index, 2),
 			diff,MAXDIFF,TOLERANCE,glb.tolerance);
 	}
-
-	#undef RMAT
-	#undef CMAT
 
 	/* Cleanup */
 	free(J_bar);

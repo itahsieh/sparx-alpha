@@ -2302,6 +2302,7 @@ class Task_AMC(Task):
 				popsold=0
 			else:
 				popsold=1
+			overlap = INP_DICT["overlap"]
 
 		INP_DICT["amc"] = amc
 		return

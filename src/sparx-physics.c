@@ -167,7 +167,28 @@ void SpPhys_InitCollRates(SpPhys *pp)
 		for(size_t j = i + 1; j < NLEV; j++) {
 			CMAT(i, j) = CMAT(j, i) * SpPhys_BoltzRatio(pp->mol, j, i, pp->T_k);
 		}
+                
+                /* Diagonal terms are minus the sums of the rates from all
+                 * collisional transitions `out of' state i */
+                for (size_t j = 0; j < NLEV; j++){
+                        if( j != i )
+                                CMAT(i,i) -= CMAT(i,j);
+                }
+               
 	}
+
+        /* matrix transpose 
+         * Off-diagonal terms are sums of rates from state j
+         * `into' state i */
+        for(size_t i = 0; i < NLEV; i++) {
+                for (size_t j = 0; j < NLEV; j++){
+                        if( j != i ){
+                                double temp = CMAT(i,j);
+                                CMAT(i,j) = CMAT(j,i);
+                                CMAT(j,i) = temp;
+                        }
+                }
+        }
 
 	#undef NLEV
 	#undef COL
