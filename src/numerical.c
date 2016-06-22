@@ -7,6 +7,7 @@
 #include <gsl/gsl_cblas.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_rng.h>
+#include <gsl/gsl_eigen.h>
 #include <fftw3.h>
 
 #include "debug.h"
@@ -263,6 +264,41 @@ void Num_LUDecompSolve(double *A, size_t N, const double *b, double *x)
         gsl_vector_free(xx);
         gsl_permutation_free (p);
 
+        return;
+}
+
+/*----------------------------------------------------------------------------*/
+
+void Num_EigenSolver(double *A, size_t N, double *eigen_value)
+{
+        gsl_vector *eval = gsl_vector_alloc (N);
+        gsl_matrix *evec = gsl_matrix_alloc (N, N);
+        
+        gsl_matrix_view 
+                m = gsl_matrix_view_array(A, N, N);
+        gsl_eigen_symm_workspace 
+                * w = gsl_eigen_symmv_alloc(N);
+                
+        gsl_eigen_symmv (&m.matrix, eval, evec, w);
+
+        gsl_eigen_symmv_free (w);
+
+        gsl_eigen_symmv_sort (eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+
+        for (int i = 0; i < N; i++){
+                double eval_i = gsl_vector_get (eval, i);
+                eigen_value[i] = eval_i;
+                gsl_vector_view 
+                        evec_i = gsl_matrix_column (evec, i);
+
+                printf ("eigenvalue = %g\n", eval_i);
+                //printf ("eigenvector = \n");
+                //gsl_vector_fprintf (stdout, &evec_i.vector, "%g");
+        }
+
+        gsl_vector_free (eval);
+        gsl_matrix_free (evec);
+        
         return;
 }
 

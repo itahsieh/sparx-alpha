@@ -66,10 +66,14 @@ case $CASE in
         #gnuplot ../algorithm/AMC_accuracy/fit  | tee -a test.log
         ;;
   "SOR")
-        #source ../algorithm/SOR_convergency/test       | tee -a test.log
-        gfortran ../algorithm/SOR_convergency/pops_error.f90 -o pops_error
+        #source ../algorithm/ALI_convergency/test       | tee -a test.log
+        gfortran ../algorithm/ALI_convergency/pops_error.f90 -o pops_error
         ./pops_error
-        #gnuplot ../algorithm/SOR_convergency/plot  | tee -a test.log
+        #gnuplot ../algorithm/ALI_convergency/plot  | tee -a test.log
+        ;;
+  "SHU1D")
+        \cp ../../preprocessor/presparx/Shu1D/* ./
+        presparx -o model
         ;;
   *)
         exit 1

@@ -498,6 +498,7 @@ int SpTask_Telsim(void)
 		// output tau image
                 if(glb.tau_imgf){
 			FITSoutput( glb.tau_imgf, glb.tau_img, glb.StokesQ, glb.StokesU, "Optical depth", 1., 0);
+                        Sp_PRINT("Wrote FITS image to `%s'\n", glb.tau_imgf->name);
                         
                         #if Sp_MIRSUPPORT
                         MirImg_WriteXY(glb.tau_imgf, glb.tau_img, "Optical depth", 1.0);

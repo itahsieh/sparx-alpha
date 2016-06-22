@@ -55,6 +55,17 @@ rm $destination/bin/sparx
 printf "${RED}CREATE bin/${SPARXVERSION}${NC}\n"
 
 
+# REPLACE the first 'sparx' occurrence in bin/presparx TO 'sparx-CLUSTERNAME'
+EXECUTABLE=$destination/bin/pre$SPARXVERSION
+sed -e "s/import sparx/import $SPARX_VERSION/" \
+    -e "s/from sparx/from $SPARX_VERSION/" \
+        bin/presparx > $EXECUTABLE
+chmod 755 $EXECUTABLE
+rm $destination/bin/presparx
+printf "${RED}CREATE bin/pre${SPARXVERSION}${NC}\n"
+
+
+
 # REPLACE sparx_module in FILE to 'sparx_CLUSTERNAME' 
 PYTHONPATH=$destination/lib/python2.7/site-packages
 for FILE in `ls lib/sparx | grep .py`;do
@@ -74,6 +85,8 @@ if ! grep -q "# SPARX PATH" $LOAD_MODULE_FILE; then
   echo 'export PYTHONPATH=$PYTHONPATH:'$PYTHONPATH \
         >> $LOAD_MODULE_FILE
   echo 'alias sparx=$SPARXVERSION' \
+        >> $LOAD_MODULE_FILE
+  echo 'alias presparx=pre$SPARXVERSION' \
         >> $LOAD_MODULE_FILE
   printf "${LIGHTCYAN}UPDATE $LOAD_MODULE_FILE${NC}\n"
 fi

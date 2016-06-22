@@ -10,7 +10,7 @@ MIRSUPPORT = 0
 ENABLE_MULTITREADING = 1
 if ENABLE_MULTITREADING:
         import multiprocessing
-        NumberOfThread = multiprocessing.cpu_count()
+        NumberOfThread = 2 * multiprocessing.cpu_count()
 else:
         NumberOfThread = 1
 print 'Number Of Thread=',NumberOfThread
@@ -299,6 +299,7 @@ setup(
 	]},
 	ext_modules = [ext_sparx],
 	scripts = [
+                'bin/presparx', # SPARX preprocessor
 		'bin/sparx', # Main sparx command line driver
 		'bin/sparx-plot', # Model plotter
 		'bin/sparx-plot.py', # Model plotter

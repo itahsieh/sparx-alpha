@@ -185,7 +185,7 @@ Zone *Zone_GetMaxLeaf(Zone *zone)
 
 /*----------------------------------------------------------------------------*/
 
-Zone *Zone_GetInner(Zone *zone)
+Zone *Zone_GetInner(Zone *zone, const GeVec3_d *pt)
 {
 	Zone *parent = zone->parent;
 
@@ -194,9 +194,17 @@ Zone *Zone_GetInner(Zone *zone)
 			return Zone_GetMaxLeaf(parent->children[zone->pos - 1]);
 		}
 		else if(parent->parent) {
-			return Zone_GetInner(parent);
+			return Zone_GetInner(parent, pt);
 		}
 	}
+	
+	double x = pt->x[0];
+        double y = pt->x[1];
+        double z = pt->x[2];
+        double r = sqrt( x * x + y * y + z * z );
+	if( r == 0.0 ){
+                return Zone_GetMinLeaf(zone);
+        }
 
 	return NULL;
 }
@@ -498,12 +506,12 @@ Zone *Zone_GetLeaf_cyl3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRa
 #undef RTHRESHOLD
 /*----------------------------------------------------------------------------*/
 
-Zone *Zone_GetNext_sph1d(Zone *zone, size_t *side)
+Zone *Zone_GetNext_sph1d(Zone *zone, size_t *side, const GeVec3_d *pt)
 {
 	Zone *next = NULL;
 
 	if( *side == 0) { /* Going inward */
-		next = Zone_GetInner(zone);
+		next = Zone_GetInner(zone, pt);
                 *side = 1;
 	}
 	else if( *side == 1) { /* Going outward */
@@ -689,7 +697,7 @@ Zone *Zone_GetNext(Zone *zone, size_t *side, const GeRay *ray)
 
 	switch(zone->voxel.geom) {
 	  case GEOM_SPH1D:
-	  	next = Zone_GetNext_sph1d(zone, side);
+	  	next = Zone_GetNext_sph1d(zone, side, &(ray->e));
 	  	break;
           
 	  case GEOM_SPH3D:

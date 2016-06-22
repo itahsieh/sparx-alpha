@@ -38,6 +38,8 @@ void Num_QRDecompSolve(double *A, size_t M, size_t N, const double *b, double *x
 void Num_SVDecompSolve(double *A, size_t M, size_t N, const double *b, double *x);
 void Num_LUDecompSolve(double *A, size_t N, const double *b, double *x);
 
+void Num_EigenSolver(double *A, size_t N, double *eigen_value);
+
 void Num_Qsort_d(double array[], size_t n);
 void Num_QuadraticRoots(double a, double b, double c, double *x1, double *x2);
 void NumFFT_Xform2d(double *arr, size_t idim, size_t jdim, double *real, double *imag);

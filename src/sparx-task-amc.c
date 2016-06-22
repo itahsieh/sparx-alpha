@@ -979,7 +979,8 @@ static void *CalcExcThread(void *tid_p)
 		free(tau);
 	}
 #if TIMER	
-	printf("Tid = %zu MC : %f %% , Detailed Balance : %f %% \n", tid, 100*Tmc_thread/Tall_thread, 100*Tdb_thread/Tall_thread);
+
+        printf("Tid = %zu , Detailed Balance : %f ms \n", tid, 100.*Tdb_thread/Tall_thread);
 #endif
 #undef TIMER	
 
@@ -1436,10 +1437,10 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 	/* Allocate J_bar array (no need now) */
 	double *J_bar = Mem_CALLOC(NRAD, J_bar);
         
-#define QR 0
-#define LU 1
+#define QR_DECOMPOSE 0
+#define LU_DECOMPOSE 1
         
-        #if QR
+#if QR_DECOMPOSE
 	/* Allocate rates matrix: (NLEV + 1) x NLEV,
 	 * where the additional row is for the constraint
 	 * that all levels must sum to unity */
@@ -1448,18 +1449,16 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
         double *rhs = Mem_CALLOC(NLEV + 1, rhs);
         rhs[NLEV] = 1.0;
         
-        #elif LU
+#elif LU_DECOMPOSE
         double *rmat = Mem_CALLOC(NLEV * NLEV, rmat);
         /* RHS of rate equation */
         double *rhs = Mem_CALLOC(NLEV, rhs);
         rhs[NLEV-1] = 1.0;
         
-        #else
+#else
         Deb_ASSERT(0);
                 
-        #endif
-
-	
+#endif
 
 	/* Allocate hist array */
 	double *hist = Mem_CALLOC(NHIST * NLEV, hist);
@@ -1470,13 +1469,13 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 			CalcJbar(tid, pp, ds0, vfac0, intensity, tau, J_bar);
 
 			/* Reset rates matrix */
-                        #if QR
+#if QR_DECOMPOSE
 			Mem_BZERO2(rmat, (NLEV + 1) * NLEV);
-                        #elif LU
+#elif LU_DECOMPOSE
                         Mem_BZERO2(rmat, NLEV * NLEV);
-                        #else
+#else
                         Deb_ASSERT(0);
-                        #endif
+#endif
 
                         #define RMAT(i, j)\
                                 rmat[(j) + NLEV * (i)]
@@ -1497,7 +1496,7 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 				RMAT(lo, up) += (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
 			}
 
-			#if QR
+#if QR_DECOMPOSE
 			/* Add collisional terms to rates matrix */
 			for(size_t i = 0; i < NLEV; i++) {
 				for(size_t j = 0; j < NLEV; j++) {
@@ -1512,7 +1511,7 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 			 * level populations */
 			Num_QRDecompSolve(rmat, NLEV + 1, NLEV, rhs, pp->pops[tid]);
 			
-                        #elif LU
+#elif LU_DECOMPOSE
                         /* Add collisional terms to rates matrix */
                         for(size_t i = 0; i < NLEV-1; i++) {
                                 for(size_t j = 0; j < NLEV; j++) {
@@ -1524,14 +1523,20 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
                         for(size_t j = 0; j < NLEV; j++) 
                                 RMAT(NLEV-1, j) = 1.0;
                         
+                        #if 0
+                        /* eigenvalue solver */
+                        double eigen_value[NLEV];
+                        Num_EigenSolver(rmat, NLEV, eigen_value);
+                        #endif
+                        
                         /* Invert matrix with QR decomposition and solve for
                          * level populations */
                         Num_LUDecompSolve(rmat, NLEV, rhs, pp->pops[tid]);
                         
-                        #else
+#else
                         Deb_ASSERT(0);
                         
-                        #endif
+#endif
 
                         #undef RMAT
                         #undef CMAT
@@ -1554,8 +1559,8 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 			break;
 	}
 
-#undef QR
-#undef LU	
+#undef QR_DECOMPOSE
+#undef LU_DECOMPOSE
 	
 	
 	/* Warn for non-convergence */

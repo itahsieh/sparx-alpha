@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+
+# usage
+def usage():
+        print 'presparx -o <outputfile>'
+        print '         -p : simple ploot'
+        print '         -v : generate vtk file'
+
+# parser
+import sys, getopt
+argv = sys.argv[1:]
+if not argv:
+        usage()
+        sys.exit(2)
+outputfile = ''
+try:
+        opts, args = getopt.getopt(argv,"o:vp",["--out","out=","--plot","--vtk"])
+except getopt.GetoptError:
+        usage()
+        sys.exit(2)
+for opt, arg in opts:
+        if opt in ("-o", "--out"):
+                outputfile = arg
+        elif opt in ("-v", "--visual"):
+                visual = True
+        elif opt in ("-vtk"):
+                vtk = True
+
+# pre-check
+from os.path import isfile
+GridFile='grid.py'
+if not isfile(GridFile):
+        print '%s not found' % GridFile
+        sys.exit(1)
+ModelFile='model.py'
+if not isfile(ModelFile):
+        print '%s not found' % ModelFile
+        sys.exit(1)
+
+# generate mesh
+import grid as gr
+from sparx import pre_mesh 
+x = pre_mesh.mesh(gr)
+
+# mapping physical model
+import model as md
+from sparx import pre_profile
+phys = pre_profile.profile(x,md)
+
+
+# visualization
+if visual:
+        from sparx import pre_visual
+        pre_visual.plot(x,phys)
+
+
+sys.exit(0)
+
+if vtk:
+        from sparx import pre_visual
+        pre_visual.vtk_output(x,phys)
+
+
+# double check the error of the model
+from sparx import pre_calc
+exact = pre_calc.calc_exact(md)
+print 'mass error : %f %%' % 100. * (phys.mass - exact)/exact
+print 'largest velocity dispersion to line-width : %f' % phys.vd2lw
+
+
+
+# export HDF
+if outputfile:
+        from sparx import pre_hdf
+        pre_hdf.export(x,phys,outputfile)
+
+
+
+
+
+
+
