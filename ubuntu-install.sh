@@ -3,16 +3,19 @@
 # INSTALL SPARX FOR UBUNTU
 sudo apt-get install \
 libpython2.7-dev \
-libhdf5-openmpi-7-dev \
 libgsl0-dev \
 libtool \
 libfftw3-dev \
 libcfitsio3-dev \
-libhdf5-mpich2-dev 
+libhdf5-openmpi-dev \
+libx11-dev
 
 destination=$HOME/opt/sparx
 rm -rf build/* $destination
-python setup.py install --prefix=$destination 
+python setup.py install --prefix=$destination \
+--with-include=/usr/include \
+--with-include=/usr/include/openmpi \
+--with-lib=/usr/lib
 
 if ! grep -q "# SPARX PATH" ~/.bashrc; then
   echo "# SPARX PATH" >> ~/.bashrc
