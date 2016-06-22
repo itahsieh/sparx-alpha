@@ -3,6 +3,7 @@
 
 from numpy import zeros
 from math import pi
+import sys      
 
 #end = time.time()
 #print(end - start)
@@ -15,20 +16,22 @@ class mesh:
         def _gen_mesh(self):
                 GridType = self.grid.GridType
 
-                if  ( GridType == 'SPH1D' ):
+                if   GridType == 'SPH1D':
                         self._gen_mesh_sph1d()
-                elif( GridType == 'SPH2D' ):
+                elif GridType == 'SPH2D':
                         pass
-                elif( GridType == 'SPH3D' ):
+                elif GridType == 'SPH3D':
                         pass
-                elif( GridType == 'REC3D' ):
+                elif GridType == 'REC3D':
                         pass
-                elif( GridType == 'CYL2D' ):
+                elif GridType == 'CYL2D':
                         pass
-                elif( GridType == 'CYL3D' ):
+                elif GridType == 'CYL3D':
                         pass
                 else:
-                        raise RuntimeError('Grid Type not defined : %s' % GridType) 
+                        raise RuntimeError('Grid Type not defined : %s' % GridType)
+                        sys.exit(2)
+                        
                 
                 
         def _gen_mesh_sph1d(self):
@@ -57,6 +60,7 @@ class mesh:
                                 dr *= stretch_ratio_r
                 else:
                         raise RuntimeError('Spacing Type not defined : %s' % spacing)
+                        sys.exit(2)
                 theta_p = [0., pi]
                 theta_c = [0.5*pi]
                 phi_p = [0., 2. * pi]

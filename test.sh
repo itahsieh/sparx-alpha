@@ -73,7 +73,7 @@ case $CASE in
         ;;
   "SHU1D")
         \cp ../../preprocessor/presparx/Shu1D/* ./
-        presparx -o model
+        presparx -p
         ;;
   *)
         exit 1

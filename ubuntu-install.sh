@@ -8,7 +8,8 @@ libtool \
 libfftw3-dev \
 libcfitsio3-dev \
 libhdf5-openmpi-dev \
-libx11-dev
+libx11-dev \
+python-matplotlib
 
 destination=$HOME/opt/sparx
 rm -rf build/* $destination

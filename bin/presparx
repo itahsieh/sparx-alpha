@@ -2,9 +2,10 @@
 
 # usage
 def usage():
-        print 'presparx -o <outputfile>'
-        print '         -p : simple ploot'
-        print '         -v : generate vtk file'
+        print '''
+presparx -o <OutputFile>
+         -p : simple plot
+         -v : generate vtk file '''
 
 # parser
 import sys, getopt
@@ -12,18 +13,22 @@ argv = sys.argv[1:]
 if not argv:
         usage()
         sys.exit(2)
-outputfile = ''
+OutputFile = ''
 try:
         opts, args = getopt.getopt(argv,"o:vp",["--out","out=","--plot","--vtk"])
 except getopt.GetoptError:
         usage()
         sys.exit(2)
+
+plot = False
+vtk = False
+        
 for opt, arg in opts:
-        if opt in ("-o", "--out"):
-                outputfile = arg
+        if   opt in ("-o", "--out"):
+                OutputFile = arg
+        elif opt in ("-p", "--plot "):
+                plot = True
         elif opt in ("-v", "--visual"):
-                visual = True
-        elif opt in ("-vtk"):
                 vtk = True
 
 # pre-check
@@ -49,17 +54,15 @@ phys = pre_profile.profile(x,md)
 
 
 # visualization
-if visual:
+if plot:
         from sparx import pre_visual
         pre_visual.plot(x,phys)
 
-
-sys.exit(0)
-
 if vtk:
         from sparx import pre_visual
-        pre_visual.vtk_output(x,phys)
+        pre_visual.vtk_output(x,phys,OutputFile)
 
+sys.exit(0)
 
 # double check the error of the model
 from sparx import pre_calc
@@ -70,9 +73,9 @@ print 'largest velocity dispersion to line-width : %f' % phys.vd2lw
 
 
 # export HDF
-if outputfile:
+if OutputFile:
         from sparx import pre_hdf
-        pre_hdf.export(x,phys,outputfile)
+        pre_hdf.export(x,phys,OutputFile)
 
 
 

@@ -41,7 +41,7 @@ class profile:
                 
                 self.n_H2 = n_H2
                 self.T_k = T_k
-                self.T_d = n_H2
-                self.n_H2 = n_H2
-                self.n_H2 = n_H2
+                self.T_d = T_d
+                self.V_gas = V_gas
+                self.X_mol = X_mol
                 
