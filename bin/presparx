@@ -66,12 +66,9 @@ if vtk:
 sys.exit(0)
 
 # double check the error of the model
-from sparx import pre_calc
-exact = pre_calc.calc_exact(md)
+exact = pre_profile.calc_exact(md)
 print 'mass error : %f %%' % 100. * (phys.mass - exact)/exact
-print 'largest velocity dispersion to line-width : %f' % phys.vd2lw
-
-
+print 'largest velocity dispersion to line-width : %f' % phys.MVD2Vt
 
 # export HDF
 if OutputFile:

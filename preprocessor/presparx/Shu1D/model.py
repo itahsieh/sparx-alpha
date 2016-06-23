@@ -29,10 +29,17 @@ def VeloFunc1D(r):
         return Vr
         
 # Molecular Abundance (fraction)
-molec = 'hco+'
 def MolecAbdFunc1D(r):
         X_mol = 1e-9
         return X_mol
+
+# turbulent speed (m/s)
+def Vt(r):
+        Vt = 200.
+        return Vt
+
+# Molecule
+molec = 'hco+'
 
 # CMB temperature (Kelvin, outer B.C.)
 Tcmb = 2.73
@@ -43,8 +50,5 @@ gas_to_dust = 100.
 # dust kappa
 kappa_d = 'table,jena_thin_e5'
 #kappa_d = 'powerlaw, 1.874e+12, 2.300e-02,-2.0'
-
-# turbulent speed (m/s)
-Vt = 200.
 
 
