@@ -3,7 +3,7 @@
 # usage
 def usage():
         print '''
-presparx -o <OutputFile>
+presparx -o < Output File >
          -p : simple plot
          -v : generate vtk file '''
 
@@ -17,6 +17,7 @@ OutputFile = ''
 try:
         opts, args = getopt.getopt(argv,"o:vp",["--out","out=","--plot","--vtk"])
 except getopt.GetoptError:
+        print 'can not recognize option : ', args
         usage()
         sys.exit(2)
 
