@@ -150,7 +150,7 @@ int SpTask_Amc(void)
 
 	
 	/* Load molecule */
-	if( glb.popsold==0 ){	
+	if( glb.popsold == 0 ){	
 		if(!sts && glb.model.parms.mol == NULL) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
 		//if(!sts && glb.model.parms.mol != NULL) sts = SpPy_GetInput_molec_hyper("hyperfine", &glb.model.parms.mol_hyper);
 	}

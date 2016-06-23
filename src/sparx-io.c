@@ -299,7 +299,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model)
 			}
 		}
 	}
-	/* Load grid */	
+	/* Load grid */	printf("%zu %zu %zu %zu\n",sfp,popsfp,sfp->h5f_id,popsfp->h5f_id);
 	if(!status)
 		status = SpIO_H5ReadGrid(sfp->h5f_id, popsfp->h5f_id, &model->grid, &model->parms);
 	/* Cleanup */	
@@ -617,7 +617,6 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone)
 
 /*----------------------------------------------------------------------------*/
 
-//int SpIO_H5ReadGrid(hid_t h5f_id, Zone **zone, SpPhysParm *parms, size_t pos, Zone *parent)
 int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms)
 /* Write data of all children to an HDF5 table */
 {
@@ -640,17 +639,18 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 		/* Grow grid */
 		SpZone_GROW(*zone, (*zone)->naxes, parms);
 	}
-
+printf("%zu\n",status);
+printf("%s\n",parms->mol->name);
 	/* Read pops if present */
 	if(!status && parms) {
 		//printf("%d\n",*parms->mol);
-		if(parms->mol){
+		if(parms->mol && (popsh5f_id != h5f_id)){
 			// modified by I-Ta 2012.10.26
 			//status = SpIO_H5ReadPops(h5f_id, *zone);
 			status = SpIO_H5ReadPops(popsh5f_id, *zone);
 		}
 	}
-
+printf("%zu\n",status);
 	/* Read tau if present */
 	if(!status && parms) {
 		

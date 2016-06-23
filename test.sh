@@ -27,7 +27,9 @@ case $CASE in
 ###########################
 # testing preprocessor    #
 ###########################
-        source ../grid/sph1d/test       | tee -a test.log
+        #source ../grid/sph1d/test       | tee -a test.log
+        \cp ../../preprocessor/presparx/Shu1D/* ./
+        presparx -o model
 ###########################
 # testing AMC             #
 ###########################
@@ -73,7 +75,7 @@ case $CASE in
         ;;
   "SHU1D")
         \cp ../../preprocessor/presparx/Shu1D/* ./
-        presparx -e -v -o model
+        presparx -o model
         ;;
   *)
         exit 1

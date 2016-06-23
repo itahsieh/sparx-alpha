@@ -29,19 +29,17 @@ source ~/.load_sparx_module
 if [ -n "$PBS_NODEFILE" ]; then
   if [ -f $PBS_NODEFILE ]; then
     awk '!x[$0]++' $PBS_NODEFILE > MPIHOST
+    NPROCS=`wc -l < MPIHOST`
   fi
 fi
-
-NPROCS=`wc -l < MPIHOST`
-
 
 rm -rf pops* history.log
 
 CLUSTERNAME=${HOSTNAME:0:2}
 sparx_version=`which sparx-$CLUSTERNAME`
 
-$OPENMPI_HOME/bin/mpirun -v -machinefile MPIHOSTE -np $NPROCS \
-$sparx_version --parallel run task_amc \
+$OPENMPI_HOME/bin/mpirun -v -machinefile MPIHOST -np $NPROCS \
+$sparxversion --parallel run task_amc \
 source=model \
 out=pops \
 molec='co_21lev' \

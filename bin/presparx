@@ -6,7 +6,8 @@ def usage():
 presparx -o < Output File >
          -e : error estimation 
          -p : simple plot
-         -v : generate vtk file '''
+         -v : generate vtk file 
+'''
 
 # parser
 import sys, getopt
