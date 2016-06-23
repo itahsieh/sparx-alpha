@@ -4,13 +4,13 @@ ModelType = 'Function'
 # reference radius
 r_ref = 0.01
 # reference H2 number density (m^-3)
-n_h2_ref = 1e12
+n_h2_ref = 1e10
 # reference velocity (m/s)
 V_ref = -200.0
 
 # Gas Density (number/m^3)
 def DensityFunc1D(r):
-        n_h2 = n_h2_ref * ( r / r_ref )**-1.5
+        n_h2 = n_h2_ref * ( r / r_ref )**-2.
         return n_h2
         
 # Temperature (Kelvin)

@@ -31,11 +31,10 @@ class mesh:
                 else:
                         raise RuntimeError('Grid Type not defined : %s' % GridType)
                         sys.exit(2)
-                        
-                
-                
+
         def _gen_mesh_sph1d(self):
                 gr = self.grid
+                
                 nr = gr.nr
                 Rin = gr.Rin
                 Rout = gr.Rout

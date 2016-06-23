@@ -1,9 +1,14 @@
 from numpy import zeros
 from math import pi
 
+from sympy import Symbol,integrate
+
+
 pc2m = 30.857e15 # m per pc
 volume_pc2m =  pc2m**3
-mean_molecular_mass = 2. * 1.67 * 1.67e-27 # kg
+
+# meam molecular mass, mass / mass_H2 ~ 1.67
+MeanMolecularMass = 2. * 1.67 * 1.6726219e-27 # kg
 kg2Msun = 1./ 1.98892E+30 # kg
 
 class profile:
@@ -33,7 +38,10 @@ class profile:
                 self.gas_to_dust = md.gas_to_dust 
                 self.kappa_d = md.kappa_d
                 
+                # accumulated mass
                 mass = 0.0
+                # accumulated volume
+                volume = 0.0
                 # Max Velocity Dispersion to Vt
                 MVD2Vt = 0.0 
                 
@@ -56,13 +64,14 @@ class profile:
                                 Vt[i]           = md.Vt(r)
                                 
                                 # volume
-                                volume = 4. / 3. * pi * (mesh.R_p[i+1]**3-mesh.R_p[i]**3) # pc^3
-                                volume *= volume_pc2m # m^3
+                                dVolume = 4. / 3. * pi * (mesh.R_p[i+1]**3-mesh.R_p[i]**3) # pc^3
+                                volume += dVolume # pc^3
+                                dVolume *= volume_pc2m # m^3
+                                
                                 # delta mass
-                                dMass = n_H2[i] * volume * mean_molecular_mass # kg
-                                dMass *= kg2Msun # Msun
+                                dMass = n_H2[i] * dVolume * MeanMolecularMass # kg
                                 # accumulated mass
-                                mass += dMass
+                                mass += dMass #kg
                                 
                                 # max delta V (m/s)
                                 if i == 0:
@@ -88,8 +97,19 @@ class profile:
                 self.T_d = T_d
                 self.V_gas = V_gas
                 self.X_mol = X_mol
+                self.Vt = Vt
                 
+                mass *= kg2Msun # Msun
                 self.mass = mass
+                self.volume = volume
                 self.MVD2Vt = MVD2Vt
                 self.MVD2Vt_index = MVD2Vt_index
-                
+
+
+def calc_exact_mass(grid,model):
+        r_min = grid.Rin
+        r_max = grid.Rout
+        r = Symbol('r')
+        mass = integrate(model.DensityFunc1D(r) * 4.*pi*r**2,(r,r_min,r_max))
+        mass *= volume_pc2m * MeanMolecularMass *kg2Msun
+        return mass
