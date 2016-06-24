@@ -152,21 +152,21 @@ int SpPy_GetInput_bool(const char *name, int *value)
 
 /*----------------------------------------------------------------------------*/
 
-int SpPy_GetInput_model(const char *name,const char *popsname, SpModel *model)
+int SpPy_GetInput_model(const char *Source,const char *Pops, SpModel *model, int *read_pops)
 /* Get user input as size_t and return error status */
 {
 	int status = 0;
-	PyObject *obj;
-	PyObject *popsobj;
+	PyObject *SourceObj;
+	PyObject *PopsObj;
 
-	status = SpPy_GetInput_PyObj(name, &obj);
-	status = SpPy_GetInput_PyObj(popsname, &popsobj);
-
+	status = SpPy_GetInput_PyObj(Source, &SourceObj);
+	status = SpPy_GetInput_PyObj(Pops, &PopsObj);
+      
 	if(!status) {
-		if((status = SpIO_OpenModel(Sp_PYSTR(obj),Sp_PYSTR(popsobj), model)))
-			PyWrErr_SetString(PyExc_Exception, "Error opening model '%s'", Sp_PYSTR(obj));
-		Py_DECREF(obj);
-		Py_DECREF(popsobj);
+		if((status = SpIO_OpenModel(Sp_PYSTR(SourceObj), Sp_PYSTR(PopsObj), model, read_pops)))
+			PyWrErr_SetString(PyExc_Exception, "Error opening model '%s'", Sp_PYSTR(SourceObj));
+		Py_DECREF(SourceObj);
+		Py_DECREF(PopsObj);
 	}
 
 	return status;

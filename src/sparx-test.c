@@ -364,7 +364,7 @@ static int SpTest_Model(void)
 		status = 1;
 
 	if(!status)
-		status = SpIO_FreadModel(sfp, sfp, &model);
+		status = SpIO_FreadModel(sfp, sfp, &model, 1);
 
 	if(sfp)
 		SpIO_CloseFile(sfp);
@@ -410,7 +410,7 @@ static int SpTest_HDF5(void)
 	root = 0;
 
 	/* Load grid data */
-	SpIO_H5ReadGrid(file_id, file_id, &root, 0);
+	SpIO_H5ReadGrid(file_id, file_id, &root, 0, 0);
 
 	/* Close file */
 	H5Fclose(file_id);
@@ -577,7 +577,7 @@ static int SpTest_Zone(void)
 	}
 
 	if(sfp) {
-		SpIO_FreadModel(sfp, sfp, &model);
+		SpIO_FreadModel(sfp, sfp, &model, 0);
 		SpIO_CloseFile(sfp);
 
 		SpZone_FPRINTF(stdout, model.grid);

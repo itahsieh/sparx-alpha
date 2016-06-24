@@ -124,36 +124,12 @@ int SpTask_Amc(void)
         glb.tolerance = 0.1/glb.snr;
 	if(!sts) sts = SpPy_GetInput_dbl("minpop", &glb.minpop);
         if(!sts) sts = SpPy_GetInput_dbl("sor", &glb.sor);
-        
-        PyObject *o;
-	sts = SpPy_GetInput_PyObj("amc", &o);
-	PyObject *popsobj = PyObject_GetAttrString(o, "popsold");
-	glb.popsold = Sp_PYINT(popsobj);
-	PyObject *overlap_obj = PyObject_GetAttrString(o, "overlap");
-	glb.overlap_vel = Sp_PYINT(overlap_obj);
+
+        if(!sts) sts = SpPy_GetInput_dbl("overlap", &glb.overlap_vel);
         glb.overlap = (glb.overlap_vel == 0.0) ? 0 : 1;
 
-	
-	if( glb.popsold ){
-		if(!sts) sts = SpPy_GetInput_model("source","pops", &glb.model);
-	}
-	else{
-		if(!sts) sts = SpPy_GetInput_model("source","source", &glb.model);
-	}
-	/* Source model must not already contain pops */  // hidden by I-Ta 2012.10.26
+	if(!sts) sts = SpPy_GetInput_model("source","pops", &glb.model, &glb.popsold);
 
-
-	if(!sts && glb.model.parms.mol != NULL && glb.popsold==0) {
-		PyWrErr_SetString(PyExc_Exception, "Model must not already contain pops");
-		sts = 1;
-	}
-
-	
-	/* Load molecule */
-	if( glb.popsold == 0 ){	
-		if(!sts && glb.model.parms.mol == NULL) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
-		//if(!sts && glb.model.parms.mol != NULL) sts = SpPy_GetInput_molec_hyper("hyperfine", &glb.model.parms.mol_hyper);
-	}
 	/* Open output file handle -- only the master process can write files! */
 	if(Sp_MPIRANK == 0 && !sts) sts = SpPy_GetInput_spfile("out", &glb.outf, Sp_NEW);
 	/*
@@ -166,30 +142,7 @@ int SpTask_Amc(void)
 	for(size_t i = 0; i < Sp_NTHREAD; i++) {
 		glb.rng[i] = gsl_rng_alloc(gsl_rng_ranlux);
 		gsl_rng_set(glb.rng[i], glb.seed);
-	}
-	
-#if 0
-	int n=1024;
-        int dim=6;
-	double v[dim];
-        
-        char filename[32];
-        sprintf(filename,"qmc.dat");
-        FILE *fp=fopen(filename,"w+");
-        gsl_qrng * g = gsl_qrng_alloc(gsl_qrng_niederreiter_2, dim);
-        gsl_qrng_get(g, v);
-        for (int i = 0; i < n; i++){
-                gsl_qrng_get(g, v);
-                for (int j = 0; j < dim; j++)
-                        fprintf(fp, "%f ", v[j]);
-                fprintf(fp,"\n");
-        }
-        gsl_qrng_free(g);
-        fclose(fp);
-        
-	exit(0);
-#endif	
-	
+	}	
 
 	/* Init model */
 	if(!sts)
@@ -295,7 +248,7 @@ static int InitModel(void)
 		SpPhys *pp = zp->data;
 		
 		/* Init molecular data */
-		SpPhys_InitMol(pp, glb.model.parms.mol,glb.popsold);
+		SpPhys_InitMol(pp, glb.model.parms.mol, glb.popsold);
 
 		if((pp->n_H2 > 1e-200) && !zp->children) {
 			/* This is a non-empty leaf zone */

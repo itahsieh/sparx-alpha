@@ -193,7 +193,7 @@ int SpInp_GetKey_model(const char *name, SpModel *model)
 	o = PyObject_GetAttrString(Inputs, name);
 	Deb_ASSERT(o != NULL);
 
-	status = SpIO_OpenModel(Sp_PYSTR(o), Sp_PYSTR(o), model);
+	status = SpIO_OpenModel(Sp_PYSTR(o), Sp_PYSTR(o), model, 0);
 
 	Py_DECREF(Inputs);
 	Py_DECREF(o);

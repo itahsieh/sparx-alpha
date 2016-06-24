@@ -63,7 +63,7 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
 		Deb_ASSERT(pp->mol == NULL);
 		Deb_ASSERT(pp->tau == NULL);
 	}
-	pp->mol = mol;
+
 	if(!popsold){
 		for(size_t i = 0; i < Sp_NTHREAD; i++) {
 			Deb_ASSERT(pp->pops[i] == NULL);
@@ -720,8 +720,6 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 	#define USE_CONST 0
         
 	GeVec3_d v_gas;
-	
-        GeVec3_d vRc, vz;
 
         #if USE_CONST
 	double velo = -0.2e3; // [km/s]

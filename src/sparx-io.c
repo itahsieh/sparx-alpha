@@ -229,7 +229,7 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
 
 /*----------------------------------------------------------------------------*/
 
-int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model)
+int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int *read_pops)
 {
 	int status = 0;
 	herr_t hstatus;
@@ -242,7 +242,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model)
 
 	/* Read molecule name */
 	if(!status)
-		status = SpIO_H5GetAttribute_string(popsfp->h5f_id, "/", "molec", &mol_name);
+		status = SpIO_H5GetAttribute_string(sfp->h5f_id, "/", "molec", &mol_name);
 	/* Read velocity field info */
 	if(!status)
 		status = SpIO_H5GetAttribute_string(sfp->h5f_id, "/", "velfield", &velfield);
@@ -299,9 +299,9 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model)
 			}
 		}
 	}
-	/* Load grid */	printf("%zu %zu %zu %zu\n",sfp,popsfp,sfp->h5f_id,popsfp->h5f_id);
+	/* Load grid */	
 	if(!status)
-		status = SpIO_H5ReadGrid(sfp->h5f_id, popsfp->h5f_id, &model->grid, &model->parms);
+		status = SpIO_H5ReadGrid(sfp->h5f_id, popsfp->h5f_id, &model->grid, &model->parms, read_pops);
 	/* Cleanup */	
 	free(mol_name);
 	free(velfield);
@@ -314,23 +314,30 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model)
 
 /*----------------------------------------------------------------------------*/
 
-int SpIO_OpenModel(const char *fname, const char *popsfname, SpModel *model)
+int SpIO_OpenModel(const char *sourcefname, const char *popsfname, SpModel *model, int *read_pops)
 {
 	int status = 0;
-	SpFile *sfp, *popsfp;
 
-	sfp = SpIO_OpenFile(fname, Sp_OLD);
-	popsfp = SpIO_OpenFile(popsfname, Sp_OLD);
+	SpFile *sfp = SpIO_OpenFile(sourcefname, Sp_OLD);
+        
+        SpFile *popsfp;
+        if (popsfname == 0){
+                *read_pops = 0;
+        }
+        else{
+                *read_pops = 1;
+                popsfp = SpIO_OpenFile(popsfname, Sp_OLD);
+        }
 
 	if(!sfp)
 		status = 1;
-
+ 
 	if(!status)
-		status = SpIO_FreadModel(sfp, popsfp, model);
+		status = SpIO_FreadModel(sfp, popsfp, model, read_pops);
 
+	SpIO_CloseFile(sfp);
 
-	if(sfp)
-		SpIO_CloseFile(sfp);
+        if(*read_pops == 1)
 		SpIO_CloseFile(popsfp);
 
 	return status;
@@ -617,7 +624,7 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone)
 
 /*----------------------------------------------------------------------------*/
 
-int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms)
+int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms, int *read_pops)
 /* Write data of all children to an HDF5 table */
 {
 	int status = 0;
@@ -639,18 +646,14 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 		/* Grow grid */
 		SpZone_GROW(*zone, (*zone)->naxes, parms);
 	}
-printf("%zu\n",status);
-printf("%s\n",parms->mol->name);
+
 	/* Read pops if present */
 	if(!status && parms) {
-		//printf("%d\n",*parms->mol);
-		if(parms->mol && (popsh5f_id != h5f_id)){
-			// modified by I-Ta 2012.10.26
-			//status = SpIO_H5ReadPops(h5f_id, *zone);
+		if(*read_pops){
 			status = SpIO_H5ReadPops(popsh5f_id, *zone);
 		}
 	}
-printf("%zu\n",status);
+#if 0
 	/* Read tau if present */
 	if(!status && parms) {
 		
@@ -660,6 +663,7 @@ printf("%zu\n",status);
 			status = SpIO_H5ReadTau(popsh5f_id, *zone);
 			
 	}
+#endif
 	zone_data = Mem_CALLOC((*zone)->nchildren, zone_data);
 
 	/* Read grid */
@@ -678,7 +682,7 @@ printf("%zu\n",status);
 				strp = Mem_Sprintf("grid%lu", (unsigned long)i);
 				group_id = H5Gopen(h5f_id, strp,H5P_DEFAULT);
 				popsgroup_id = H5Gopen(popsh5f_id, strp,H5P_DEFAULT);
-				status = SpIO_H5ReadGrid(group_id, popsgroup_id, &(*zone)->children[i], parms);
+				status = SpIO_H5ReadGrid(group_id, popsgroup_id, &(*zone)->children[i], parms, read_pops);
 			}
 		}
 	}

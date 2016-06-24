@@ -2297,14 +2297,8 @@ class Task_AMC(Task):
 	## Task procedures
 	##
 	def main(self):
-		class amc:
-			if INP_DICT["pops"]==None:
-				popsold=0
-			else:
-				popsold=1
-			overlap = INP_DICT["overlap"]
-
-		INP_DICT["amc"] = amc
+                class obs: 
+                        task = 'amc'
 		return
 
 install_task(Task_AMC("task_amc"))

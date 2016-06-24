@@ -130,7 +130,8 @@ int SpTask_Telsim(void)
 /*    1-1 those are the general parameters */
         /* source */
         if(!sts) {
-                sts = SpPy_GetInput_model("source","source", &glb.model);
+                int popsold;
+                sts = SpPy_GetInput_model("source","source", &glb.model, &popsold);
         }
 
         /* npix */
@@ -201,7 +202,6 @@ int SpTask_Telsim(void)
                 glb.task = Dat_IList_NameLookup(TASKS, Sp_PYSTR(o_task));
                 SpPy_XDECREF(o_task);	
                 
-                PyObject *o1, *o2, *o3;
                 switch (glb.task->idx){
                   // for task-contobs 
                   case TASK_CONT:
@@ -1885,7 +1885,6 @@ static void *VtkContributionSph1dTread(void *tid_p)
         size_t np = visual->sph3d->np;
         
         // link to the global pointer
-        double * radius = visual->sph3d->radius;
         double * theta  = visual->sph3d->theta;
         double * phi    = visual->sph3d->phi;
         double ** contrib = visual->contrib;
@@ -1949,7 +1948,6 @@ static void *VtkContributionSph3dTread(void *tid_p)
         size_t np = visual->sph3d->np;
         
         // link to the global pointer
-        double * radius = visual->sph3d->radius;
         double * theta  = visual->sph3d->theta;
         double * phi    = visual->sph3d->phi;
         double ** contrib = visual->contrib;
@@ -2019,7 +2017,6 @@ static void *VtkContributionCyl3dTread(void *tid_p)
         size_t nz = visual->cyl3d->nz;
         
         // link to the global pointer
-        double * Rc     = visual->cyl3d->Rc;
         double * phi    = visual->cyl3d->phi;
         double * Z      = visual->cyl3d->Z;
         double ** contrib       = visual->contrib;
@@ -2121,7 +2118,7 @@ void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, dou
                     }
                     // Call the contribution tracer
                     double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub);
-                    double contrib_dust_sub; 
+                    double contrib_dust_sub = 0.0; 
                     double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
 
                     ContributionTracer( contrib_sub, &contrib_dust_sub, tau_sub, SampZone, &SampPosXYZ, tid);

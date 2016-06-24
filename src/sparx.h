@@ -329,9 +329,9 @@ typedef struct SpFile {
 SpFile *SpIO_OpenFile(const char *fname, int mode); /* mode=Sp_NEW or Sp_OLD */
 int SpIO_OpenFile2(const char *fname, int mode, SpFile **fp);
 void SpIO_CloseFile(SpFile *sfp);
-int SpIO_OpenModel(const char *fname, const char *popsfname, SpModel *model);
+int SpIO_OpenModel(const char *fname, const char *popsfname, SpModel *model, int *read_pops);
 int SpIO_FwriteModel(SpFile *sfp, SpModel model);
-int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model);
+int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int *read_pops);
 Molec *SpIO_FreadMolec(const char *molname);
 Molec *SpIO_FreadMolec_hyper(const char *molname);
 Kappa *SpIO_FreadKappa(const char *name);
@@ -344,7 +344,7 @@ void SpIO_Perror(const char *file, int line, const char *func, const char *forma
 ZoneH5_Record SpIO_ZoneToH5Record(const Zone *zone);
 void SpIO_ZoneFromH5Record(Zone *zone, ZoneH5_Record record);
 int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone);
-int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms);
+int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms, int *read_pops);
 int SpIO_H5WritePops(hid_t h5f_id, const Zone *zone);
 int SpIO_H5ReadPops(hid_t h5f_id, Zone *zone);
 int SpIO_H5WriteTau(hid_t h5f_id, const Zone *zone);
@@ -415,7 +415,11 @@ int SpPy_GetInput_int(const char *name, int *value);
 int SpPy_GetInput_sizt(const char *name, size_t *value);
 int SpPy_GetInput_dbl(const char *name, double *value);
 int SpPy_GetInput_bool(const char *name, int *value);
-int SpPy_GetInput_model(const char *name, const char *popsname, SpModel *model);
+int SpPy_GetInput_model(
+        const char *SourceName, 
+        const char *PopsName, 
+        SpModel *model, 
+        int *popsold);
 int SpPy_GetInput_molec(const char *name, Molec **molec);
 int SpPy_GetInput_molec_hyper(const char *name, Molec **molec);
 int SpPy_GetInput_spfile(const char *name, SpFile **fp, int mode);
