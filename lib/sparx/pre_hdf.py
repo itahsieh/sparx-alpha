@@ -62,10 +62,13 @@ def DelAttrs(table):
 class export:
         def __init__(self,mesh,phys,FileName):
                 h5file = openFile(FileName, mode = "w", title = "SPARX MODEL FILE")
+                
                 h5file.delNodeAttr("/", "TITLE", name=None)
                 h5file.delNodeAttr("/", "CLASS", name=None)
                 h5file.delNodeAttr("/", "VERSION", name=None)
                 h5file.delNodeAttr("/", "PYTABLES_FORMAT_VERSION", name=None)
+                
+                h5file.setNodeAttr("/", "format", "SPARX format v3", name=None)
                 h5file.setNodeAttr("/", "molec", phys.molec, name=None)
                 h5file.setNodeAttr("/", "T_cmb", phys.Tcmb, name=None)
                 h5file.setNodeAttr("/", "gas_to_dust", phys.gas_to_dust, name=None)

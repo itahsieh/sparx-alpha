@@ -653,17 +653,16 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 			status = SpIO_H5ReadPops(popsh5f_id, *zone);
 		}
 	}
-#if 0
+
 	/* Read tau if present */
 	if(!status && parms) {
-		
-		if(parms->mol)
+		if(*read_pops)
 			// modified by I-Ta 2012.10.26
 			//status = SpIO_H5ReadTau(h5f_id, *zone);
 			status = SpIO_H5ReadTau(popsh5f_id, *zone);
 			
 	}
-#endif
+
 	zone_data = Mem_CALLOC((*zone)->nchildren, zone_data);
 
 	/* Read grid */
