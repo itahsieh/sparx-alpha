@@ -35,8 +35,7 @@ class profile:
                 
                 self.molec = md.molec
                 self.Tcmb = md.Tcmb
-                self.gas_to_dust = md.gas_to_dust 
-                self.kappa_d = md.kappa_d
+                self.T_in = md.T_in
                 
                 # accumulated mass
                 mass = 0.0
@@ -47,48 +46,11 @@ class profile:
                 
                 GridType = gr.GridType
                 if GridType == 'SPH1D':
-                        nr = gr.nr
-                        n_H2 = zeros(nr)
-                        T_k = zeros(nr)
-                        T_d = zeros(nr)
-                        V_gas = zeros((nr,3))
-                        X_mol = zeros(nr)
-                        Vt = zeros(nr)
-                        for i in range(nr):
-                                r = mesh.R_c[i]
-                                n_H2[i]         = md.DensityFunc1D(r)
-                                T_k[i]          = md.TgasFunc1D(r)
-                                T_d[i]          = md.TdustFunc1D(r)
-                                V_gas[i]        = [md.VeloFunc1D(r), 0., 0.]
-                                X_mol[i]        = md.MolecAbdFunc1D(r)
-                                Vt[i]           = md.Vt(r)
-                                
-                                # volume
-                                dVolume = 4. / 3. * pi * (mesh.R_p[i+1]**3-mesh.R_p[i]**3) # pc^3
-                                volume += dVolume # pc^3
-                                dVolume *= volume_pc2m # m^3
-                                
-                                # delta mass
-                                dMass = n_H2[i] * dVolume * MeanMolecularMass # kg
-                                # accumulated mass
-                                mass += dMass #kg
-                                
-                                # max delta V (m/s)
-                                if i == 0:
-                                        VeloDispersion = abs(V_gas[i+1,0] - V_gas[i,0])
-                                elif i == nr-1:
-                                        VeloDispersion = abs(V_gas[i,0] - V_gas[i-1,0])
-                                else:
-                                        VeloDispersion = max(abs(V_gas[i,0] - V_gas[i-1,0]),abs(V_gas[i+1,0] - V_gas[i,0]))
-                                # Velocity Dispersion to Vt
-                                VeloDispersion2Vt = VeloDispersion / Vt[i]
-                                # update Maximum VD2Vt
-                                if VeloDispersion2Vt > MVD2Vt :
-                                        MVD2Vt = VeloDispersion2Vt
-                                        MVD2Vt_index = i
+                        _MappingFunction_sph1d(mesh)
 
                 elif GridType == SPH2D:
                         pass
+                
                 elif GridType == SPH3D:
                         pass
                 
@@ -96,14 +58,78 @@ class profile:
                 self.T_k = T_k
                 self.T_d = T_d
                 self.V_gas = V_gas
-                self.X_mol = X_mol
                 self.Vt = Vt
+
+                if gr.molec:
+                        self.X_mol = X_mol
+                        
+                if gr.dust:
+                        self.T_d = T_d
+                        self.dust_to_gas = dust_to_gas
+                        self.kapp_d = kapp_d
                 
                 mass *= kg2Msun # Msun
                 self.mass = mass
                 self.volume = volume
                 self.MVD2Vt = MVD2Vt
                 self.MVD2Vt_index = MVD2Vt_index
+                
+                
+        def _MappingFunction_sph1d(self,mesh):
+                gr = mesh.grid
+                md = self.model
+                
+                nr = gr.nr
+                n_H2 = zeros(nr)
+                T_k = zeros(nr)
+                V_gas = zeros((nr,3))
+                Vt = zeros(nr)
+                for i in range(nr):
+                        r = mesh.R_c[i]
+                        n_H2[i]         = md.DensityFunc1D(r)
+                        T_k[i]          = md.TgasFunc1D(r)
+                        V_gas[i]        = [md.VeloFunc1D(r), 0., 0.]
+                        Vt[i]           = md.Vt(r)
+                        
+                        # volume
+                        dVolume = 4. / 3. * pi * (mesh.R_p[i+1]**3-mesh.R_p[i]**3) # pc^3
+                        volume += dVolume # pc^3
+                        dVolume *= volume_pc2m # m^3
+                        
+                        # delta mass
+                        dMass = n_H2[i] * dVolume * MeanMolecularMass # kg
+                        # accumulated mass
+                        mass += dMass #kg
+                        
+                        # max delta V (m/s)
+                        if i == 0:
+                                VeloDispersion = abs(V_gas[i+1,0] - V_gas[i,0])
+                        elif i == nr-1:
+                                VeloDispersion = abs(V_gas[i,0] - V_gas[i-1,0])
+                        else:
+                                VeloDispersion = max(abs(V_gas[i,0] - V_gas[i-1,0]),abs(V_gas[i+1,0] - V_gas[i,0]))
+                        # Velocity Dispersion to Vt
+                        VeloDispersion2Vt = VeloDispersion / Vt[i]
+                        # update Maximum VD2Vt
+                        if VeloDispersion2Vt > MVD2Vt :
+                                MVD2Vt = VeloDispersion2Vt
+                                MVD2Vt_index = i
+                
+                if gr.molec:
+                        X_mol = zeros(nr)
+                        for i in range(nr):
+                                r = mesh.R_c[i]
+                                X_mol[i] = md.MolecAbdFunc1D(r)
+                                
+                if gr.dust:
+                        T_d = zeros(nr)
+                        dust_to_gas = zeros(nr)
+                        kapp_d = zeros(nr)
+                        for i in range(nr):
+                                r = mesh.R_c[i]
+                                T_d[i]          = md.TdustFunc1D(r)
+                                dust_to_gas[i]  = md.DustToGasFunc1D(r)
+                                kapp_d[i]       = md.kappa_d_Func1D(r)
 
 
 def calc_exact_mass(grid,model):

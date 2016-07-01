@@ -5,7 +5,7 @@ def usage():
         print '''
 presparx -o < Output File >
          -e : error estimation 
-         -p : simple plot
+         -p : profile plot
          -v : generate vtk file 
 '''
 
@@ -26,7 +26,6 @@ except getopt.GetoptError:
 plot = False
 vtk = False
 error = False
-        
 for opt, arg in opts:
         if   opt in ("-o", "--out"):
                 OutputFile = arg

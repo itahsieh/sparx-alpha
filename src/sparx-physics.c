@@ -60,7 +60,7 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
 {
 	Deb_ASSERT(mol != NULL);
 	if(!popsold){
-		Deb_ASSERT(pp->mol == NULL);
+		Deb_ASSERT(pp->mol == NULL);printf("tau=%zu \n",pp->tau);
 		Deb_ASSERT(pp->tau == NULL);
 	}
 

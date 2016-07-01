@@ -18,37 +18,48 @@ def TgasFunc1D(r):
         Tk = 10.
         return Tk
 
-# Dust Temperature (Kelvin)
-def TdustFunc1D(r):
-        Td = TgasFunc1D(r)
-        return Td
-
 # Velocity (m/s)
 def VeloFunc1D(r):
         Vr = V_ref * ( r / r_ref )**-0.5
         return Vr
         
-# Molecular Abundance (fraction)
-def MolecAbdFunc1D(r):
-        X_mol = 1e-9
-        return X_mol
-
 # turbulent speed (m/s)
 def Vt(r):
         Vt = 200.
         return Vt
 
+
+# Molecular data
 # Molecule
 molec = 'hco+'
 
+# Molecular Abundance (fraction)
+def MolecAbdFunc1D(r):
+        X_mol = 1e-9
+        return X_mol
+
 # CMB temperature (Kelvin, outer B.C.)
-Tcmb = 2.73
+T_cmb = 2.73
+
+# inner Boundary condition
+T_in = 0.0
+
+# Enable / disable dust emission
+dust = 1
 
 # gas-to-dust ratio
-gas_to_dust = 100.
+def DustToGasFunc1D(r):
+        dust_to_gas = 0.01
+        return dust_to_gas
+
+# Dust Temperature (Kelvin)
+def TdustFunc1D(r):
+        Td = TgasFunc1D(r)
+        return Td
 
 # dust kappa
-kappa_d = 'table,jena_thin_e5'
-#kappa_d = 'powerlaw, 1.874e+12, 2.300e-02,-2.0'
-
+def kappa_d_Func1D(r):
+        kapp_d = 'table,jena_thin_e5'
+        #kappa_d = 'powerlaw, 1.874e+12, 2.300e-02,-2.0'
+        return kapp_d
 
