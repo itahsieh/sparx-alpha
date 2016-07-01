@@ -5,16 +5,16 @@
 #PBS -e SPARX.err
 #PBS -o SPARX.log
 ###### Queue name #######
-#PBS -q large
+#PBS -q medium
 ###### Number of nodes and cores ######
-#PBS -l nodes=20:ppn=12
+#PBS -l nodes=8:ppn=12
 ###### Sends mail to yourself when the job begins and ends ######
 #PBS -M ithsieh@asiaa.sinica.edu.tw
 #PBS -m be
 ###### Specific the shell types ######
 #PBS -S /bin/bash
 
-PBS_O_WORKDIR=~/test
+PBS_O_WORKDIR=/tiara/ara/home/ydhsieh/sparx/unit_tests/tmp
 mkdir -p $PBS_O_WORKDIR
 
 ###### Enter this job's working directory ######
@@ -39,8 +39,8 @@ CLUSTERNAME=${HOSTNAME:0:2}
 sparx_version=`which sparx-$CLUSTERNAME`
 
 $OPENMPI_HOME/bin/mpirun -v -machinefile MPIHOST -np $NPROCS \
-$sparxversion --parallel run task_amc \
-source=model \
+$sparx_version --parallel run task_amc \
+source=../storage/sph2d_model/model_env_disk \
 out=pops \
 molec='co_21lev' \
 trace='True' \
