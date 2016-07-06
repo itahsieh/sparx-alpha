@@ -1318,10 +1318,12 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                  else
                                          costheta = zproduct / B_Mag;
                                  
-                                 static const double g = 2.18/1.4;
-                                 double dnu = 1.4e6 * g * B_Mag;
+                                 /* Z is Zeeman splitting factor (Hz/G)
+                                    see the reference for CN 
+                                    http://adsabs.harvard.edu/abs/1996ApJ...456..217C */
+                                 static const double Z = 2.18 * 1e6;
+                                 double dnu = Z * B_Mag;
                                  double deltav = dnu * PHYS_CONST_MKS_LIGHTC / glb.freq;
-                                 //printf("delta V = %e %e %e %e\n",deltav,dnu,PHYS_CONST_MKS_LIGHTC,glb.freq);
 
                                 for(size_t iv = 0; iv < glb.v.n; iv++) {
                                         /* Calculate velocity associated with this channel */

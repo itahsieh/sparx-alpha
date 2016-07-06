@@ -62,7 +62,8 @@ if error:
         exact = pre_profile.calc_exact_mass(gr,md)
         print 'Analytical Mass : %f Msun' %exact
         print 'Mass Eroor of the Gridding : %f %%' %(100.*(phys.mass - exact)/exact)
-        print 'Largest Velocity Dispersion to Turbulent Velocity : %f, index = %d' %(phys.MVD2Vt,phys.MVD2Vt_index)
+        print 'Largest Velocity Dispersion to Turbulent Velocity : %f' %phys.MVD2Vt
+        print 'spatial index = %d' %phys.MVD2Vt_index
 
 # visualization
 if plot:
