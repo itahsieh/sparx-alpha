@@ -21,7 +21,7 @@ Au2pc=100./206260
 km2m=1e3
 pc2m=30.857e15
 pc2km=30.857e12
-mean_molecular_mass=2*1.67*1.67e-27 # kg
+mean_molecular_mass = 2*1.67*1.67e-27 # kg
 
 # resolution and domain size
 R_out=0.05 #pc
@@ -185,6 +185,8 @@ def writegrid(direc,lev,naxes,Raxis,Taxis,Paxis,nc):
 				qq=-cos(theta)*r/Rd
 				
 				cos_theta0 = optimize.brentq(CubicEq, -1.,1.)
+				#if j == 25:
+                                #        print cos_theta0
 				if (cos_theta0>1. or cos_theta0<-1.):
 					print cos_theta0,pp,qq
 				
@@ -299,7 +301,8 @@ def writegrid(direc,lev,naxes,Raxis,Taxis,Paxis,nc):
 			for j in range(naxes[1]):
 				for i in range(naxes[0]):
 	        			print >>fvtk2,'%(0)e %(1)e %(2)e'%{'0':-Vx[i,j,k],'1':-Vy[i,j,k],'2':Vz[i,j,k]}
-        	fvtk2.close()  	
+        	fvtk2.close()
+        	print "Wrote out",vtkfilea,vtkfileb
 
 
 	table.flush()
@@ -386,7 +389,6 @@ h5file.close()
 
 
 print 'Total cells=',ncell
-if (writevtk):
-	print "Wrote out",vtkfilea,vtkfileb
+	
 
 

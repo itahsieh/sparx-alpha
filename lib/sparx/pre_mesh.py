@@ -109,25 +109,27 @@ class mesh:
                                 R_c[i-1] = R_p[i-1] + 0.5 * dr
                                 dr *= stretch_ratio_r
                         
+                        stretch_ratio_t = gr.stretch_ratio_t
                         # resolution is even
                         if nt % 2 == 0:        
                                 dt0 = 0.5 * pi * (stretch_ratio_t - 1.) / (stretch_ratio_t**(nt/2) - 1.)
-                                dt = t0 * stretch_ratio_t**(nt/2-1)
+                                dt = dt0 * stretch_ratio_t**(nt/2-1)
                         # resolution is odd
                         else:
                                 dt0 = pi * (stretch_ratio_t - 1.) / (2 * stretch_ratio_t**(nt/2) - stretch_ratio_t - 1.)
                                 dt = dt0 * stretch_ratio_t**(nt/2)
                         
+                        # north semi-sphere
                         for j in range(1,nt/2+1):
                                 theta_p[j] = theta_p[j-1] + dt
                                 theta_c[j-1] = theta_p[j-1] + 0.5 * dt
                                 dt /= stretch_ratio_t
-                        dt = t0
-                        for j in range(nt/2+1,nt):
+                        # south semi-sphere
+                        dt = dt0
+                        for j in range(nt/2+1,nt+1):
                                 theta_p[j] = theta_p[j-1] + dt
                                 theta_c[j-1] = theta_p[j-1] + 0.5 * dt
                                 dt *= stretch_ratio_t
-                        theta_p[nt] = pi
                 
                 else:
                         raise RuntimeError('Spacing Type not defined : %s' % spacing)

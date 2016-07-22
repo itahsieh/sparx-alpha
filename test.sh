@@ -79,7 +79,7 @@ case $CASE in
         ;;
   "DISK2D")
         \cp ../../preprocessor/presparx/Disk2D/* ./
-        presparx -o model -p 
+        presparx -o model -v
         ;;
         
   *)
