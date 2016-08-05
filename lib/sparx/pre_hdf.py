@@ -2,7 +2,24 @@ from tables import *
 
 
 # Define a user record to characterize some kind of particles
-class Particle(IsDescription):
+class ParticleZone(IsDescription):
+        LEVEL   = Int32Col(pos=0)
+        X_max   = Float64Col(shape=3,pos=1)
+        X_min   = Float64Col(shape=3,pos=2)
+        X_cen   = Float64Col(shape=3,pos=3)
+        NCHILDREN=Int64Col(pos=4)
+        NAXES   = Int64Col(shape=3,pos=5)
+
+def DelAttrsZone(table):
+        del table.attrs.FIELD_0_FILL 
+        del table.attrs.FIELD_1_FILL
+        del table.attrs.FIELD_2_FILL
+        del table.attrs.FIELD_3_FILL
+        del table.attrs.FIELD_4_FILL
+        del table.attrs.FIELD_5_FILL
+        del table.attrs.NROWS
+
+class ParticleGrid(IsDescription):
         LEVEL   = Int32Col(pos=0)
         POS     = Int64Col(pos=1)
         X_max   = Float64Col(shape=3,pos=2)
@@ -20,15 +37,7 @@ class Particle(IsDescription):
         NCHILDREN=Int64Col(pos=14)
         NAXES   = Int64Col(shape=3,pos=15)
 
-class Particle_molec(IsDescription):
-        X_mol   = Float64Col(pos=0)
-
-class Particle_dust(IsDescription):
-        T_d     = Float64Col(pos=0)
-        kapp_d  = StringCol(itemsize=64,pos=1)
-        dust_to_gas = Float64Col(pos=2)
-        
-def DelAttrs(table):
+def DelAttrsGrid(table):
         del table.attrs.FIELD_0_FILL 
         del table.attrs.FIELD_1_FILL
         del table.attrs.FIELD_2_FILL
@@ -47,15 +56,32 @@ def DelAttrs(table):
         del table.attrs.FIELD_15_FILL
         del table.attrs.NROWS
         
+class Particle_molec(IsDescription):
+        X_mol   = Float64Col(pos=0)
+
 def DelAttrs_molec(table):
         del table.attrs.FIELD_0_FILL 
         del table.attrs.NROWS
         
+class Particle_dust(IsDescription):
+        T_d     = Float64Col(pos=0)
+        kapp_d  = StringCol(itemsize=64,pos=1)
+        dust_to_gas = Float64Col(pos=2)
+
 def DelAttrs_dust(table):
         del table.attrs.FIELD_0_FILL 
         del table.attrs.FIELD_1_FILL
         del table.attrs.FIELD_2_FILL
-        del table.attrs.NROWS        
+        del table.attrs.NROWS    
+        
+class Particle_polariz(IsDescription):
+        B_cen   = Float64Col(shape=3,pos=0)
+        alpha   = Float64Col(pos=1)
+
+def DelAttrs_polariz(table):
+        del table.attrs.FIELD_0_FILL 
+        del table.attrs.FIELD_1_FILL
+        del table.attrs.NROWS   
 
 class export:
         def __init__(self,mesh,phys,FileName):
@@ -69,34 +95,48 @@ class export:
                 
                 # create attributes
                 h5file.setNodeAttr("/", "format", "SPARX format v3", name=None)
-                h5file.setNodeAttr("/", "molec", phys.molec, name=None)
+                
+                h5file.setNodeAttr("/", "molec", 
+                                   phys.molec if hasattr(phys, 'molec') else 0,
+                                   name=None)
                 h5file.setNodeAttr("/", "pops", 0, name=None)
-                h5file.setNodeAttr("/", "T_cmb", phys.T_cmb, name=None)
-                h5file.setNodeAttr("/", "T_in", phys.T_in, name=None)
-                h5file.setNodeAttr("/", "dust", phys.dust, name=None)
+                h5file.setNodeAttr("/", "T_cmb", 
+                                   phys.T_cmb if hasattr(phys, 'T_cmb') else 0,
+                                   name=None)
+                h5file.setNodeAttr("/", "T_in", 
+                                   phys.T_in if hasattr(phys, 'T_in') else 0,
+                                   name=None)
+                h5file.setNodeAttr("/", "dust", 
+                                   phys.dust if hasattr(phys, 'dust') else 0, 
+                                   name=None)
+                h5file.setNodeAttr("/", "polariz", 
+                                   phys.polariz if hasattr(phys, 'polariz') else 0,
+                                   name=None)
+                h5file.setNodeAttr("/", "z", 
+                                   phys.z if hasattr(phys, 'z') else 0.,
+                                   name=None)
                 
                 GridType = mesh.grid.GridType
                 if GridType == 'SPH1D':
-                        h5file.setNodeAttr("/", "geom", "sph1d", name=None)
+                        h5file.setNodeAttr("/", "geom", "SPH1D", name=None)
                         self._export_sph1d(mesh,phys,h5file)
                 if GridType == 'SPH2D':
-                        h5file.setNodeAttr("/", "geom", "sph3d", name=None)
+                        h5file.setNodeAttr("/", "geom", "SPH3D", name=None)
                         self._export_sph2d(mesh,phys,h5file)
                 else:
                         pass
                 
                 h5file.close()        
         
-        def _export_sph1d(sellf,mesh,phys,h5file):
+        def _export_sph1d(self,mesh,phys,h5file):
                 nr = mesh.grid.nr
                 nt = 1
                 np = 1
                 
                 # Create ZONE table
-                table = h5file.createTable("/", 'ZONE', Particle, "Grid table")
+                table = h5file.createTable("/", 'ZONE', ParticleZone, "Grid table")
                 particle = table.row
                 particle['LEVEL']       = -1
-                particle['POS']         = 0
                 particle['X_max']       = [ mesh.R_p[nr], mesh.theta_p[nt], mesh.phi_p[np] ]
                 particle['X_min']       = [ mesh.R_p[0] , mesh.theta_p[0] , mesh.phi_p[0]  ]
                 particle['X_cen']       = [ 0.5*( mesh.grid.Rin + mesh.grid.Rout ), mesh.theta_c[0], mesh.phi_c[0] ]
@@ -108,7 +148,7 @@ class export:
                 DelAttrs(table)
                 
                 # Create GRID table
-                table = h5file.createTable("/", 'GRID', Particle, "Grid table")
+                table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
                 particle = table.row
                 for i in range(nr):
                         particle['LEVEL']       = 0
@@ -126,7 +166,7 @@ class export:
                 DelAttrs(table)
                 
                 if phys.molec:
-                        # Create GRID table
+                        # Create MOLEC table
                         table = h5file.createTable("/", 'molec', Particle_molec, "molecular table")
                         particle = table.row
                         for i in range(nr):
@@ -148,6 +188,78 @@ class export:
                         DelAttrs_dust(table)
                 
 
-        def _export_sph2d(sellf,mesh,phys,h5file):
-                pass
+        def _export_sph2d(self,mesh,phys,h5file):
+                nr = mesh.grid.nr
+                nt = mesh.grid.nt
+                np = 1
+                
+                # Create ZONE table
+                table = h5file.createTable("/", 'ZONE', Particle, "Grid table")
+                particle = table.row
+                particle['LEVEL']       = -1
+                particle['POS']         = 0
+                particle['X_max']       = [ mesh.R_p[nr], mesh.theta_p[nt], mesh.phi_p[np] ]
+                particle['X_min']       = [ mesh.R_p[0] , mesh.theta_p[0] , mesh.phi_p[0]  ]
+                particle['X_cen']       = [ 0.5*( mesh.grid.Rin + mesh.grid.Rout ), 0.5 * (mesh.theta_p[0] + mesh.theta_p[nt]), mesh.phi_c[0] ]
+                particle['NCHILDREN']   = nr * nt * np
+                particle['NAXES']       = [nr,nt,np]
+                #Insert a new particle record
+                particle.append()
+                table.flush()
+                DelAttrs(table)
+                
+                # Create GRID table
+                table = h5file.createTable("/", 'GRID', Particle, "Grid table")
+                particle = table.row
+                for i in range(nr):
+                    for j in range(nt):
+                        particle['LEVEL']       = 0
+                        particle['POS']         = i * nt + j
+                        particle['X_max']       = [ mesh.R_p[i+1], mesh.theta_p[j+1], mesh.phi_p[np] ]
+                        particle['X_min']       = [ mesh.R_p[i]  , mesh.theta_p[j] , mesh.phi_p[0]  ]
+                        particle['X_cen']       = [ mesh.R_c[i]  , mesh.theta_c[j] , mesh.phi_c[0]  ]
+                        particle['n_H2']        = phys.n_H2[i,j]
+                        particle['V_cen']       = phys.V_gas[i,j]
+                        particle['T_k']         = phys.T_k[i,j]
+                        particle['V_t']         = phys.Vt[i,j]
+                        # Insert a new particle record
+                        particle.append()
+                table.flush()
+                DelAttrs(table)
+                
+                if phys.molec:
+                        # Create MOLEC table
+                        table = h5file.createTable("/", 'MOLEC', Particle_molec, "molecular table")
+                        particle = table.row
+                        for i in range(nr):
+                            for j in range(nt):
+                                particle['X_mol']       = phys.X_mol[i,j]
+                                particle.append()
+                        table.flush()
+                        DelAttrs_molec(table)
+                
+                if phys.dust:
+                        # Create DUST table
+                        table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
+                        particle = table.row
+                        for i in range(nr):
+                            for j in range(nt):
+                                particle['T_d']         = phys.T_d[i,j]
+                                particle['kapp_d']      = phys.kapp_d[i * nt + j]
+                                particle['dust_to_gas'] = phys.dust_to_gas[i,j]
+                                particle.append()
+                        table.flush()
+                        DelAttrs_dust(table)
+                        
+                if phys.polariz:
+                        # Create POLARIZ table
+                        table = h5file.createTable("/", 'POLARIZ', Particle_polariz, "polarization table")
+                        particle = table.row
+                        for i in range(nr):
+                            for j in range(nt):
+                                particle['B_cen']       = phys.B_field[i,j]
+                                particle['alpha']       = phys.alpha[i,j]
+                                particle.append()
+                        table.flush()
+                        DelAttrs_molec(table)
                

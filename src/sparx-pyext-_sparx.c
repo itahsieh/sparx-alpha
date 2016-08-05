@@ -244,7 +244,7 @@ static PyObject *task_pygrid(PyObject *self, PyObject *args)
 
 	USEUP_SELF_ARGS();
 
-	status = SpTask_PyGrid();
+	//status = SpTask_PyGrid();
 
 	if(!status) Py_RETURN_NONE;
 	else return NULL;

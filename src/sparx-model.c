@@ -6,7 +6,6 @@ void SpModel_PrintModel(SpModel model)
 /* Display model contents on stdout */
 {
 	Sp_PRINTF("T_cmb: %g K\n", model.parms.T_cmb);
-	Sp_PRINTF("Gas-to-dust: %g\n", model.parms.gas_to_dust);
 
 	if(model.parms.mol)
 		Mol_Fprintf(stdout, model.parms.mol);

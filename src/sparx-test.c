@@ -546,12 +546,6 @@ static int SpTest_Zone(void)
 					GeVec3_X(pp->v_cen, 0) = -1000;
 					GeVec3_X(pp->v_cen, 1) = 0;
 					GeVec3_X(pp->v_cen, 2) = 0;
-
-					for(i = 0; i < 8; i++) {
-						GeVec3_X(pp->v_edge[i], 0) = -1000;
-						GeVec3_X(pp->v_edge[i], 1) = 0;
-						GeVec3_X(pp->v_edge[i], 2) = 0;
-					}
 				}
 			}
 			num++;

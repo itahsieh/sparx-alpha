@@ -63,7 +63,7 @@ if error:
         print 'Analytical Mass : %f Msun' %exact
         print 'Mass Eroor of the Gridding : %f %%' %(100.*(phys.mass - exact)/exact)
         print 'Largest Velocity Dispersion to Turbulent Velocity : %f' %phys.MVD2Vt
-        print 'spatial index = %d' %phys.MVD2Vt_index
+        print 'Largest Dispersion occurs at spatial index = %d' %phys.MVD2Vt_index
 
 # visualization
 if plot:
@@ -78,6 +78,7 @@ if vtk:
 if OutputFile:
         from sparx import pre_hdf
         pre_hdf.export(mesh,phys,OutputFile)
+        print 'wrote out "%s"' %OutputFile
 
 
 

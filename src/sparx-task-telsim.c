@@ -772,19 +772,13 @@ static void *InitModelThread(void *tid_p)
 
                 /* Add dust emission/absorption if T_d > 0 */
                 if(pp->T_d > 0) {
-                        SpPhys_AddContinuum_d(pp, glb.task->idx == TASK_CONT, glb.model.parms.gas_to_dust);
+                        SpPhys_AddContinuum_d(pp, glb.task->idx == TASK_CONT, pp->dust_to_gas);
                 }
                 /* Add free-free emission/absorption if T_ff > 0 */
-                if(pp->T_ff > 0) {
+                if(pp->X_e > 0) {
                         SpPhys_AddContinuum_ff(pp, glb.task->idx == TASK_CONT);
                 }
 
-                /* Set continuum flux */
-                if(pp->T_bb > 0) {
-                        //debug
-                        SpPhys_SetContinuumIntens_bb(pp, glb.task->idx == TASK_CONT, pp->T_bb, glb.I_norm);
-                        Deb_PRINT("T_bb=%g, F_nu=%g\n", pp->T_bb, pp->cont[0].I_bb);
-                }
             }
           }
         }
@@ -1135,7 +1129,7 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 					/* Calculate intensity contributed by this step */
 					//debug
 					//I_nu[iv] += S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
-					I_nu[iv] += (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
+					I_nu[iv] += S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
 
 					/* Accumulate total optical depth for this channel (must be done
 					 * AFTER calculation of intensity!) */
@@ -1251,7 +1245,7 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
 
                                         /* Calculate intensity contributed by this step */
                                         //debug
-                                        I_nu[iv] += (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
+                                        I_nu[iv] += S_nu * (1.0 - exp(-dtau_nu))  * exp(-tau_nu[iv]);
 
                                         /* Accumulate total optical depth for this channel (must be done
                                          * AFTER calculation of intensity!) */
@@ -1441,7 +1435,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
 
                                         /* Calculate intensity contributed by this step */
                                         //debug
-                                        double contribution = (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb) * exp(-tau_nu[iv]);
+                                        double contribution = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
                                         
                                         I_nu[iv] += contribution;
                                         if (B_Mag == 0.){
@@ -2451,9 +2445,7 @@ printf("t_Tl = %E, t_Tu = %E, t_Pin = %E, t_Pout = %E\n", t_Tl, t_Tu, t_Pin, t_P
 /*----------------------------------------------------------------------------*/
 
 static int HitVoxel_cyl3d( const GeRay *ray, const GeVox *voxel, double *t, size_t *side)
-{
-        static const double half_pi = 0.5 * 3.1415926535897932384626433832795;
-        
+{        
         Deb_ASSERT( voxel->geom == GEOM_CYL3D );
         
         double Rc_in = voxel->min.x[0];
@@ -2583,7 +2575,7 @@ static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *Samp
                         0.;
                 double dtau_dust = k_dust * t * Sp_LENFAC;
                 *contrib_dust = 
-                        (S_dust * (1.0 - exp(-dtau_dust)) + pp->cont[glb.line].I_bb)
+                        S_dust * (1.0 - exp(-dtau_dust)) 
                         * exp(-(*tau_dust)) / t;
                 *tau_dust += dtau_dust;
                 
@@ -2615,7 +2607,7 @@ static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *Samp
 
                         /* Calculate the contribution per length */
                         contrib[iv] = 
-                                (S_nu * (1.0 - exp(-dtau_nu)) + pp->cont[glb.line].I_bb)
+                                S_nu * (1.0 - exp(-dtau_nu))
                                 * exp(-tau_nu[iv]) / t;
                         contrib[iv] -= *contrib_dust;
                                 

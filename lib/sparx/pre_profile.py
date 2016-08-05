@@ -199,7 +199,16 @@ class profile:
                                 self.T_d[i,j]           = phys.T_d
                                 self.dust_to_gas[i,j]   = phys.dust_to_gas
                                 self.kapp_d.append(phys.kapp_d)
-
+                if md.polariz:
+                        self.B_field = zeros((nr,nt,3))
+                        self.alpha = zeros((nr,nt))
+                        self.z     = zeros((nr,nt))
+                        for i in range(nr):
+                            for j in range(nt):
+                                self.B_field[i,j] = phys.B_field
+                                self.alpha[i,j]   = phys.alpha
+                                self.z[i,j]       = phys.z
+                                
 def calc_exact_mass(grid,model):
         GridType = grid.GridType
         if GridType =='SPH1D':

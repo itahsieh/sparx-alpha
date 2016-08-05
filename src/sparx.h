@@ -172,8 +172,6 @@ typedef struct SpPhys {
 		n_H2, /* Molecular gas density (m^-3) */
 		T_k, /* Kinetic temperature (K) */
 		T_d, /* Dust temperature (K) */
-		T_ff, /* Brightness temperature of free-free emission (K) */
-		T_bb,
 		X_mol, /* Molecular fractional abundance */
 		X_pH2,
 		X_oH2,
@@ -189,21 +187,22 @@ typedef struct SpPhys {
 		
 		*cmat, /* nlev x nlev matrix of collisional rates */
 		*tau, /* nrad array of average tau */
-		ds; /* Path length averaged over all directions */
+		ds, /* Path length averaged over all directions */
+                alpha, /* polarizaed efficiency */
+                z,      /* splitting coefficient */
+                dust_to_gas; /* dust-to-gas ratio */
 	struct {
-		double I_bb; /* Extra continuum flux */
 		double freq, lambda;
 		double j, k; /* Sum of all continuum emission and absorption (e.g. dust, fre-free... etc. */
 	} *cont;
 	GeVec3_d
 		v_cen, /* Velocity at voxel center (km/s) */
-		b_cen, /* B-field at voxel center (km/s) */
-		v_edge[6]; /* Velocity at cell edges (km/s) */
+		b_cen; /* B-field at voxel center (km/s) */
 	const Zone *zp; /* Zone containing this set of parameters */
 	/* Strings describing continuum opacities: meant to be accessed by SpIO_LoadKappa(),
 	   must be either 'powerlaw,%10.3e,%10.3e,%10.3e' or 'table,<filename>' */
 	char kapp_d[ZoneH5_KAPPLEN]; /* Dust opacity */ 
-	char kapp_ff[ZoneH5_KAPPLEN]; /* Free-free opacity */
+
 
 	double diff;
 
@@ -211,8 +210,9 @@ typedef struct SpPhys {
 
 typedef struct SpPhysParm {
 	PyObject *velfield;
-	Molec *mol,*mol_hyper;
-	double T_cmb, gas_to_dust;
+	Molec *mol;
+	double T_cmb, T_in;
+        int geom, pops, polariz, dust;
 
 } SpPhysParm;
 
@@ -244,7 +244,6 @@ void SpPhys_AddCont(SpPhys *pp, int cont);
 void SpPhys_AddContinuum(SpPhys *pp, int cont, double T_bb, const Kappa *kap, double rho);
 void SpPhys_AddContinuum_d(SpPhys *pp, int cont, double gas_to_dust);
 void SpPhys_AddContinuum_ff(SpPhys *pp, int cont);
-void SpPhys_SetContinuumIntens_bb(SpPhys *pp, int cont, double T_bb, double I_norm);
 
 void SpPhys_InitCollRates(SpPhys *pp);
 double SpPhys_GetCollDens(const SpPhys *pp, int species);
@@ -341,8 +340,12 @@ void SpIO_Print(const char *file, int line, const char *func, const char *format
 void SpIO_Printf(const char *file, int line, const char *func, const char *format, ...);
 void SpIO_Pwarn(const char *file, int line, const char *func, const char *format, ...);
 void SpIO_Perror(const char *file, int line, const char *func, const char *format, ...);
-ZoneH5_Record SpIO_ZoneToH5Record(const Zone *zone);
-void SpIO_ZoneFromH5Record(Zone *zone, ZoneH5_Record record);
+ZoneH5_Record_Zone      SpIO_ZoneToH5Record_Zone(const Zone *zone);
+ZoneH5_Record_Grid      SpIO_ZoneToH5Record_Grid(const Zone *zone);
+ZoneH5_Record_Molec     SpIO_ZoneToH5Record_Molec(const Zone *zone);
+ZoneH5_Record_Dust      SpIO_ZoneToH5Record_Dust(const Zone *zone);
+ZoneH5_Record_Polariz   SpIO_ZoneToH5Record_Polariz(const Zone *zone);
+void SpIO_ZoneFromH5Record(Zone *zone, ZoneH5_Record_Zone record);
 int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone);
 int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms, int *read_pops);
 int SpIO_H5WritePops(hid_t h5f_id, const Zone *zone);
@@ -360,7 +363,7 @@ int SpTask_Amc(void);
 int SpTask_AsciiGrid(void);
 int SpTask_Example(void);
 int SpTask_Powerlaw(void);
-int SpTask_PyGrid(void);
+//int SpTask_PyGrid(void);
 int SpTask_Telsim(void);
 int SpTask_Uniform(void);
 int SpTask_UVSamp(void);

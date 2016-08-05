@@ -60,7 +60,7 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
 {
 	Deb_ASSERT(mol != NULL);
 	if(!popsold){
-		Deb_ASSERT(pp->mol == NULL);printf("tau=%zu \n",pp->tau);
+		Deb_ASSERT(pp->mol == NULL);
 		Deb_ASSERT(pp->tau == NULL);
 	}
 
@@ -199,33 +199,6 @@ void SpPhys_InitCollRates(SpPhys *pp)
 	return;
 }
 
-/*----------------------------------------------------------------------------*/
-
-void SpPhys_SetContinuumIntens_bb(SpPhys *pp, int cont, double T_bb, double I_norm)
-/* Add continuum abosrption and emission associated with T_bb, kap and rho to total
-   continuum absorption and emission for all line or continuum windows. */
-{
-	size_t nrad;
-
-	if(cont) {
-		Deb_ASSERT(pp->cont != NULL);
-		nrad = pp->ncont;
-	}
-	else {
-		Deb_ASSERT(pp->mol != NULL);
-		nrad = pp->mol->nrad;
-	}
-
-	for(size_t i = 0; i < nrad; i++) {
-                #define FREQ(i)\
-                        (cont ? pp->cont[i].freq : pp->mol->rad[i]->freq)
-		pp->cont[i].I_bb = Phys_PlanckFunc(FREQ(i), T_bb) / I_norm;
-	}
-
-	#undef FREQ
-
-	return;
-}
 
 /*----------------------------------------------------------------------------*/
 
@@ -269,20 +242,20 @@ void SpPhys_AddContinuum(SpPhys *pp, int cont, double T_bb, const Kappa *kap, do
 
 /*----------------------------------------------------------------------------*/
 
-void SpPhys_AddContinuum_d(SpPhys *pp, int cont, double gas_to_dust)
+void SpPhys_AddContinuum_d(SpPhys *pp, int cont, double dust_to_gas)
 {
 	/* Dust mass density is
-		rho_dust = (n_H2 * mu_H2 * amu) / gas_to_dust
+		rho_dust = (n_H2 * mu_H2 * amu) * dust_to_gas
 	   where
 	   	n_H2 = H2 number density
-		gas_to_dust = gas-to-dust ratio
+		dust_to_gas = dust-to-gas ratio
 		mu_H2 = mean molecular weight per H2 --
 		        assuming M_H : M_He : M_Z = 0.71 : 0.27 : 0.02,
 		        this would be ~ 2.8
 		amu = atomic mass unit
 	*/
-	Deb_ASSERT(gas_to_dust > 0);
-	double rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU) / gas_to_dust;
+	Deb_ASSERT(dust_to_gas > 0);
+	double rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU) * dust_to_gas;
 
 	Kappa *kap = SpIO_LoadKappa(pp->kapp_d);
 
@@ -307,8 +280,8 @@ void SpPhys_AddContinuum_ff(SpPhys *pp, int cont)
 		amu = atomic mass unit
 	*/
 	double rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU);
-	Kappa *kap = SpIO_LoadKappa(pp->kapp_ff);
-	SpPhys_AddContinuum(pp, cont, pp->T_ff, kap, rho);
+	Kappa *kap = SpIO_LoadKappa(pp->kapp_d);
+	SpPhys_AddContinuum(pp, cont, pp->T_k, kap, rho);
 	Kap_Free(kap);
 
 	return;

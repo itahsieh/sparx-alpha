@@ -135,15 +135,16 @@ int SpTask_Amc(void)
 	/*
 	 * Initializtion
 	 */
-	/* Init RNG seed */
-	glb.seed = (unsigned long)time(NULL);
-	
-	/* Init RNG */
-	for(size_t i = 0; i < Sp_NTHREAD; i++) {
-		glb.rng[i] = gsl_rng_alloc(gsl_rng_ranlux);
-		gsl_rng_set(glb.rng[i], glb.seed);
-	}	
-
+        if(!glb.qmc){
+                /* Init RNG seed */
+                glb.seed = (unsigned long)time(NULL);
+                
+                /* Init RNG */
+                for(size_t i = 0; i < Sp_NTHREAD; i++) {
+                        glb.rng[i] = gsl_rng_alloc(gsl_rng_ranlux);
+                        gsl_rng_set(glb.rng[i], glb.seed);
+                }	
+        }
 	/* Init model */
 	if(!sts)
 		sts = InitModel();
@@ -370,15 +371,9 @@ static void *InitModelThread(void *tid_p)
 
 			/* Add dust emission/absorption if T_d > 0 */
 			if(pp->T_d > 0) {
-
-				SpPhys_AddContinuum_d(pp, 0, glb.model.parms.gas_to_dust);
+				SpPhys_AddContinuum_d(pp, 0, pp->dust_to_gas);
 			}
 
-
-			/* Add free-free emission/absorption if T_ff > 0 */
-			if(pp->T_ff > 0) {
-				SpPhys_AddContinuum_ff(pp, 0);
-			}
 
 		}
 	}

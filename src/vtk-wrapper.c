@@ -428,8 +428,8 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
         // the global pointer
         double ** contrib       = visual->contrib;
         double * contrib_dust   = visual->contrib_dust;
-        double ** tau           = visual->tau;
-        double ** tau_dev       = visual->tau_dev;
+        //double ** tau           = visual->tau;
+        //double ** tau_dev       = visual->tau_dev;
         
         FILE *fp;
         char filename[32];
