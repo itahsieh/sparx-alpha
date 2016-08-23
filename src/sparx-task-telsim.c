@@ -128,12 +128,6 @@ int SpTask_Telsim(void)
 // 1. GET PARAMETERS FROM PYTHON
         PyObject *o;
 /*    1-1 those are the general parameters */
-        /* source */
-        if(!sts) {
-                int popsold;
-                sts = SpPy_GetInput_model("source","source", &glb.model, &popsold);
-        }
-
         /* npix */
         if(!sts && !(sts = SpPy_GetInput_PyObj("npix", &o))) {
                 glb.x.n = Sp_PYSIZE(Sp_PYLST(o, 0));
@@ -217,6 +211,7 @@ int SpTask_Telsim(void)
                           break;
                   
                   // for task-lineobs
+                  case TASK_LINE:
                   case TASK_ZEEMAN:
                         { // get line transition
                           PyObject *o_line;
@@ -225,34 +220,7 @@ int SpTask_Telsim(void)
                           SpPy_XDECREF(o_line);
                         }
                           if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-                          if(!sts){
-                                  if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
-                          }
-                          Deb_ASSERT(glb.model.parms.mol != NULL);
-                          
-                          glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
-                          glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                          Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
-                          
-                          break;
-                  // for task-lineobs
-                  case TASK_LINE:
-                        { // get line transition
-                          PyObject *o1;
-                          o1 = PyObject_GetAttrString(o, "line");
-                          glb.line = Sp_PYSIZE(o1);
-                          SpPy_XDECREF(o1);
-                        }
-                          if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-                          if(!sts){
-                                  if(glb.lte) sts = SpPy_GetInput_molec("molec", &glb.model.parms.mol);
-                          }
-                          Deb_ASSERT(glb.model.parms.mol != NULL);
-                          
-                          glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
-                          glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                          Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
-                          
+
                           /* tau (optional) */
                           if(!sts && SpPy_CheckOptionalInput("tau")) {
                                   sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
@@ -273,6 +241,9 @@ int SpTask_Telsim(void)
                           /* excitation visualization */
                           if(!sts) 
                                   sts = SpPy_GetInput_bool("excit", &glb.excit);
+                          break;
+                  
+                  case TASK_COLDENS:
                           break;
                   default: 
                           /* Shouldn't reach here */
@@ -300,7 +271,19 @@ int SpTask_Telsim(void)
                         SpPy_XDECREF(o);
                 }
         }
-	
+
+/*    1-3 read the source model */
+        /* source */
+        if(!sts) {
+                int task_id = glb.task->idx; 
+                int popsold = 0;
+                /* only read populations data when non-LTE LINE/ZEEMAN mapping tasks*/ 
+                if( task_id == TASK_LINE || task_id == TASK_ZEEMAN ){
+                        if (!glb.lte)
+                                popsold = 1;
+                }
+                sts = SpPy_GetInput_model("source","source", &glb.model, &popsold, task_id);
+        }	
 
 /* 2. Initialize model */
 	if(!sts) sts = InitModel();
@@ -648,10 +631,15 @@ static int InitModel(void)
 	Zone *root = glb.model.grid, *zp;
 	SpPhys *pp;
 	int sts = 0;
-
-// 	FILE *fp;
-// 	double radius;
-
+        int task_id = glb.task->idx; 
+        
+        /* initialize line profile if LINE or ZEEMAN task */
+        if( task_id == TASK_LINE || task_id == TASK_ZEEMAN ){
+                glb.freq = glb.model.parms.mol->rad[glb.line]->freq;
+                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
+                Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
+        }
+        
 	/* initialization : construct overlapping table */
         if(glb.overlap){
                 glb.model.parms.mol->OL = Mem_CALLOC(NRAD*NRAD,glb.model.parms.mol->OL);
@@ -671,7 +659,7 @@ static int InitModel(void)
 
         /* Set normalization intensity to 20K -- normalization prevents rounding
 	   errors from creeping in when flux values are very small */
-	if(glb.task->idx != TASK_COLDENS){
+	if(task_id != TASK_COLDENS){
 		glb.I_norm = Phys_PlanckFunc(glb.freq, 10.0);
 
 		Deb_ASSERT(glb.I_norm > 0); /* Just in case */
@@ -685,8 +673,7 @@ static int InitModel(void)
 			glb.I_cmb /= glb.I_norm;
 		}
 	}
-
-// 	fp=fopen("pops.dat","w");
+// 	FILE * fp = fopen("pops.dat","w");
 	for(zp = Zone_GetMinLeaf(root); zp; zp = Zone_AscendTree(zp)) {
 		/* Pointer to physical parameters */
 		pp = zp->data;
@@ -699,8 +686,11 @@ static int InitModel(void)
 				/* This zone contains tracer molecules */
 				pp->has_tracer = 1;
                                 /*
- 				radius=sqrt(zp->voxel.cen.x[0] * zp->voxel.cen.x[0] + zp->voxel.cen.x[1] * zp->voxel.cen.x[1] + zp->voxel.cen.x[2] * zp->voxel.cen.x[2]);
- 				radius=zp->voxel.cen.x[0];
+ 				double radius = sqrt(
+                                        zp->voxel.cen.x[0] * zp->voxel.cen.x[0] + 
+                                        zp->voxel.cen.x[1] * zp->voxel.cen.x[1] + 
+                                        zp->voxel.cen.x[2] * zp->voxel.cen.x[2] );
+ 				//double radius = zp->voxel.cen.x[0];
  				fprintf(fp,"%g %g %g %g %g %g %g %g %g %g %g\n",radius,pp->pops[0][0],pp->pops[0][1],pp->pops[0][2],pp->pops[0][3],pp->pops[0][4],pp->pops[0][5],pp->pops[0][6],pp->pops[0][7],pp->pops[0][8],pp->pops[0][9]);
                                 */
 			}
@@ -729,8 +719,9 @@ static void *InitModelThread(void *tid_p)
         size_t zone_id,j,k;
 	Zone *root = glb.model.grid, *zp;
 	SpPhys *pp;
+        int task_id = glb.task->idx; 
         
-        if(glb.task->idx != TASK_COLDENS){
+        if(task_id != TASK_COLDENS){
           for(zp = Zone_GetMinLeaf(root), zone_id = 0; zp; zp = Zone_AscendTree(zp), zone_id++) {
             if(zone_id % Sp_NTHREAD == tid) {
                 /* Check for thread termination */
@@ -739,7 +730,7 @@ static void *InitModelThread(void *tid_p)
                 /* Init zone parameters */
                 pp = zp->data;
 
-                if(glb.task->idx == TASK_CONT) {
+                if(task_id == TASK_CONT) {
                         SpPhys_InitContWindows(pp, &glb.freq, (size_t)1);
                 }
                 else {
@@ -772,11 +763,11 @@ static void *InitModelThread(void *tid_p)
 
                 /* Add dust emission/absorption if T_d > 0 */
                 if(pp->T_d > 0) {
-                        SpPhys_AddContinuum_d(pp, glb.task->idx == TASK_CONT, pp->dust_to_gas);
+                        SpPhys_AddContinuum_d(pp, task_id == TASK_CONT, pp->dust_to_gas);
                 }
                 /* Add free-free emission/absorption if T_ff > 0 */
                 if(pp->X_e > 0) {
-                        SpPhys_AddContinuum_ff(pp, glb.task->idx == TASK_CONT);
+                        SpPhys_AddContinuum_ff(pp, task_id == TASK_CONT);
                 }
 
             }

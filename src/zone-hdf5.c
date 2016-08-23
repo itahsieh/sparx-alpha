@@ -58,7 +58,7 @@ static size_t field_offsets_dust[NFIELDS_DUST] = {
         HOFFSET(ZoneH5_Record_Dust, dust_to_gas)
 };
 static size_t field_offsets_polariz[NFIELDS_POLARIZ] = {
-        HOFFSET(ZoneH5_Record_Polariz, B_cen),
+        HOFFSET(ZoneH5_Record_Polariz, b_cen),
         HOFFSET(ZoneH5_Record_Polariz, alpha)
 };
 
@@ -106,7 +106,7 @@ static size_t field_sizes_dust[NFIELDS_DUST] = {
         sizeof(dummy_record_dust.dust_to_gas)
 };
 static size_t field_sizes_polariz[NFIELDS_POLARIZ] = {
-        sizeof(dummy_record_polariz.B_cen),
+        sizeof(dummy_record_polariz.b_cen),
         sizeof(dummy_record_polariz.alpha)
 };
 
@@ -147,7 +147,7 @@ static const char *field_names_dust[NFIELDS_DUST] = {
         "dust_to_gas"
 };
 static const char *field_names_polariz[NFIELDS_POLARIZ] = {
-        "B_cen",
+        "b_cen",
         "alpha"
 };
 
@@ -207,13 +207,12 @@ int ZoneH5_FwriteTable_Grid(hid_t h5f_id, const ZoneH5_Record_Grid *records, siz
         herr_t hstatus;
 
         hid_t field_types[NFIELDS_GRID];
-        hid_t vec3d_type, vec3s_type, vel_type;
-        hsize_t chunk_size = 10, vec3_size = 3, vel_size[2] = {6, 3};
+        hid_t vec3d_type, vec3s_type;
+        hsize_t chunk_size = 10, vec3_size = 3;
         int *fill_data = NULL, compress = 0;
 
         /* Create array data type */
         vec3d_type = H5Tarray_create(H5T_NATIVE_DOUBLE, 1, &vec3_size);
-        vel_type = H5Tarray_create(H5T_NATIVE_DOUBLE, 2, vel_size);
         vec3s_type = H5Tarray_create(H5T_NATIVE_LONG, 1, &vec3_size);
 
         field_types[0] = H5T_NATIVE_INT;
@@ -228,11 +227,10 @@ int ZoneH5_FwriteTable_Grid(hid_t h5f_id, const ZoneH5_Record_Grid *records, siz
         field_types[9] = H5T_NATIVE_DOUBLE;
         field_types[10] = H5T_NATIVE_DOUBLE;
         field_types[11] = H5T_NATIVE_DOUBLE;
-        field_types[12] = vel_type;
+        field_types[12] = H5T_NATIVE_DOUBLE;
         field_types[13] = vec3d_type;     
         field_types[14] = H5T_NATIVE_LONG;
         field_types[15] = vec3s_type;
-
 
         /* Make the table */
         hstatus = H5TBmake_table(
@@ -253,7 +251,6 @@ int ZoneH5_FwriteTable_Grid(hid_t h5f_id, const ZoneH5_Record_Grid *records, siz
 
         H5Tclose(vec3d_type);
         H5Tclose(vec3s_type);
-        H5Tclose(vel_type);
 
         if(hstatus < 0)
                 return Err_SETSTRING("Error reading HDF5 GRID table");

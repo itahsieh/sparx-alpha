@@ -127,8 +127,8 @@ int SpTask_Amc(void)
 
         if(!sts) sts = SpPy_GetInput_dbl("overlap", &glb.overlap_vel);
         glb.overlap = (glb.overlap_vel == 0.0) ? 0 : 1;
-
-	if(!sts) sts = SpPy_GetInput_model("source","pops", &glb.model, &glb.popsold);
+        
+	if(!sts) sts = SpPy_GetInput_model("source","pops", &glb.model, &glb.popsold, TASK_AMC);
 
 	/* Open output file handle -- only the master process can write files! */
 	if(Sp_MPIRANK == 0 && !sts) sts = SpPy_GetInput_spfile("out", &glb.outf, Sp_NEW);
@@ -247,9 +247,6 @@ static int InitModel(void)
 	for(zp = Zone_GetMinLeaf(root); zp; zp = Zone_AscendTree(zp)) {
 		/* Pointer to physical parameters */
 		SpPhys *pp = zp->data;
-		
-		/* Init molecular data */
-		SpPhys_InitMol(pp, glb.model.parms.mol, glb.popsold);
 
 		if((pp->n_H2 > 1e-200) && !zp->children) {
 			/* This is a non-empty leaf zone */
@@ -314,8 +311,10 @@ static int InitModel(void)
 		//glb.zone_rank[i] = i % Sp_MPISIZE;
 		//glb.zone_tid[i] = i % Sp_NTHREAD;
 	}
-	
 
+        /* enable pops */
+        glb.model.parms.pops = 1;
+        
 	SpUtil_Threads2(Sp_NTHREAD, InitModelThread);
 
 	return 0;
@@ -415,6 +414,8 @@ static int CalcExc(void)
 	Sp_PRINT("Total %d levels, %d lines\n", glb.model.parms.mol->nlev, glb.model.parms.mol->nrad);
 	Sp_PRINT("Beginning convergence from %s conditions\n", glb.lte ? "LTE" : "GROUND STATE");
 
+
+        
         int sts = 0;
 	for(glb.stage = 0;
             !sts && (glb.stage < (glb.ali ? 1 : STAGE_N)); 

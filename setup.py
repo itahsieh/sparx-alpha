@@ -5,7 +5,7 @@
 # VERSION_NUMBER of SPARX
 VERSION_NUMBER = '2.4.0'
 # MIRIAD support option
-MIRSUPPORT = 0
+MIRSUPPORT = 1
 # number of Thread using in per job
 ENABLE_MULTITREADING = 1
 if ENABLE_MULTITREADING:
@@ -235,7 +235,7 @@ if MIRSUPPORT:
 # SPARX sources files
 sources_sparx = [
 	'src/sparx-python.c',
-	'src/sparx-test.c',
+	#'src/sparx-test.c',
 	'src/sparx-model.c',
 	'src/sparx-physics.c',
 	'src/sparx-inputs.c',

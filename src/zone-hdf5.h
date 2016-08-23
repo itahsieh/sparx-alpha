@@ -36,7 +36,7 @@ typedef struct ZoneH5_Record_Dust {
 } ZoneH5_Record_Dust;
 
 typedef struct ZoneH5_Record_Polariz {
-        double B_cen[3];
+        double b_cen[3];
         double alpha;
 } ZoneH5_Record_Polariz;
 

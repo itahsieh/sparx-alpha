@@ -189,7 +189,6 @@ typedef struct SpPhys {
 		*tau, /* nrad array of average tau */
 		ds, /* Path length averaged over all directions */
                 alpha, /* polarizaed efficiency */
-                z,      /* splitting coefficient */
                 dust_to_gas; /* dust-to-gas ratio */
 	struct {
 		double freq, lambda;
@@ -212,6 +211,7 @@ typedef struct SpPhysParm {
 	PyObject *velfield;
 	Molec *mol;
 	double T_cmb, T_in;
+        double z;      /* splitting coefficient */
         int geom, pops, polariz, dust;
 
 } SpPhysParm;
@@ -227,7 +227,7 @@ void SpPhys_Free(void *ptr);
 void SpPhys_Fprintf(SpPhys *pp, FILE *fp);
 size_t SpPhys_Fwrite(SpPhys *pp, FILE *fp);
 size_t SpPhys_Fread(SpPhys *pp, FILE *fp);
-void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold);
+void SpPhys_InitMol(SpPhys *pp, const Molec *mol);
 void SpPhys_InitContWindows(SpPhys *pp, double freq[], size_t nfreq);
 void SpPhys_AddDust(SpPhys *pp, int cont, const Kappa *kap, double gas_to_dust);
 #define SpPhys_AddDust_mol(pp, kap, gas_to_dust)\
@@ -340,13 +340,20 @@ void SpIO_Print(const char *file, int line, const char *func, const char *format
 void SpIO_Printf(const char *file, int line, const char *func, const char *format, ...);
 void SpIO_Pwarn(const char *file, int line, const char *func, const char *format, ...);
 void SpIO_Perror(const char *file, int line, const char *func, const char *format, ...);
-ZoneH5_Record_Zone      SpIO_ZoneToH5Record_Zone(const Zone *zone);
-ZoneH5_Record_Grid      SpIO_ZoneToH5Record_Grid(const Zone *zone);
-ZoneH5_Record_Molec     SpIO_ZoneToH5Record_Molec(const Zone *zone);
-ZoneH5_Record_Dust      SpIO_ZoneToH5Record_Dust(const Zone *zone);
-ZoneH5_Record_Polariz   SpIO_ZoneToH5Record_Polariz(const Zone *zone);
+
+ZoneH5_Record_Zone      SpIO_ZoneToH5Record(const Zone *zone);
+ZoneH5_Record_Grid      SpIO_GridToH5Record(const Zone *zone);
+ZoneH5_Record_Molec     SpIO_MolecToH5Record(const Zone *zone);
+ZoneH5_Record_Dust      SpIO_DustToH5Record(const Zone *zone);
+ZoneH5_Record_Polariz   SpIO_PolarizToH5Record(const Zone *zone);
+
 void SpIO_ZoneFromH5Record(Zone *zone, ZoneH5_Record_Zone record);
-int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone);
+void SpIO_GridFromH5Record(Zone *zone, ZoneH5_Record_Grid record);
+void SpIO_MolecFromH5Record(Zone *zone, ZoneH5_Record_Molec record);
+void SpIO_DustFromH5Record(Zone *zone, ZoneH5_Record_Dust record);
+void SpIO_PolarizFromH5Record(Zone *zone, ZoneH5_Record_Polariz record);
+
+int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms);
 int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms, int *read_pops);
 int SpIO_H5WritePops(hid_t h5f_id, const Zone *zone);
 int SpIO_H5ReadPops(hid_t h5f_id, Zone *zone);
@@ -375,8 +382,8 @@ int SpTest_Gaussian(void);
 int SpTest_XYReadWrite(void);
 int SpTest_UVResamp(void);
 int SpTest_Interp2d(void);
-int SpTest_FFT(void);
-int SpTest_Test(void);
+//int SpTest_FFT(void);
+//int SpTest_Test(void);
 
 /* Keyword inputs */
 Kappa *SpInp_GetKey_kappa(const char *name);
@@ -422,7 +429,8 @@ int SpPy_GetInput_model(
         const char *SourceName, 
         const char *PopsName, 
         SpModel *model, 
-        int *popsold);
+        int *read_pops,
+        const int task_id );
 int SpPy_GetInput_molec(const char *name, Molec **molec);
 int SpPy_GetInput_molec_hyper(const char *name, Molec **molec);
 int SpPy_GetInput_spfile(const char *name, SpFile **fp, int mode);

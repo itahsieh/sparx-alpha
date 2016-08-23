@@ -27,9 +27,7 @@ case $CASE in
 ###########################
 # testing preprocessor    #
 ###########################
-        #source ../grid/sph1d/test       | tee -a test.log
-        \cp ../../preprocessor/presparx/Shu1D/* ./
-        presparx -o model
+        source ../grid/sph1d/test       | tee -a test.log
 ###########################
 # testing AMC             #
 ###########################
@@ -43,6 +41,19 @@ case $CASE in
         #source ../telsim/overlap/test  | tee -a test.log
         #source ../telsim/lte/test      | tee -a test.log
         ;;
+  "LINE")
+        source ../telsim/line/test       | tee -a test.log
+        ;;
+  "ZEEMAN")
+        source ../telsim/zeeman/test       | tee -a test.log
+        ;;
+  "CONT")
+        source ../telsim/cont/test       | tee -a test.log
+        ;;
+  "COLDENS")
+        source ../telsim/coldens/test       | tee -a test.log
+        ;;
+        
   "P2A")
         source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log
         ;;
@@ -58,9 +69,7 @@ case $CASE in
         #source ../telsim/contribution/sph3d/test       | tee -a test.log
         source ../telsim/contribution/cyl3d/test       | tee -a test.log
         ;;
-  "LINE")
-        source ../telsim/line/test       | tee -a test.log
-        ;;
+
   "QMC")
         source ../algorithm/AMC_accuracy/test       | tee -a test.log
         #gfortran ../algorithm/AMC_accuracy/pops_error.f90 -o pops_error

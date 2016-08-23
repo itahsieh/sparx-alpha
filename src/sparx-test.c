@@ -384,6 +384,7 @@ static int SpTest_Model(void)
 static int SpTest_HDF5(void)
 {
 	Zone *root;
+        SpPhysParm *parms;
 	GeVox voxel = GeVox_INIT(GEOM_REC3D, 0, 0, 0, 0.1, 0.1, 0.1);
 	GeVec3_s naxes = GeVec3_INIT(NDIV, NDIV, NDIV);
 	hid_t file_id;
@@ -396,7 +397,7 @@ static int SpTest_HDF5(void)
 	file_id = H5Fcreate(FNAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
 	/* Write grid to file */
-	SpIO_H5WriteGrid(file_id, root);
+	SpIO_H5WriteGrid(file_id, root, parms);
 
 	/* Cleanup */
 	SpZone_FREE(root);

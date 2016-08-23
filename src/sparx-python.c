@@ -152,7 +152,7 @@ int SpPy_GetInput_bool(const char *name, int *value)
 
 /*----------------------------------------------------------------------------*/
 
-int SpPy_GetInput_model(const char *Source,const char *Pops, SpModel *model, int *read_pops)
+int SpPy_GetInput_model(const char *Source,const char *Pops, SpModel *model, int *read_pops, const int task_id)
 /* Get user input as size_t and return error status */
 {
 	int status = 0;
@@ -160,11 +160,20 @@ int SpPy_GetInput_model(const char *Source,const char *Pops, SpModel *model, int
 	PyObject *PopsObj;
 
 	status = SpPy_GetInput_PyObj(Source, &SourceObj);
-	status = SpPy_GetInput_PyObj(Pops, &PopsObj);
-      
+	status = SpPy_GetInput_PyObj(Pops,   &PopsObj  );
+        
+        const char * sourcefname = Sp_PYSTR(SourceObj);
+        const char * popsfname   = Sp_PYSTR(PopsObj);
+        
+        if ( task_id == TASK_AMC ){
+                if ( popsfname == 0)
+                        *read_pops = 0;
+                else
+                        *read_pops = 1;
+        }
 	if(!status) {
-		if((status = SpIO_OpenModel(Sp_PYSTR(SourceObj), Sp_PYSTR(PopsObj), model, read_pops)))
-			PyWrErr_SetString(PyExc_Exception, "Error opening model '%s'", Sp_PYSTR(SourceObj));
+		if ( status = SpIO_OpenModel(sourcefname, popsfname, model, read_pops) )
+			PyWrErr_SetString(PyExc_Exception, "Error opening model '%s'", sourcefname);
 		Py_DECREF(SourceObj);
 		Py_DECREF(PopsObj);
 	}

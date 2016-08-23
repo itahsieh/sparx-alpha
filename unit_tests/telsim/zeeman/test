@@ -4,11 +4,10 @@ rm -rf map/ tau/ map.fits tau.fits
 
 printf "${LIGHTCYAN}START THE MAPPING OF ZEEMAN EFFECT (STOKES V) ${NC}\n"
 
-sparx run task_lineobs \
-source=pops \
+sparx run task_zeeman \
+source=../storage/1Dpops/pops \
 out=map \
-zeeman=1 \
 line=1 \
 tau=tau \
-npix="[1,1]" \
+npix="[2,2]" \
 subres="[['-10asec','-10asec','10asec','10asec',4]]"

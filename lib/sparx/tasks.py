@@ -2272,7 +2272,6 @@ class Task_AMC(Task):
 			Key("source", Type.OldFile, None, "Name of input source model (HDF5 file)"),
 			Key("pops", Type.OldFile, Type.Optional, "Name of initial population file (HDF5 file)"),
 			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
-			Key("molec", Type.Molec, None, "Molecule to calculate"),
 			Key("overlap", Type.Velo, '0kms^-1', "overlapping calculation (for hyperfine splitting)"),
 			Key("lte", Type.Bool, "False", "Whether to start convergence from LTE conditions"),
 			Key("trace", Type.Bool, "False", "Whether to trace convergence history"),
@@ -2331,9 +2330,34 @@ telsim_keys = [
                 "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]"
                 ),
         Key("vis", Type.Bool, "False", 
-                                "VTK output for visualization purpose"
-                                )
+                "VTK output for visualization purpose"
+                )
 ]
+
+line_keys = [
+        Key("line", Type.Index, None, 
+                "Line index of observing line"
+                ),
+        Key("overlap", Type.Velo, '0kms^-1', 
+                "line overlaping calculation"
+                ),
+        Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[64, '0.1kms^-1']", 
+                "Number of spectral channels and width of each channel (in velocity units)"
+                ),
+        Key("lte", Type.Bool, "False", 
+                "Init model to LTE pops of Molec"
+                ),
+        Key("excit", Type.Bool, "False", 
+                "Excitation temperature"
+                ),
+        Key("tau", Type.NewFile, Type.Optional, 
+                "Name of output tau cube (Miriad image dataset)"
+                ),
+        Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
+                "Image brightness unit"
+                )
+]
+
 
 ##
 ## task_contobs
@@ -2400,32 +2424,7 @@ class Task_LineObs(Task):
 		self.expl = "Generates synthetic line images"
 
 		# Keys
-		self.keys = [
-			Key("line", Type.Index, None, 
-                                "Line index of observing line"
-                                ),
-			Key("overlap", Type.Velo, '0kms^-1', 
-                                "line overlaping calculation"
-                                ),
-			Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[64, '0.1kms^-1']", 
-                                "Number of spectral channels and width of each channel (in velocity units)"
-                                ),
-			Key("lte", Type.Bool, "False", 
-                                "Init model to LTE pops of Molec"
-                                ),
-			Key("molec", Type.Molec, Type.Optional, 
-                                "Molecule to calculate" 
-                                ),
-			Key("excit", Type.Bool, "False", 
-                                "Excitation temperature"
-                                ),
-			Key("tau", Type.NewFile, Type.Optional, 
-                                "Name of output tau cube (Miriad image dataset)"
-                                ),
-			Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
-                                "Image brightness unit"
-                                ),
-		]+telsim_keys
+		self.keys = line_keys + telsim_keys
 
 		# C function to call
 		self.cfunc = _sparx.task_telsim
@@ -2470,17 +2469,7 @@ class Task_Zeeman(Task):
                 self.expl = "Zeeman effect polarization to see B-strength along the line of sight"
 
                 # Keys
-                self.keys = [
-                        Key("line", Type.Index, None, "Line index of observing line"),
-                        Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[64, '0.1kms^-1']", 
-                                "Number of spectral channels and width of each channel (in velocity units)"
-                                ),
-                        Key("lte", Type.Bool, "False", "Init model to LTE pops of Molec"),
-                        Key("molec", Type.Molec, Type.Optional, "Molecule to calculate"),
-                        Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
-                            "Image brightness unit"
-                            ),
-                ]+telsim_keys
+                self.keys = line_keys + telsim_keys
 
                 # C function to call
                 self.cfunc = _sparx.task_telsim

@@ -7,7 +7,6 @@ printf "${YELLOW}RUNNING AMC${NC}\n"
 sparx run task_amc \
 source=model \
 out=pops \
-molec=hco+ \
 trace='True' 
 
 # Generating CH3CN pops for overlap-emission test
@@ -16,3 +15,8 @@ trace='True'
 #out=pops \
 #molec=ch3cn \
 #trace='True'
+
+
+# restore the population 
+mkdir -p ../storage/1Dpops/
+cp pops ../storage/1Dpops/pops

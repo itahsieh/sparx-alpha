@@ -118,10 +118,10 @@ class export:
                 
                 GridType = mesh.grid.GridType
                 if GridType == 'SPH1D':
-                        h5file.setNodeAttr("/", "geom", "SPH1D", name=None)
+                        h5file.setNodeAttr("/", "geom", "sph1d", name=None)
                         self._export_sph1d(mesh,phys,h5file)
                 if GridType == 'SPH2D':
-                        h5file.setNodeAttr("/", "geom", "SPH3D", name=None)
+                        h5file.setNodeAttr("/", "geom", "sph3d", name=None)
                         self._export_sph2d(mesh,phys,h5file)
                 else:
                         pass
@@ -145,7 +145,7 @@ class export:
                 #Insert a new particle record
                 particle.append()
                 table.flush()
-                DelAttrs(table)
+                DelAttrsZone(table)
                 
                 # Create GRID table
                 table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
@@ -163,11 +163,11 @@ class export:
                         # Insert a new particle record
                         particle.append()
                 table.flush()
-                DelAttrs(table)
+                DelAttrsGrid(table)
                 
                 if phys.molec:
                         # Create MOLEC table
-                        table = h5file.createTable("/", 'molec', Particle_molec, "molecular table")
+                        table = h5file.createTable("/", 'MOLEC', Particle_molec, "molecular table")
                         particle = table.row
                         for i in range(nr):
                                 particle['X_mol']       = phys.X_mol[i]
@@ -206,7 +206,7 @@ class export:
                 #Insert a new particle record
                 particle.append()
                 table.flush()
-                DelAttrs(table)
+                DelAttrsZone(table)
                 
                 # Create GRID table
                 table = h5file.createTable("/", 'GRID', Particle, "Grid table")
@@ -225,7 +225,7 @@ class export:
                         # Insert a new particle record
                         particle.append()
                 table.flush()
-                DelAttrs(table)
+                DelAttrsGrid(table)
                 
                 if phys.molec:
                         # Create MOLEC table

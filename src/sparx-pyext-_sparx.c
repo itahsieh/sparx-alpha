@@ -255,7 +255,7 @@ static PyObject *task_pygrid(PyObject *self, PyObject *args)
  **/
 static PyObject *test_fft(PyObject *self, PyObject *args)
 {
-	SpTest_FFT();
+	//SpTest_FFT();
 
 	USEUP_SELF_ARGS();
 

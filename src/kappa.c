@@ -108,7 +108,7 @@ void Kap_Free(void *ptr)
 /*----------------------------------------------------------------------------*/
 
 double Kap_FromFreq(const Kappa *kap, double freq)
-{
+{       
 	switch(kap->type) {
 		case Kap_POWERLAW:
 			return Kap_FromFreq_plaw(kap, freq);
@@ -141,6 +141,24 @@ static double Kap_FromFreq_table(const Kappa *kap, double freq)
 	Deb_ASSERT(freq > 0);
 
 	double loglam = log10(Kap_LIGHTC_MKS / freq), logkap;
+
+        
+        int m = kap->nrows;
+        double min_loglam = kap->loglam[0];
+        double max_loglam = kap->loglam[m-1];
+        Deb_ASSERT( min_loglam < max_loglam);
+        if (loglam > max_loglam ){
+                printf("lambda exceeds the table : \n");
+                printf("log(lambda) = %f, max log(lambda) = %f\n", loglam, max_loglam);
+                printf("lambda has been shrunk\n");
+                loglam = max_loglam;
+        }
+        else if(loglam < min_loglam){
+                printf("lamda falls short of the table\n");
+                printf("log(lambda) = %f, min log(lambda) = %f\n", loglam, min_loglam);
+                printf("lambda has been dilated\n");
+                loglam = min_loglam;
+        }
 
 	logkap = Num_InterpPoly(loglam, kap->loglam, kap->logkap, kap->nrows, (size_t)3);
 

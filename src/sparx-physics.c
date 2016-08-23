@@ -15,7 +15,7 @@ void *SpPhys_Alloc(const Zone *zp, const void *parms_p)
 	if(parms) {
 		/* Assign molecule and allocate lines */
 		if(parms->mol)
-			SpPhys_InitMol(pp, parms->mol,0);
+			SpPhys_InitMol(pp, parms->mol);
 
 		/* Set velocity field */
 		if(parms->velfield) {
@@ -56,20 +56,17 @@ void SpPhys_Free(void *ptr)
 
 /*----------------------------------------------------------------------------*/
 
-void SpPhys_InitMol(SpPhys *pp, const Molec *mol,int popsold)
+void SpPhys_InitMol(SpPhys *pp, const Molec *mol)
 {
 	Deb_ASSERT(mol != NULL);
-	if(!popsold){
-		Deb_ASSERT(pp->mol == NULL);
-		Deb_ASSERT(pp->tau == NULL);
+	Deb_ASSERT(pp->mol == NULL);
+        pp->mol = mol;
+
+	for(size_t i = 0; i < Sp_NTHREAD; i++) {
+		Deb_ASSERT(pp->pops[i] == NULL);
+		pp->pops[i] = Mem_CALLOC(mol->nlev, pp->pops[i]);
 	}
 
-	if(!popsold){
-		for(size_t i = 0; i < Sp_NTHREAD; i++) {
-			Deb_ASSERT(pp->pops[i] == NULL);
-			pp->pops[i] = Mem_CALLOC(mol->nlev, pp->pops[i]);
-		}
-	}
 	/* Allocate tau for book keeping */
 	pp->tau = Mem_CALLOC(mol->nrad, pp->tau);
 	//pp->J_bar = Mem_CALLOC(mol->nrad, pp->J_bar);
@@ -219,23 +216,23 @@ void SpPhys_AddContinuum(SpPhys *pp, int cont, double T_bb, const Kappa *kap, do
 		nrad = pp->mol->nrad;
 	}
 
-	#define FREQ(i)\
-		(cont ? pp->cont[i].freq : pp->mol->rad[i]->freq)
-
 	for(size_t i = 0; i < nrad; i++) {
-		/* k = kappa_dust * rho_dust */
-		double k_nu = Kap_FromFreq(kap, FREQ(i)) * rho;
+#define FREQ(i) \
+	(cont ? pp->cont[i].freq : pp->mol->rad[i]->freq)
+
+                /* k = kappa_dust * rho_dust */
+                double k_nu = Kap_FromFreq(kap, FREQ(i)) * rho;
 
 		/* j = B_nu * k */
 		double j_nu = Phys_PlanckFunc(FREQ(i), T_bb) * k_nu;
-
+#undef FREQ
 		/* Accumulate j and k */
 		pp->cont[i].j += j_nu;
 		pp->cont[i].k += k_nu;
 	}
 
 	
-	#undef FREQ
+
 
 	return;
 }
@@ -1205,7 +1202,7 @@ double _SpPhys_BoltzRatio(const Molec *mol, size_t up, size_t lo, double T_k)
 double SpPhys_CalcLineWidth(const SpPhys *pp)
 /* Calculate total line width accounting for both thermal and
  * turbulent motion, where V_t is the RMS turbulent velocity. */
-{
+{//printf("OK %zu\n",pp->mol);exit(0);
 	double V_th = Phys_ThermLineWidth(pp->T_k, pp->mol->weight);
 	double V_t = pp->V_t;
 
