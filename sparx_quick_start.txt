@@ -1,7 +1,7 @@
 # =====================================================
 # |          The Quick Guidance for SPARX             |
 # |                   I-Ta Hsieh                      |
-# |                 < 2016.3.18 >                     |
+# |                  < Aug 2016 >                     |
 # =====================================================
 
 
@@ -11,18 +11,17 @@
 
 -- 1. DOWNLOAD THE SOURCE CODE
       * # download the source code from 
-        https://github.com/itahsieh/sparx-alpha
-        
-      * # or just command
-        git init
         git clone https://github.com/itahsieh/sparx-alpha.git
 
 -- 2. LOADING THE LIBRARY AND DEPENDENT PACKAGES
       THEN INSTALL
-
-    * If you are the user/developer on TIARA's cluster
-        # enter the directory and install 
+        # first of all, enter the directory 
+        # and checkout to the latest release
         cd sparx-alpha
+        git checkout alpha-2.4.0
+        
+    * If you are the user/developer on TIARA`s cluster
+        # install sparx on TIARA's cluster (oc/tc/px/xl)
         ./tiara-install.sh
 
     * If you are just the user for the applicational 
@@ -32,39 +31,43 @@
         # load sparx module
         module add sparx
         
-    * If you are the user on IAA's cluster
-        # enter the directory and install 
-        cd sparx-alpha
-        ./iaa-install.sh
-        
-    * If you are using ubuntu 14.04, 
-        # enter the directory and install 
-        cd sparx-alpha
+    * If you are using ubuntu 14.04 / 16.04, 
+        # install sparx
         ./ubuntu-install.sh
+        
+    * If you are a linux user 
+      and you are going to build the dependancy on your own
+        # install the dependancies (at $HOME/opt)
+        ./dep-install.sh
+        # install sparx
+        ./linux-install.sh
   
 -- 3. TEST
-        source test.sh AMC
+        ./test.sh AMC
 
 
 #######################################################
 #                    THE TUTORIAL                     #
 #######################################################
-# PREPROCESSOR : build a Shu's collapsing cloud
-sparx run task_shu1d \
-out=model \
-n_max='1e12m^-3' \
-ndiv=64 \
-abundance=1e-9 \
-Vin='0.1kms^-1'
+# 1. PREPROCESSOR 
+# -- build a Shu's collapsing cloud
+# copy the model and grid template ( grid.py & model.py )
+cp $HOME/sparx-alpha/preprocessor/presparx/Shu1D/*.py ./
+# 'presparx' would generate SPARX HDF file ('model') 
+# and the plot (profile.png) of the profile
+# '-e' estimates the mass error o the FEM mesh 
+# corresponding to exact model
+presparx -o model -p -e
 
 # non-LTE molecular excitation solver : AMC
+# specify the model file with 'source',
+# the population file with 'out',
+# and the molecule name with 'molec'
+
 sparx run task_amc \
 source=model \
 out=pops \
-molec='hco+' \
-lte='True' \
-snr=20 \
-tolerance=5e-3
+molec='hco+' 
 
 # making the image
 sparx run task_lineobs \
@@ -81,8 +84,8 @@ npix="[128,128]"
 #          HOW TO CREATE YOUR OWN SIMULATION          #
 #######################################################
 
-# create your own task into the tasks file (For creating 1D model)
-sparx-alpha/lib/sparx/tasks.py
+# modify the template of the grid and model profile 
+sparx-alpha/preprocessor/script
 
 # A spherical 2D/3D preprocessor template
 pre-sparx/SPH2D_preprocessor.py
@@ -116,8 +119,8 @@ pre-sparx/nested3D.py
   * AMC solver : 
     -- MC noise : number of rays ('snr' flag) 
     -- ALI stopping criteria : 
-       iteration error ('tolerance' flag)
-       make the error 1 order less than MC noise
+       iteration error
+       ALI stops until the error of the iteration 1/10 less than MC noise
     -- Detailed balance loop : 
        inner iteration error 
        ('minpop' flag, typically 1e-6)

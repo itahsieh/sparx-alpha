@@ -2273,7 +2273,7 @@ class Task_AMC(Task):
 			Key("pops", Type.OldFile, Type.Optional, "Name of initial population file (HDF5 file)"),
 			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
 			Key("overlap", Type.Velo, '0kms^-1', "overlapping calculation (for hyperfine splitting)"),
-			Key("lte", Type.Bool, "False", "Whether to start convergence from LTE conditions"),
+			Key("lte", Type.Bool, "True", "Whether to start convergence from LTE conditions"),
 			Key("trace", Type.Bool, "False", "Whether to trace convergence history"),
 			#Key("tolerance", Type.Fraction, "5e-3", "Convergence criterion for fixed rays stage"),
 			Key("snr", Type.Float, "20", "Upper limit of Monte Carlo noise level"),

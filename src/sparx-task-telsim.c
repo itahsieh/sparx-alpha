@@ -496,10 +496,6 @@ int SpTask_Telsim(void)
                 
         }
 
-	
-
-
-
 #if 0	
         // this visualization is ... not useful...
         // calculate three moments and output to VTK file
