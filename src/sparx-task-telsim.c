@@ -274,7 +274,9 @@ int SpTask_Telsim(void)
                           if(!sts) 
                                   sts = SpPy_GetInput_bool("excit", &glb.excit);
                           break;
-                  default: 
+                  case TASK_COLDENS:
+			  break; 
+		  default: 
                           /* Shouldn't reach here */
                           Deb_ASSERT(0);
                 }
