@@ -1,43 +1,37 @@
 #! /bin/bash
 
+
+sudo yum install \
+redhat-rpm-config \
+python-devel \
+numpy \
+gsl-devel \
+libtool \
+fftw-devel \
+cfitsio-devel \
+hdf5-openmpi-devel \
+libX11-devel \
+python2-matplotlib \
+sympy \
+python-tables
+
 FEDORA_VERSION=`grep -o '[0-9]*' /etc/fedora-release`
 
 
 if [ $FEDORA_VERSION == '22' ]; then 
-
-# INSTALL SPARX FOR FEDORA 22
-sudo yum install \
-redhat-rpm-config \
-python-devel \
-numpy \
-gsl-devel \
-libtool \
-fftw-devel \
-cfitsio-devel \
-hdf5-openmpi-devel \
-libX11-devel \
-python2-matplotlib \
-scipy \
-sympy \
-python-tables
+  # INSTALL SPARX FOR FEDORA 22
+  sudo yum install scipy 
+ 
+  # setup bash environment
+  if ! grep -q "# SPARX ENVIRONMENT" ~/.bashrc; then
+    echo "# SPARX ENVIRONMENT" >> ~/.bashrc
+    echo 'export LIBRARY_PATH=$LIBRARY_PATH:/usr/lib64/openmpi/lib' >> ~/.bashrc
+    echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/openmpi/lib' >> ~/.bashrc
+  fi
 
 elif [ $FEDORA_VERSION == '24' ]; then
-
-# INSTALL SPARX FOR FEDORA 24
-sudo yum install \
-redhat-rpm-config \
-python-devel \
-numpy \
-gsl-devel \
-libtool \
-fftw-devel \
-cfitsio-devel \
-hdf5-openmpi-devel \
-libX11-devel \
-python2-matplotlib \
-python2-scipy \
-sympy \
-python-tables
+  # INSTALL SPARX FOR FEDORA 24
+  sudo yum install python2-scipy 
 
 fi
 

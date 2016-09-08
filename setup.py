@@ -3,7 +3,7 @@
 # Python Distutils setup script for SPARX
 
 # VERSION_NUMBER of SPARX
-VERSION_NUMBER = '2.4.0'
+VERSION_NUMBER = '3.0.0'
 # MIRIAD support option
 MIRSUPPORT = 0
 # number of Thread using in per job
@@ -65,7 +65,7 @@ SPARX_VERSION='sparx'
 USER_INCLUDE = []
 USER_LIB = []
 args = sys.argv[:]
-mpi_libs = []
+mpi_libs = ['mpi']
 for arg in args:
 	if arg.find('--with-include=') == 0:
 		USER_INCLUDE += [expanduser(arg.split('=')[1])]
