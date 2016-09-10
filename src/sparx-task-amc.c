@@ -372,7 +372,12 @@ static void *InitModelThread(void *tid_p)
 			if(pp->T_d > 0) {
 				SpPhys_AddContinuum_d(pp, 0, pp->dust_to_gas);
 			}
-
+                        
+                        
+                        /* Add free-free emission/absorption if T_ff > 0 */
+                        if(pp->X_e > 0) {
+                                SpPhys_AddContinuum_ff(pp, 0);
+}
 
 		}
 	}

@@ -267,21 +267,50 @@ void SpPhys_AddContinuum_d(SpPhys *pp, int cont, double dust_to_gas)
 
 void SpPhys_AddContinuum_ff(SpPhys *pp, int cont)
 {
-	/* Total mass density is
-		rho_dust = (n_H2 * mu_H2 * amu)
-	   where
-	   	n_H2 = H2 number density
-		mu_H2 = mean molecular weight per H2 --
-		        assuming M_H : M_He : M_Z = 0.71 : 0.27 : 0.02,
-		        this would be ~ 2.8
-		amu = atomic mass unit
-	*/
-	double rho = (pp->n_H2 * 2.8 * PHYS_UNIT_MKS_AMU);
-	Kappa *kap = SpIO_LoadKappa(pp->kapp_d);
-	SpPhys_AddContinuum(pp, cont, pp->T_k, kap, rho);
-	Kap_Free(kap);
+        size_t nrad;
 
-	return;
+        if(cont) {
+                Deb_ASSERT(pp->cont != NULL);
+                nrad = pp->ncont;
+        }
+        else {
+                Deb_ASSERT(pp->mol != NULL);
+                nrad = pp->mol->nrad;
+        }
+
+        for(size_t i = 0; i < nrad; i++) {
+                double nu = cont ? pp->cont[i].freq : pp->mol->rad[i]->freq;
+                double T = pp->T_k;
+                double N_e = pp->n_H2 * pp->X_e;
+                double N_i = N_e; /* numbers of ions and electrons are equal, 
+                                     ideal MHD approximation       */
+                
+/* 
+
+Absorption coeffiecient for H II region
+
+adopts from the numerical equation in Gordon's book :
+"Radio Recombination Lines: Their Physics and Astronomical Applications"
+(2002), P.64, Eq. 2.96
+http://link.springer.com/book/10.1007%2F978-0-387-09691-9
+
+The CGS numerical coefficient kappa_ff is
+kappa_ff = 0.2120 * N_e * N_i * nu^-2.1 * T^-1.35 (cm^-1) 
+where nu in unit Hz, N_e and N_i in unit cm^-3
+
+For MKS version, the coeffient becomes
+kappa_ff = 0.2120e14 * N_e * N_i * nu^-2.1 * T^-1.35 (m^-1)
+
+*/
+                double k_nu = 0.2120e14 * N_e * N_i * pow(nu,-2.1) * pow(T,-1.35);
+
+                /* j = B_nu * k */
+                double j_nu = Phys_PlanckFunc(nu, T) * k_nu;
+
+                /* Accumulate j and k */
+                pp->cont[i].j += j_nu;
+                pp->cont[i].k += k_nu;
+        }
 }
 
 /*----------------------------------------------------------------------------*/
