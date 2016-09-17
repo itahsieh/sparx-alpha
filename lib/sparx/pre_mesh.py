@@ -25,7 +25,7 @@ class mesh:
                 elif GridType == 'REC3D':
                         pass
                 elif GridType == 'CYL2D':
-                        pass
+                        self._gen_mesh_cyl2d()
                 elif GridType == 'CYL3D':
                         pass
                 else:
@@ -144,3 +144,75 @@ class mesh:
                 self.phi_p = phi_p
                 self.phi_c = phi_c
                 
+        def _gen_mesh_cyl2d(self):
+                gr = self.grid
+                
+                nrc = gr.nrc
+                nz = gr.nz
+                Rc_in = gr.Rc_in
+                Rc_out = gr.Rc_out
+                
+                Rc_p = zeros(nrc+1)
+                Rc_c = zeros(nrc)
+                Rc_p[0] = Rc_in
+                
+                theta_p = zeros(nt+1)
+                theta_c = zeros(nt)
+                theta_p[0] = 0.0
+                
+
+                spacing = gr.spacing
+                if ( spacing == 'uniform' ):
+                        dr = (Rout-Rin)/nr
+                        for i in range(1,nr+1):
+                                R_p[i] =  R_p[i-1] + dr
+                                R_c[i-1] = R_p[i-1] + 0.5 * dr
+                                
+                        
+                        dt = pi / nt
+                        for j in range(1,nt+1):
+                                theta_p[j] = theta_p[j-1] + dt
+                                theta_c[j-1] = theta_p[j-1] + 0.5 * dt
+
+                elif ( spacing == 'stretch'):
+                        stretch_ratio_r = gr.stretch_ratio_r
+                        dr = (Rout-Rin)*(stretch_ratio_r-1.)/(stretch_ratio_r**(nr)-1.)
+                        for i in range(1,nr+1):
+                                R_p[i] =  R_p[i-1] + dr
+                                R_c[i-1] = R_p[i-1] + 0.5 * dr
+                                dr *= stretch_ratio_r
+                        
+                        stretch_ratio_t = gr.stretch_ratio_t
+                        # resolution is even
+                        if nt % 2 == 0:        
+                                dt0 = 0.5 * pi * (stretch_ratio_t - 1.) / (stretch_ratio_t**(nt/2) - 1.)
+                                dt = dt0 * stretch_ratio_t**(nt/2-1)
+                        # resolution is odd
+                        else:
+                                dt0 = pi * (stretch_ratio_t - 1.) / (2 * stretch_ratio_t**(nt/2) - stretch_ratio_t - 1.)
+                                dt = dt0 * stretch_ratio_t**(nt/2)
+                        
+                        # north semi-sphere
+                        for j in range(1,nt/2+1):
+                                theta_p[j] = theta_p[j-1] + dt
+                                theta_c[j-1] = theta_p[j-1] + 0.5 * dt
+                                dt /= stretch_ratio_t
+                        # south semi-sphere
+                        dt = dt0
+                        for j in range(nt/2+1,nt+1):
+                                theta_p[j] = theta_p[j-1] + dt
+                                theta_c[j-1] = theta_p[j-1] + 0.5 * dt
+                                dt *= stretch_ratio_t
+                
+                else:
+                        raise RuntimeError('Spacing Type not defined : %s' % spacing)
+                        sys.exit(2)
+
+                phi_p = [0., 2. * pi]
+                phi_c = [pi]
+                self.R_p = R_p
+                self.R_c = R_c
+                self.theta_p = theta_p
+                self.theta_c = theta_c
+                self.phi_p = phi_p
+                self.phi_c = phi_c
