@@ -13,6 +13,10 @@ python-matplotlib \
 python-sympy \
 python-tables
 
+
+export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi:/usr/lib/openmpi/include
+export LIBRARY_PATH=$LIBRARY_PATH:/usr/lib/x86_64-linux-gnu/hdf5/openmpi
+
 CODENAME=`lsb_release -c | awk 'END {print $NF}'`
 if   [ $CODENAME == 'xenial' ]; then
   HDF_INCLUDE='--with-include=/usr/include/hdf5/openmpi'
