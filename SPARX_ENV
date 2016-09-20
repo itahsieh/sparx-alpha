@@ -1,0 +1,24 @@
+#!/bin/bash
+
+
+# Convenience function for setting up apps
+setup_app() {
+    home_dir=$1
+    export C_INCLUDE_PATH=${home_dir}/include:${C_INCLUDE_PATH}
+    export PATH=${home_dir}/bin:${PATH}
+    export LIBRARY_PATH=${home_dir}/lib:${LIBRARY_PATH}
+    export LD_LIBRARY_PATH=${home_dir}/lib:${LD_LIBRARY_PATH}
+    export MANPATH=${home_dir}/man:${MANPATH}
+}
+
+# OPENMPI
+OPENMPI_PATH=$HOME/opt/openmpi-2.0.0
+setup_app $OPENMPI_PATH
+
+# FITSIO
+FITSIO_PATH=$HOME/opt/cfitsio
+setup_app $FITSIO_PATH
+
+# HDF5
+HDF5_PATH=$HOME/opt/hdf5-1.8.17
+setup_app $HDF5_PATH
