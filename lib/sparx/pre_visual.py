@@ -18,7 +18,7 @@ class plot:
                 elif GridType == 'REC3D':
                         pass
                 elif GridType == 'CYL2D':
-                        pass
+                        self._plot_cyl2d(mesh,phys)
                 elif GridType == 'CYL3D':
                         pass
                 
@@ -108,7 +108,53 @@ class plot:
                 plt.colorbar()
                 
                 savefig('profile.png')
-
+                
+        def _plot_cyl2d(self,mesh,phys):     
+                rc = mesh.Rc_c
+                z = mesh.z_c
+                
+                y, x, = np.meshgrid(z, rc)
+                
+                # Density plot
+                plt.subplot(231, aspect=1)
+                plt.pcolormesh(x, y, phys.n_H2, norm=matplotlib.colors.LogNorm())
+                plt.title('H2 density (m^-3)')
+                plt.colorbar()
+                
+                # Temperature plot
+                plt.subplot(232, aspect=1)
+                plt.pcolormesh(x, y, phys.T_k, norm=matplotlib.colors.LogNorm())
+                plt.title('Kinetic Temperature (Kelvin)')
+                plt.colorbar()
+                
+                # Velocity plot
+                plt.subplot(233, aspect=1)
+                plt.pcolormesh(x, y, phys.X_mol, norm=matplotlib.colors.LogNorm(vmin=0.1*amin(phys.X_mol), vmax=10.*amax(phys.X_mol)))
+                plt.title('Molecular Abundance (Fraction)')
+                plt.colorbar()
+                
+                # Velocity plot
+                V_gas_max = amax(phys.V_gas[:,:,:])
+                V_gas_min = amin(phys.V_gas[:,:,:])
+                absmax = 0.05 * max(abs(V_gas_max),abs(V_gas_min))
+                
+                plt.subplot(234, aspect=1)
+                plt.pcolormesh(x, y, phys.V_gas[:,:,0], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
+                plt.title('V_r (m/s)')
+                plt.colorbar()
+                
+                plt.subplot(235, aspect=1)
+                plt.pcolormesh(x, y, phys.V_gas[:,:,1], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
+                plt.title('V_theta (m/s)')
+                plt.colorbar()
+                
+                plt.subplot(236, aspect=1)
+                plt.pcolormesh(x, y, phys.V_gas[:,:,2], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
+                plt.title('V_phi (m/s)')
+                plt.colorbar()
+                
+                savefig('profile.png')
+                
 class vtk_output:
         def __init__(self, mesh, phys):
                 GridType = mesh.grid.GridType
@@ -121,7 +167,7 @@ class vtk_output:
                 elif GridType == 'REC3D':
                         pass
                 elif GridType == 'CYL2D':
-                        pass
+                        self._vtk_cyl2d(mesh,phys)
                 elif GridType == 'CYL3D':
                         pass
                 
@@ -240,4 +286,58 @@ class vtk_output:
                         print >>fvtk1,'%(0)7.2e %(1)7.2e %(2)7.2e'%{'0':Vx,'1':Vy,'2':Vz}
                 fvtk1.close()
                 
+        def _vtk_cyl2d(self,mesh,phys):
+                nrc = mesh.grid.nrc
+                np = 90
+                nz = mesh.grid.nz
                 
+                # phi grid
+                phi_p = zeros(np+1)
+                dphi = 2.* pi / np
+                for j in range(1,np+1):
+                        phi_p[j] = phi_p[j-1] + dphi
+                
+                fvtk1=open('visual.vtk', mode = "w")
+                print >>fvtk1,'# vtk DataFile Version 3.0'
+                print >>fvtk1,'ENV_DISK'
+                print >>fvtk1,'ASCII'
+                print >>fvtk1,'DATASET STRUCTURED_GRID'
+                print >>fvtk1,'DIMENSIONS %(0)d %(1)d %(2)d'%{'0':nz+1,'1':np+1,'2':nrc+1}
+                print >>fvtk1,'POINTS %(0)d float'%{'0':(nrc+1)*(np+1)*(nz+1)}
+                for i in range(nrc+1):
+                  for j in range(np+1):
+                    for k in range(nz+1):
+                        rc      = mesh.Rc_p[i]
+                        phi     = phi_p[j]
+                        z       = mesh.z_p[k]
+                        
+                        x = rc * cos(phi)
+                        y = rc * sin(phi)
+                        print >>fvtk1,'%(0)e %(1)e %(2)e'%{'0':x,'1':y,'2':z}
+                print >>fvtk1,'CELL_DATA %(0)d'%{'0':nrc * np * nz}
+                print >>fvtk1,'SCALARS density float 1'
+                print >>fvtk1,'LOOKUP_TABLE default'
+                for i in range(nrc):
+                  for j in range(np):
+                    for k in range(nz):
+                        print >>fvtk1,'%(0)8.2e'%{'0':phys.n_H2[i,k]},
+                    print >>fvtk1
+                print >>fvtk1,'SCALARS temperature float 1'
+                print >>fvtk1,'LOOKUP_TABLE default'
+                for i in range(nrc):
+                  for j in range(np):
+                    for k in range(nz):
+                        print >>fvtk1,'%(0)7.1f'%{'0':phys.T_k[i,k]},
+                    print >>fvtk1
+                print >>fvtk1,'VECTORS velocity float'
+                for i in range(nrc):
+                  for j in range(np):
+                    for k in range(nz):
+                        Vrc = phys.V_gas[i,k][0]
+                        Vp = phys.V_gas[i,k][1]
+                        Vz = phys.V_gas[i,k][2]
+                        phi     = phi_p[k]
+                        Vx = Vrc * cos(phi) - Vp * sin(phi)
+                        Vy = Vrc * sin(phi) + Vp * cos(phi)
+                        print >>fvtk1,'%(0)7.2e %(1)7.2e %(2)7.2e'%{'0':Vx,'1':Vy,'2':Vz}
+                fvtk1.close()

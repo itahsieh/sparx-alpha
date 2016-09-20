@@ -128,7 +128,7 @@ class model:
                         print self.r, self.theta, self.sin_theta, self.cos_theta0
                         import sys
                         sys.exit(0)
-                Vt_env = Vkep * ( (self.cos_theta0 - self.cos_theta / self.sin_theta ) * sqrt( 1. + self.cos_theta / self.cos_theta0 )
+                Vt_env = Vkep * ( (self.cos_theta0 - self.cos_theta)/ self.sin_theta ) * sqrt( 1. + self.cos_theta / self.cos_theta0 )
                 Vp_env = Vkep * ( sqrt( 1. - self.cos_theta0 * self.cos_theta0) / self.sin_theta ) * sqrt( 1. + self.cos_theta / self.cos_theta0 )
                 
                 Vrc_env = Vr_env * self.sin_theta + Vt_env * self.cos_theta
