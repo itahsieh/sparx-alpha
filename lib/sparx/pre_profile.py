@@ -49,12 +49,12 @@ class profile:
                 GridType = gr.GridType
                 if GridType == 'SPH1D':
                         self._MappingFunction_sph1d(mesh)
-
                 elif GridType == 'SPH2D':
                         self._MappingFunction_sph2d(mesh)
-                
                 elif GridType == 'SPH3D':
                         pass
+                elif GridType == 'CYL2D':
+                        self._MappingFunction_cyl2d(mesh)
                 else:
                         raise RuntimeError('Grid Type not defined : %s' % GridType) 
                 
@@ -208,7 +208,95 @@ class profile:
                                 self.B_field[i,j] = phys.B_field
                                 self.alpha[i,j]   = phys.alpha
                                 self.z[i,j]       = phys.z
+
+        def _MappingFunction_cyl2d(self,mesh):
+                gr = mesh.grid
+                md = self.model
+                
+                nrc = gr.nrc
+                nz = gr.nz
+                self.n_H2 = zeros((nrc,nz))
+                self.T_k = zeros((nrc,nz))
+                self.V_gas = zeros((nrc,nz,3))
+                self.Vt = zeros((nrc,nz))
+                for i in range(nrc):
+                    for j in range(nz):
+                        rc      = mesh.Rc_c[i]
+                        rc_in   = mesh.Rc_p[i]
+                        rc_out  = mesh.Rc_p[i+1]
+                        z       = mesh.z_c[j]
+                        z_min   = mesh.z_p[j] 
+                        z_max   = mesh.z_p[j+1]
+                        
+                        phys = md.model(rc,z)
+                        self.n_H2[i,j]  = phys.n_H2
+                        self.T_k[i,j]   = phys.T_k
+                        self.V_gas[i,j] = phys.V_cen
+                        self.Vt[i,j]    = phys.Vt
+                        
+                        # volume
+                        dVolume = 4. * pi * ( rc_out**2 - rc_in**2 ) * ( z_max -z_min ) # pc^3
+                        
+                        self.volume += dVolume # pc^3
+                        dVolume *= volume_pc2m # m^3
+                        
+                        # delta mass
+                        dMass = self.n_H2[i,j] * dVolume * MeanMolecularMass # kg
+                        # accumulated mass
+                        self.mass += dMass #kg
+                        
+                        # max delta V (m/s)
+                        # no need to concern the velocity deviation along theta & phi
+                        # because sparx tracer would take care of it
+                        if      i == 0  :
+                                Vrc_rc = self.V_gas[i+1,j,0] - self.V_gas[i,j,0]
+                        elif    i == nr-1:
+                                Vrc_rc = self.V_gas[i,j,0] - self.V_gas[i-1,j,0]
+                        else:
+                                Vrc_rc = max( abs(self.V_gas[i+1,j,0] - self.V_gas[i,j,0]), abs(self.V_gas[i,j,0] - self.V_gas[i-1,j,0]) )
                                 
+                        if      j == 0:
+                                Vz_z = self.V_gas[i,j+1,1] - self.V_gas[i,j,2]
+                        elif    j == nt-1:
+                                Vz_z = self.V_gas[i,j,1] - self.V_gas[i,j-1,2]
+                        else:
+                                Vz_z = max( abs(self.V_gas[i,j+1,1] - self.V_gas[i,j,2]), abs(self.V_gas[i,j,1] - self.V_gas[i,j-1,1]) )
+                        
+                        VeloDispersion = sqrt(Vrc_rc * Vrc_rc + Vz_z * Vz_z)
+
+                        # Velocity Dispersion to Vt
+                        VeloDispersion2Vt = VeloDispersion / self.Vt[i,j]
+                        # update Maximum VD2Vt
+                        if VeloDispersion2Vt > self.MVD2Vt :
+                                self.MVD2Vt = VeloDispersion2Vt
+                                self.MVD2Vt_index = [i,j]
+                
+                if md.molec:
+                        self.X_mol = zeros((nrc,nz))
+                        for i in range(nrc):
+                            for j in range(nz):
+                                self.X_mol[i,j] = phys.X_mol
+                                
+                if md.dust:
+                        self.T_d = zeros((nrc,nz))
+                        self.dust_to_gas = zeros((nrc,nz))
+                        self.kapp_d = []
+                        for i in range(nrc):
+                            for j in range(nz):
+                                self.T_d[i,j]           = phys.T_d
+                                self.dust_to_gas[i,j]   = phys.dust_to_gas
+                                self.kapp_d.append(phys.kapp_d)
+                if md.polariz:
+                        self.B_field = zeros((nrc,nz,3))
+                        self.alpha = zeros((nrc,nz))
+                        self.z     = zeros((nrc,nz))
+                        for i in range(nrc):
+                            for j in range(nz):
+                                self.B_field[i,j] = phys.B_field
+                                self.alpha[i,j]   = phys.alpha
+                                self.z[i,j]       = phys.z
+
+
 def calc_exact_mass(grid,model):
         GridType = grid.GridType
         if GridType =='SPH1D':

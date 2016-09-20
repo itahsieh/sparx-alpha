@@ -75,19 +75,19 @@ class model:
                 qq = -self.cos_theta * self.r / Rd
                 self.cos_theta0 = brentq(CubicEq, -1.,1.)
 
-                self._DensitySph2D
-                self._TgasSph2D
-                self._VeloSph2
-                self._VtSph2D
-                self._MolecAbdSph2D
-                self._DustToGasSph2D
-                self._TdustSph2D
-                self._kappa_d_Sph2D
+                self._DensityCyl2D
+                self._TgasCyl2D
+                self._VeloCyl2D
+                self._VtCyl2D
+                self._MolecAbdCyl2D
+                self._DustToGasCyl2D
+                self._TdustCyl2D
+                self._kappa_d_Cyl2D
         
 
         
         # Gas Density (number/m^3)
-        def _DensitySph2D(self):
+        def _DensityCyl2D(self):
                 # envelope density
                 if (env == 1):
                         self.n_H2_env = rho_e0 * ((self.r/Rd)**(-1.5)) * ((1. + self.cos_theta / self.cos_theta0)**(-0.5)) * ((1 + ((self.r/Rd)**(-1)) * (3 * self.cos_theta0**2 - 1.0))**(-1))
@@ -107,7 +107,7 @@ class model:
 
         
         # Temperature (Kelvin)
-        def _TgasSph2D(self):
+        def _TgasCyl2D(self):
                 if ( self.n_H2 != 0.0 ):
                         T_env = Tt*(Rt/(2.*self.r))**(2./(4+p))
                         T_disc = BT * ( (3.*G*Mt*Mar/(4.*pi * pc2km*pc2km * (self.Rc**3) * sigma)) * (1.-sqrt(Rt/self.Rc)) )**0.25
@@ -116,7 +116,7 @@ class model:
                         self.T_k = 0.0
 
         # Velocity (m/s)
-        def _VeloSph2D(self):
+        def _VeloCyl2D(self):
                 # Keplerian velocity (km/s)
                 Vkep = sqrt(G*Mt/self.r)
                 # disk velocity (km/s)
@@ -131,35 +131,38 @@ class model:
                 Vt_env = Vkep * ( (self.cos_theta0 - self.cos_theta / self.sin_theta ) * sqrt( 1. + self.cos_theta / self.cos_theta0 )
                 Vp_env = Vkep * ( sqrt( 1. - self.cos_theta0 * self.cos_theta0) / self.sin_theta ) * sqrt( 1. + self.cos_theta / self.cos_theta0 )
                 
-                if self.n_H2 != 0.:
-                        Vr = (self.n_H2_env * Vr_env) / self.n_H2
-                        Vt = (self.n_H2_env * Vt_env) / self.n_H2
-                        Vp = (self.n_H2_env * Vp_env + self.n_H2_disc * Vp_disc) / self.n_H2
-                else:
-                        Vr = 0.0
-                        Vt = 0.0
-                        Vp = 0.0
+                Vrc_env = Vr_env * self.sin_theta + Vt_env * self.cos_theta
+                Vz_env  = Vr_env * self.cos_theta - Vt_env * self.sin_theta
                 
-                self.V_cen = [km2m*Vr,km2m*Vt,km2m*Vp]
+                if self.n_H2 != 0.:
+                        Vrc = (self.n_H2_env * Vrc_env) / self.n_H2
+                        Vz  = (self.n_H2_env * Vz_env) / self.n_H2
+                        Vp  = (self.n_H2_env * Vp_env + self.n_H2_disc * Vp_disc) / self.n_H2
+                else:
+                        Vrc = 0.0
+                        Vz  = 0.0
+                        Vp  = 0.0
+                
+                self.V_cen = [ km2m*Vrc, km2m*Vp, km2m*Vz]
 
         # turbulent speed (m/s)
-        def _VtSph2D(self):
+        def _VtCyl2D(self):
                 self.Vt = 200.
 
         # Molecular Abundance (fraction)
-        def _MolecAbdSph2D(self):
+        def _MolecAbdCyl2D(self):
                 self.X_mol = 1e-9
-3
+
         # gas-to-dust ratio
-        def _DustToGasSph2D(self):
+        def _DustToGasCyl2D(self):
                 self.dust_to_gas = 0.01
 
         # Dust Temperature (Kelvin)
-        def _TdustSph2D(self):
+        def _TdustCyl2D(self):
                 self.T_d = self.T_k
 
         # dust kappa
-        def _kappa_d_Sph2D(self,r,theta):
+        def _kappa_d_Cyl2D( self, rc, z):
                 self.kapp_d = 'table,jena_thin_e5'
                 #kappa_d = 'powerlaw, 1.874e+12, 2.300e-02,-2.0'
 

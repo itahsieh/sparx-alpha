@@ -852,7 +852,7 @@ void FITSoutput( MirFile *fp, MirImg *image, MirImg *StokesQ, MirImg *StokesU, c
         crpix4 = 1.,
         cdelt1 = 180. / M_PI * image->x.delt,
         cdelt2 = 180. / M_PI * image->y.delt,
-        cdelt3 = 0.001 * image->v.delt,
+        cdelt3 = image->v.delt,
         cdelt4 = 1.,
         crval = 0.0,
         crval4 = 1.,

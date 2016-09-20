@@ -23,6 +23,8 @@ mkdir -p tmp; cd tmp
 rm -f test.log
 
 case $CASE in
+
+# AMC solver
   "AMC")
 ###########################
 # testing preprocessor    #
@@ -40,9 +42,15 @@ case $CASE in
         #source ../telsim/zeeman/test   | tee -a test.log
         #source ../telsim/overlap/test  | tee -a test.log
         #source ../telsim/lte/test      | tee -a test.log
+        
+# imaging / postprocessing
         ;;
   "LINE")
         source ../telsim/line/test       | tee -a test.log
+        ;;
+  "LTE")
+        source ../grid/sph1d/test       | tee -a test.log
+        source ../telsim/lte/test       | tee -a test.log
         ;;
   "ZEEMAN")
         source ../telsim/zeeman/test       | tee -a test.log
@@ -53,23 +61,30 @@ case $CASE in
   "COLDENS")
         source ../telsim/coldens/test       | tee -a test.log
         ;;
-        
-  "P2A")
-        source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log
-        ;;
-  "LTE")
-        source ../grid/sph1d/test       | tee -a test.log
-        source ../telsim/lte/test       | tee -a test.log
-        ;;
-  "Q-PARA")
-        source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log  
-        ;;
   "CONTRIBUTION")
         #source ../telsim/contribution/sph1d/test       | tee -a test.log
         #source ../telsim/contribution/sph3d/test       | tee -a test.log
         source ../telsim/contribution/cyl3d/test       | tee -a test.log
         ;;
-
+ 
+# preprocessing
+  "P2A")
+        source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log
+        ;;
+  "SHU1D")
+        \cp ../../preprocessor/presparx/Shu1D/* ./
+        presparx -o model -e
+        ;;
+  "DISK_SPH2D")
+        \cp ../../preprocessor/presparx/Disk_sph2d/* ./
+        presparx -o model 
+        ;;
+  "DISK_CYL2D")
+        \cp ../../preprocessor/presparx/Disk_cyl2d/* ./
+        presparx -o model 
+        ;;
+        
+# Algorithm testing
   "QMC")
         source ../algorithm/AMC_accuracy/test       | tee -a test.log
         #gfortran ../algorithm/AMC_accuracy/pops_error.f90 -o pops_error
@@ -82,15 +97,13 @@ case $CASE in
         ./pops_error
         #gnuplot ../algorithm/ALI_convergency/plot  | tee -a test.log
         ;;
-  "SHU1D")
-        \cp ../../preprocessor/presparx/Shu1D/* ./
-        presparx -o model -e
-        ;;
-  "DISK2D")
-        \cp ../../preprocessor/presparx/Disk2D/* ./
-        presparx -o model 
-        ;;
-        
+
+#  parallelization and queuing system 
+  "Q-PARA")
+        source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log  
+        ;;        
+
+# defualt : exit        
   *)
         exit 1
         ;;

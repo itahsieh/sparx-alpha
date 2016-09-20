@@ -120,9 +120,12 @@ class export:
                 if GridType == 'SPH1D':
                         h5file.setNodeAttr("/", "geom", "sph1d", name=None)
                         self._export_sph1d(mesh,phys,h5file)
-                if GridType == 'SPH2D':
+                elif GridType == 'SPH2D':
                         h5file.setNodeAttr("/", "geom", "sph3d", name=None)
                         self._export_sph2d(mesh,phys,h5file)
+                elif GridType == 'CYL2D':
+                        h5file.setNodeAttr("/", "geom", "cyl3d", name=None)
+                        self._export_cyl2d(mesh,phys,h5file)
                 else:
                         pass
                 
@@ -262,4 +265,80 @@ class export:
                                 particle.append()
                         table.flush()
                         DelAttrs_molec(table)
-               
+
+
+
+        def _export_cyl2d(self,mesh,phys,h5file):
+                nrc = mesh.grid.nrc
+                nz = mesh.grid.nz
+                np = 1
+                
+                # Create ZONE table
+                table = h5file.createTable("/", 'ZONE', Particle, "Grid table")
+                particle = table.row
+                particle['LEVEL']       = -1
+                particle['POS']         = 0
+                particle['X_max']       = [ mesh.Rc_p[nrc], mesh.phi_p[np], mesh.z_p[nz] ]
+                particle['X_min']       = [ mesh.Rc_p[0], mesh.phi_p[0], mesh.z_p[0] ]
+                particle['X_cen']       = [ 0.5*( mesh.grid.Rc_in + mesh.grid.Rc_out ), mesh.phi_c[0], 0.5 * (mesh.z_p[0] + mesh.z_p[nz]) ]
+                particle['NCHILDREN']   = nrc * np * nz
+                particle['NAXES']       = [nrc, np, nz]
+                #Insert a new particle record
+                particle.append()
+                table.flush()
+                DelAttrsZone(table)
+                
+                # Create GRID table
+                table = h5file.createTable("/", 'GRID', Particle, "Grid table")
+                particle = table.row
+                for i in range(nrc):
+                    for j in range(nz):
+                        particle['LEVEL']       = 0
+                        particle['POS']         = i * nz + j
+                        particle['X_max']       = [ mesh.Rc_p[i+1], mesh.phi_p[np], mesh.z_p[j+1] ]
+                        particle['X_min']       = [ mesh.Rc_p[i]  , mesh.phi_p[0] , mesh.z_p[j]   ]
+                        particle['X_cen']       = [ mesh.Rc_c[i]  , mesh.phi_c[0] , mesh.z_c[j]   ]
+                        particle['n_H2']        = phys.n_H2[i,j]
+                        particle['V_cen']       = phys.V_gas[i,j]
+                        particle['T_k']         = phys.T_k[i,j]
+                        particle['V_t']         = phys.Vt[i,j]
+                        # Insert a new particle record
+                        particle.append()
+                table.flush()
+                DelAttrsGrid(table)
+                
+                if phys.molec:
+                        # Create MOLEC table
+                        table = h5file.createTable("/", 'MOLEC', Particle_molec, "molecular table")
+                        particle = table.row
+                        for i in range(nrc):
+                            for j in range(nz):
+                                particle['X_mol']       = phys.X_mol[i,j]
+                                particle.append()
+                        table.flush()
+                        DelAttrs_molec(table)
+                
+                if phys.dust:
+                        # Create DUST table
+                        table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
+                        particle = table.row
+                        for i in range(nrc):
+                            for j in range(nz):
+                                particle['T_d']         = phys.T_d[i,j]
+                                particle['kapp_d']      = phys.kapp_d[i * nz + j]
+                                particle['dust_to_gas'] = phys.dust_to_gas[i,j]
+                                particle.append()
+                        table.flush()
+                        DelAttrs_dust(table)
+                        
+                if phys.polariz:
+                        # Create POLARIZ table
+                        table = h5file.createTable("/", 'POLARIZ', Particle_polariz, "polarization table")
+                        particle = table.row
+                        for i in range(nrc):
+                            for j in range(nz):
+                                particle['B_cen']       = phys.B_field[i,j]
+                                particle['alpha']       = phys.alpha[i,j]
+                                particle.append()
+                        table.flush()
+                        DelAttrs_molec(table)

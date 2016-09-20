@@ -21,6 +21,10 @@ stretch_ratio_rc = 1.02
 # resolution of theta angle
 nz = 90
 
+# height maximum (pc)
+# the range of z is from -z_max to zmax
+z_max = 0.1
+
 # stretching ratio from equator to pole
 stretch_ratio_z = 1.02
 
