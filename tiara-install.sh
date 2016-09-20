@@ -86,7 +86,7 @@ if ! grep -q "# SPARX PATH" $LOAD_MODULE_FILE; then
         >> $LOAD_MODULE_FILE
   echo 'alias sparx=$SPARXVERSION' \
         >> $LOAD_MODULE_FILE
-  echo 'alias presparx=pre$SPARXVERSION' \
+  echo 'alias presparx=$PRESPARX' \
         >> $LOAD_MODULE_FILE
   printf "${LIGHTCYAN}UPDATE $LOAD_MODULE_FILE${NC}\n"
 fi
