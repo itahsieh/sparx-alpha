@@ -151,6 +151,7 @@ class mesh:
                 nz = gr.nz
                 Rc_in = gr.Rc_in
                 Rc_out = gr.Rc_out
+                z_max = gr.z_max
                 
                 Rc_p = zeros(nrc+1)
                 Rc_c = zeros(nrc)
@@ -158,7 +159,7 @@ class mesh:
                 
                 z_p = zeros(nz+1)
                 z_c = zeros(nz)
-                z_p[0] = 0.0
+                z_p[0] = - z_max
                 
 
                 spacing = gr.spacing
@@ -184,11 +185,11 @@ class mesh:
                         stretch_ratio_z = gr.stretch_ratio_z
                         # resolution is even
                         if nz % 2 == 0:        
-                                dz0 = 0.5 * pi * (stretch_ratio_z - 1.) / (stretch_ratio_z**(nz/2) - 1.)
+                                dz0 = z_max * (stretch_ratio_z - 1.) / (stretch_ratio_z**(nz/2) - 1.)
                                 dz = dz0 * stretch_ratio_z**(nz/2-1)
                         # resolution is odd
                         else:
-                                dz0 = pi * (stretch_ratio_z - 1.) / (2 * stretch_ratio_z**(nz/2) - stretch_ratio_z - 1.)
+                                dz0 = 2.0 * z_max * (stretch_ratio_z - 1.) / (2 * stretch_ratio_z**(nz/2) - stretch_ratio_z - 1.)
                                 dz = dz0 * stretch_ratio_z**(nz/2)
                         
                         # north semi-sphere

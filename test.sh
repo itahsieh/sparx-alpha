@@ -24,6 +24,23 @@ rm -f test.log
 
 case $CASE in
 
+# preprocessing
+  "P2A")
+        source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log
+        ;;
+  "SHU1D")
+        \cp ../../preprocessor/presparx/Shu1D/* ./
+        presparx -o model -e
+        ;;
+  "DISK_SPH2D")
+        \cp ../../preprocessor/presparx/Disk_sph2d/* ./
+        presparx -o model -v -p
+        ;;
+  "DISK_CYL2D")
+        \cp ../../preprocessor/presparx/Disk_cyl2d/* ./
+        presparx -o model -v -p
+        ;;
+
 # AMC solver
   "AMC")
 ###########################
@@ -67,22 +84,7 @@ case $CASE in
         source ../telsim/contribution/cyl3d/test       | tee -a test.log
         ;;
  
-# preprocessing
-  "P2A")
-        source ../benchmark/2002_p2a_benchmark/test     | tee -a test.log
-        ;;
-  "SHU1D")
-        \cp ../../preprocessor/presparx/Shu1D/* ./
-        presparx -o model -e
-        ;;
-  "DISK_SPH2D")
-        \cp ../../preprocessor/presparx/Disk_sph2d/* ./
-        presparx -o model 
-        ;;
-  "DISK_CYL2D")
-        \cp ../../preprocessor/presparx/Disk_cyl2d/* ./
-        presparx -o model 
-        ;;
+
         
 # Algorithm testing
   "QMC")

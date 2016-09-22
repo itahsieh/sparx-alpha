@@ -35,9 +35,7 @@ class profile:
                 
                 self.molec = md.molec
                 self.T_cmb = md.T_cmb
-                self.T_in = md.T_in
-                self.dust = md.dust
-                
+                self.T_in = md.T_in                
                 
                 # accumulated mass
                 self.mass = 0.0
@@ -113,7 +111,7 @@ class profile:
                         for i in range(nr):
                                 self.X_mol[i] = phys.X_mol
                                 
-                if md.dust:
+                if hasattr(phys, 'T_d'):
                         self.T_d = zeros(nr)
                         self.dust_to_gas = zeros(nr)
                         self.kapp_d = []
@@ -190,7 +188,7 @@ class profile:
                             for j in range(nt):
                                 self.X_mol[i,j] = phys.X_mol
                                 
-                if md.dust:
+                if hasattr(phys, 'T_d'):
                         self.T_d = zeros((nr,nt))
                         self.dust_to_gas = zeros((nr,nt))
                         self.kapp_d = []
@@ -199,7 +197,8 @@ class profile:
                                 self.T_d[i,j]           = phys.T_d
                                 self.dust_to_gas[i,j]   = phys.dust_to_gas
                                 self.kapp_d.append(phys.kapp_d)
-                if md.polariz:
+                
+                if hasattr(phys, 'B_field'):
                         self.B_field = zeros((nr,nt,3))
                         self.alpha = zeros((nr,nt))
                         self.z     = zeros((nr,nt))
@@ -250,14 +249,14 @@ class profile:
                         # because sparx tracer would take care of it
                         if      i == 0  :
                                 Vrc_rc = self.V_gas[i+1,j,0] - self.V_gas[i,j,0]
-                        elif    i == nr-1:
+                        elif    i == nrc-1:
                                 Vrc_rc = self.V_gas[i,j,0] - self.V_gas[i-1,j,0]
                         else:
                                 Vrc_rc = max( abs(self.V_gas[i+1,j,0] - self.V_gas[i,j,0]), abs(self.V_gas[i,j,0] - self.V_gas[i-1,j,0]) )
                                 
                         if      j == 0:
                                 Vz_z = self.V_gas[i,j+1,1] - self.V_gas[i,j,2]
-                        elif    j == nt-1:
+                        elif    j == nz-1:
                                 Vz_z = self.V_gas[i,j,1] - self.V_gas[i,j-1,2]
                         else:
                                 Vz_z = max( abs(self.V_gas[i,j+1,1] - self.V_gas[i,j,2]), abs(self.V_gas[i,j,1] - self.V_gas[i,j-1,1]) )
@@ -277,7 +276,7 @@ class profile:
                             for j in range(nz):
                                 self.X_mol[i,j] = phys.X_mol
                                 
-                if md.dust:
+                if hasattr(phys, 'T_d'):
                         self.T_d = zeros((nrc,nz))
                         self.dust_to_gas = zeros((nrc,nz))
                         self.kapp_d = []
@@ -286,7 +285,8 @@ class profile:
                                 self.T_d[i,j]           = phys.T_d
                                 self.dust_to_gas[i,j]   = phys.dust_to_gas
                                 self.kapp_d.append(phys.kapp_d)
-                if md.polariz:
+                
+                if hasattr(phys, 'B_field'):
                         self.B_field = zeros((nrc,nz,3))
                         self.alpha = zeros((nrc,nz))
                         self.z     = zeros((nrc,nz))

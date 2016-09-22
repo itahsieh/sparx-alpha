@@ -10,10 +10,6 @@ T_cmb = 2.73
 # inner Boundary condition
 T_in = 0.0
 
-# Enable / disable dust emission
-dust = 1
-
-
 # reference radius
 r_ref = 0.01
 # reference H2 number density (m^-3)

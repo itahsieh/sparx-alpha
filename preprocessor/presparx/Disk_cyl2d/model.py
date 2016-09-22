@@ -8,9 +8,6 @@ ModelType = 'Function'
 # Molecule
 molec = 'hco+'
 
-# Enable / disable dust emission
-dust = 1
-
 # CMB temperature (Kelvin, outer B.C.)
 T_cmb = 2.73
 
@@ -75,14 +72,14 @@ class model:
                 qq = -self.cos_theta * self.r / Rd
                 self.cos_theta0 = brentq(CubicEq, -1.,1.)
 
-                self._DensityCyl2D
-                self._TgasCyl2D
-                self._VeloCyl2D
-                self._VtCyl2D
-                self._MolecAbdCyl2D
-                self._DustToGasCyl2D
-                self._TdustCyl2D
-                self._kappa_d_Cyl2D
+                self._DensityCyl2D()
+                self._TgasCyl2D()
+                self._VeloCyl2D()
+                self._VtCyl2D()
+                self._MolecAbdCyl2D()
+                self._DustToGasCyl2D()
+                self._TdustCyl2D()
+                self._kappa_d_Cyl2D()
         
 
         
@@ -162,7 +159,7 @@ class model:
                 self.T_d = self.T_k
 
         # dust kappa
-        def _kappa_d_Cyl2D( self, rc, z):
+        def _kappa_d_Cyl2D( self):
                 self.kapp_d = 'table,jena_thin_e5'
                 #kappa_d = 'powerlaw, 1.874e+12, 2.300e-02,-2.0'
 

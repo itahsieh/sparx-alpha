@@ -8,9 +8,6 @@ ModelType = 'Function'
 # Molecule
 molec = 'hco+'
 
-# Enable / disable dust emission
-dust = 1
-
 # CMB temperature (Kelvin, outer B.C.)
 T_cmb = 2.73
 

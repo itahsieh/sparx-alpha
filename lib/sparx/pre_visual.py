@@ -22,6 +22,10 @@ class plot:
                 elif GridType == 'CYL3D':
                         pass
                 
+                filename='profile.png'
+                savefig(filename)
+                print filename,'generated'
+                
         def _plot_sph1d(self,mesh,phys):     
                 r = mesh.R_c
                 
@@ -58,7 +62,7 @@ class plot:
                 plt.yscale('log')
                 plt.ylabel('Molecular Abundance (Fraction)')
                 
-                savefig('profile.png')
+                
 
         def _plot_sph2d(self,mesh,phys):     
                 r = mesh.R_c
@@ -107,14 +111,13 @@ class plot:
                 plt.title('V_phi (m/s)')
                 plt.colorbar()
                 
-                savefig('profile.png')
                 
         def _plot_cyl2d(self,mesh,phys):     
                 rc = mesh.Rc_c
                 z = mesh.z_c
                 
                 y, x, = np.meshgrid(z, rc)
-                
+
                 # Density plot
                 plt.subplot(231, aspect=1)
                 plt.pcolormesh(x, y, phys.n_H2, norm=matplotlib.colors.LogNorm())
@@ -140,12 +143,12 @@ class plot:
                 
                 plt.subplot(234, aspect=1)
                 plt.pcolormesh(x, y, phys.V_gas[:,:,0], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
-                plt.title('V_r (m/s)')
+                plt.title('V_rc (m/s)')
                 plt.colorbar()
                 
                 plt.subplot(235, aspect=1)
                 plt.pcolormesh(x, y, phys.V_gas[:,:,1], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
-                plt.title('V_theta (m/s)')
+                plt.title('V_z (m/s)')
                 plt.colorbar()
                 
                 plt.subplot(236, aspect=1)
@@ -153,10 +156,11 @@ class plot:
                 plt.title('V_phi (m/s)')
                 plt.colorbar()
                 
-                savefig('profile.png')
                 
 class vtk_output:
         def __init__(self, mesh, phys):
+                self.filename='visual.vtk'
+                
                 GridType = mesh.grid.GridType
                 if   GridType == 'SPH1D':
                         self._vtk_sph1d(mesh,phys)
@@ -170,6 +174,8 @@ class vtk_output:
                         self._vtk_cyl2d(mesh,phys)
                 elif GridType == 'CYL3D':
                         pass
+                
+                print self.filename,'generated'
                 
         def _vtk_sph1d(self,mesh,phys):
                 nr = mesh.grid.nr
@@ -188,7 +194,7 @@ class vtk_output:
                 for k in range(1,np+1):
                         phi_p[k] = phi_p[k-1] + dphi
                 
-                fvtk1=open('visual.vtk', mode = "w")
+                fvtk1=open(self.filename, mode = "w")
                 print >>fvtk1,'# vtk DataFile Version 3.0'
                 print >>fvtk1,'ENV_DISK'
                 print >>fvtk1,'ASCII'
@@ -239,7 +245,7 @@ class vtk_output:
                 for k in range(1,np+1):
                         phi_p[k] = phi_p[k-1] + dphi
                 
-                fvtk1=open('visual.vtk', mode = "w")
+                fvtk1=open(self.filename, mode = "w")
                 print >>fvtk1,'# vtk DataFile Version 3.0'
                 print >>fvtk1,'ENV_DISK'
                 print >>fvtk1,'ASCII'
@@ -297,7 +303,7 @@ class vtk_output:
                 for j in range(1,np+1):
                         phi_p[j] = phi_p[j-1] + dphi
                 
-                fvtk1=open('visual.vtk', mode = "w")
+                fvtk1=open(self.filename, mode = "w")
                 print >>fvtk1,'# vtk DataFile Version 3.0'
                 print >>fvtk1,'ENV_DISK'
                 print >>fvtk1,'ASCII'

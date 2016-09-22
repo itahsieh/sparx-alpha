@@ -178,7 +178,7 @@ class export:
                         table.flush()
                         DelAttrs_molec(table)
                 
-                if phys.dust:
+                if hasattr(phys, 'T_d'):
                         # Create DUST table
                         table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
                         particle = table.row
@@ -197,10 +197,9 @@ class export:
                 np = 1
                 
                 # Create ZONE table
-                table = h5file.createTable("/", 'ZONE', Particle, "Grid table")
+                table = h5file.createTable("/", 'ZONE', ParticleZone, "Grid table")
                 particle = table.row
                 particle['LEVEL']       = -1
-                particle['POS']         = 0
                 particle['X_max']       = [ mesh.R_p[nr], mesh.theta_p[nt], mesh.phi_p[np] ]
                 particle['X_min']       = [ mesh.R_p[0] , mesh.theta_p[0] , mesh.phi_p[0]  ]
                 particle['X_cen']       = [ 0.5*( mesh.grid.Rin + mesh.grid.Rout ), 0.5 * (mesh.theta_p[0] + mesh.theta_p[nt]), mesh.phi_c[0] ]
@@ -212,7 +211,7 @@ class export:
                 DelAttrsZone(table)
                 
                 # Create GRID table
-                table = h5file.createTable("/", 'GRID', Particle, "Grid table")
+                table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
                 particle = table.row
                 for i in range(nr):
                     for j in range(nt):
@@ -241,7 +240,7 @@ class export:
                         table.flush()
                         DelAttrs_molec(table)
                 
-                if phys.dust:
+                if hasattr(phys, 'T_d'):
                         # Create DUST table
                         table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
                         particle = table.row
@@ -254,7 +253,7 @@ class export:
                         table.flush()
                         DelAttrs_dust(table)
                         
-                if phys.polariz:
+                if hasattr(phys, 'B_field'):
                         # Create POLARIZ table
                         table = h5file.createTable("/", 'POLARIZ', Particle_polariz, "polarization table")
                         particle = table.row
@@ -274,10 +273,9 @@ class export:
                 np = 1
                 
                 # Create ZONE table
-                table = h5file.createTable("/", 'ZONE', Particle, "Grid table")
+                table = h5file.createTable("/", 'ZONE', ParticleZone, "Grid table")
                 particle = table.row
                 particle['LEVEL']       = -1
-                particle['POS']         = 0
                 particle['X_max']       = [ mesh.Rc_p[nrc], mesh.phi_p[np], mesh.z_p[nz] ]
                 particle['X_min']       = [ mesh.Rc_p[0], mesh.phi_p[0], mesh.z_p[0] ]
                 particle['X_cen']       = [ 0.5*( mesh.grid.Rc_in + mesh.grid.Rc_out ), mesh.phi_c[0], 0.5 * (mesh.z_p[0] + mesh.z_p[nz]) ]
@@ -289,7 +287,7 @@ class export:
                 DelAttrsZone(table)
                 
                 # Create GRID table
-                table = h5file.createTable("/", 'GRID', Particle, "Grid table")
+                table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
                 particle = table.row
                 for i in range(nrc):
                     for j in range(nz):
@@ -318,7 +316,7 @@ class export:
                         table.flush()
                         DelAttrs_molec(table)
                 
-                if phys.dust:
+                if hasattr(phys, 'T_d'):
                         # Create DUST table
                         table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
                         particle = table.row
@@ -331,7 +329,7 @@ class export:
                         table.flush()
                         DelAttrs_dust(table)
                         
-                if phys.polariz:
+                if hasattr(phys, 'B_field'):
                         # Create POLARIZ table
                         table = h5file.createTable("/", 'POLARIZ', Particle_polariz, "polarization table")
                         particle = table.row

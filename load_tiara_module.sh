@@ -4,7 +4,7 @@ HOSTNAME=`hostname`
 CLUSTERNAME=${HOSTNAME:0:2}
 SPARXVERSION='sparx-'$CLUSTERNAME
 SPARX_VERSION='sparx_'$CLUSTERNAME
-PRSPARX='presparx-'$CLUSTERNAME
+PRESPARX='presparx-'$CLUSTERNAME
 
 
 . /etc/profile.d/modules.sh
