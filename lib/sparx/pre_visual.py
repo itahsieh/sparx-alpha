@@ -299,9 +299,12 @@ class vtk_output:
                 
                 # phi grid
                 phi_p = zeros(np+1)
+                phi_c = zeros(np)
+                phi_p[0] = 0.
                 dphi = 2.* pi / np
                 for j in range(1,np+1):
                         phi_p[j] = phi_p[j-1] + dphi
+                        phi_c[j-1] = 0.5 * (phi_p[j-1] + phi_p[j])
                 
                 fvtk1=open(self.filename, mode = "w")
                 print >>fvtk1,'# vtk DataFile Version 3.0'
@@ -313,9 +316,9 @@ class vtk_output:
                 for i in range(nrc+1):
                   for j in range(np+1):
                     for k in range(nz+1):
-                        rc      = mesh.Rc_p[i]
-                        phi     = phi_p[j]
-                        z       = mesh.z_p[k]
+                        rc  = mesh.Rc_p[i]
+                        phi = phi_p[j]
+                        z   = mesh.z_p[k]
                         
                         x = rc * cos(phi)
                         y = rc * sin(phi)
@@ -340,10 +343,10 @@ class vtk_output:
                   for j in range(np):
                     for k in range(nz):
                         Vrc = phys.V_gas[i,k][0]
-                        Vp = phys.V_gas[i,k][1]
-                        Vz = phys.V_gas[i,k][2]
-                        phi     = phi_p[k]
-                        Vx = Vrc * cos(phi) - Vp * sin(phi)
-                        Vy = Vrc * sin(phi) + Vp * cos(phi)
+                        Vp  = phys.V_gas[i,k][1]
+                        Vz  = phys.V_gas[i,k][2]
+                        phi = phi_c[j]
+                        Vx  = Vrc * cos(phi) - Vp * sin(phi)
+                        Vy  = Vrc * sin(phi) + Vp * cos(phi)
                         print >>fvtk1,'%(0)7.2e %(1)7.2e %(2)7.2e'%{'0':Vx,'1':Vy,'2':Vz}
                 fvtk1.close()

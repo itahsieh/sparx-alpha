@@ -19,7 +19,7 @@ stretch_ratio_rc = 1.02
 
 
 # resolution of theta angle
-nz = 90
+nz = 128
 
 # height maximum (pc)
 # the range of z is from -z_max to zmax

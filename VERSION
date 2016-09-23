@@ -3,7 +3,6 @@
 ######################################################
 
 ## STATUS : DONE
-
 alpha-2         Jul 2014        summer wrap-up
 alpha-2.0.1     May 2015        fix subres position bug
 alpha-2.1.0     Dec 2015        add FITS output
@@ -27,13 +26,16 @@ alpha-2.3.3     Apr 2016        Visualization / contribution chart
 alpha-2.4.0     May 2016        Quasi Monte-Carlo scheme (&validated)
 
 ## STATUS : PENDING
-
-alpha-2.4.1                     Algorithm update : SOR
-alpha-2.5                       PRE-SPARX : integrated preprocessor
-alpha-2.6                       Line fitting template
-
-alpha-3.0                       stable version release
-alpha-3.1                       unstructured grid supported
+alpha-3.0                       PRESPARX : integrated preprocessor
+                                Inner boundary condition
+                                free-free emission
+                                v3 data format
+                                molecular data consistency
+                                benchmark case test
+                                
+alpha-3.1                       Algorithm update : SOR
+alpha-3.2                       LTE line-fittiog
+alpha-3.3                       unstructured grid support
 
 
 ######################################################
@@ -42,18 +44,18 @@ alpha-3.1                       unstructured grid supported
 - Short-term :
         * Visualization / contribution chart    (High / 2 ~ 4 weeks)
         * Algorithm :                           (High / 2 weeks + 2 weeks)
-          1. Quasi-Monte-Carlo method 
-             Goal : upgrade to first-order accuracy
-          2. Successive-and-Over Relaxation method in ALI 
-             Goal : optimize stability of ALI
+          Successive-and-Over Relaxation method in ALI 
+          Goal : optimize stability of ALI
 
         * Application of line-fitting           (Medium-to-High)
+        
         * Infrared pumping                      (Medium)
         * consistency of the intialization for molecule 
           with HDF format and data structures
                                                 (Medium-Low)
+        
         * automatic converged mapping           (Low)
-        * arbitrary boundary / painter's algorithm 
+        * arbitrary bounday / painter's algorithm 
           -- for user's flexibility             (Low)
 
         

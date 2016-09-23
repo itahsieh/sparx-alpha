@@ -272,6 +272,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 free(format);
         }
 #endif 
+
         /* Read coordinate name */
         if(!status){
                 char *coordinate = NULL;
@@ -363,9 +364,17 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
 	}
 #endif
 
+
 	/* Load grid */	
 	if(!status)
-		status = SpIO_H5ReadGrid(sfp->h5f_id, popsfp->h5f_id, &model->grid, &model->parms, read_pops);
+		status = 
+		SpIO_H5ReadGrid( 
+                        sfp->h5f_id, 
+                        (*read_pops) ? popsfp->h5f_id : NULL, 
+                        &model->grid, 
+                        &model->parms, 
+                        read_pops
+                );
 	/* Cleanup */		
 
 	if(status)
@@ -383,10 +392,10 @@ int SpIO_OpenModel(const char *sourcefname, const char *popsfname, SpModel *mode
 	SpFile *sfp = SpIO_OpenFile(sourcefname, Sp_OLD);
         if( !sfp )
                 status = 1;
-        
+
         SpFile *popsfp;
         if (*read_pops){
-                popsfp = SpIO_OpenFile(popsfname,   Sp_OLD);
+                popsfp = SpIO_OpenFile(popsfname, Sp_OLD);
                 if( !popsfp )
                         status = 1;
         }
@@ -394,7 +403,7 @@ int SpIO_OpenModel(const char *sourcefname, const char *popsfname, SpModel *mode
         if(!status)
 		status = SpIO_FreadModel(sfp, popsfp, model, read_pops);
 
-	/* clean-up file */
+        /* clean-up file */
         if(sfp)
                 SpIO_CloseFile(sfp);
 
