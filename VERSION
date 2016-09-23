@@ -42,7 +42,6 @@ alpha-3.3                       unstructured grid support
 #                   THE PLANS                        #
 ######################################################
 - Short-term :
-        * Visualization / contribution chart    (High / 2 ~ 4 weeks)
         * Algorithm :                           (High / 2 weeks + 2 weeks)
           Successive-and-Over Relaxation method in ALI 
           Goal : optimize stability of ALI
