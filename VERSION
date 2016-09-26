@@ -27,11 +27,13 @@ alpha-2.4.0     May 2016        Quasi Monte-Carlo scheme (&validated)
 
 ## STATUS : PENDING
 alpha-3.0                       PRESPARX : integrated preprocessor
-                                Inner boundary condition
-                                free-free emission
                                 v3 data format
                                 molecular data consistency
+                                Inner boundary condition
                                 benchmark case test
+                                free-free emission
+                                correction for polarized stokes I emission
+                                correction for observed map coordinate
                                 
 alpha-3.1                       Algorithm update : SOR
 alpha-3.2                       LTE line-fittiog

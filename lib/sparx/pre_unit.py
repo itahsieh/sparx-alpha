@@ -10,7 +10,9 @@ Au2pc = 100./206260
 km2m = 1e3
 # parsec to m
 pc2m = 30.857e15
+volume_pc2m =  pc2m**3
 # parsec to km
 pc2km = 30.857e12
-# mean mollecular mass (kg)
-mean_molecular_mass = 2*1.67*1.67e-27 # kg
+# meam molecular mass, mass / mass_H2 ~ 1.67
+MeanMolecularMass = 2. * 1.67 * 1.6726219e-27 # kg
+kg2Msun = 1./ 1.98892E+30 # kg

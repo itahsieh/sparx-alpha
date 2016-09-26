@@ -59,11 +59,8 @@ phys = pre_profile.profile(mesh,md)
 
 # double check the error of the model
 if error:
-        exact = pre_profile.calc_exact_mass(gr,md)
-        print 'Analytical Mass : %f Msun' %exact
-        print 'Mass Eroor of the Gridding : %f %%' %(100.*(phys.mass - exact)/exact)
-        print 'Largest Velocity Dispersion to Turbulent Velocity : %f' %phys.MVD2Vt
-        print 'Largest Dispersion occurs at spatial index = %d' %phys.MVD2Vt_index
+        from sparx import pre_error
+        pre_error.error(mesh,phys)
 
 # visualization
 if plot:

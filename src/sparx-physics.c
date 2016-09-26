@@ -178,12 +178,10 @@ void SpPhys_InitCollRates(SpPhys *pp)
          * Off-diagonal terms are sums of rates from state j
          * `into' state i */
         for(size_t i = 0; i < NLEV; i++) {
-                for (size_t j = 0; j < NLEV; j++){
-                        if( j != i ){
-                                double temp = CMAT(i,j);
-                                CMAT(i,j) = CMAT(j,i);
-                                CMAT(j,i) = temp;
-                        }
+                for (size_t j = 0; j < i; j++){
+                        double temp = CMAT(i,j);
+                        CMAT(i,j) = CMAT(j,i);
+                        CMAT(j,i) = temp;
                 }
         }
 

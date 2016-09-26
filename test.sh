@@ -26,10 +26,50 @@ SAVE_LOG='| tee -a test.log'
 
 case $CASE in
 
-# preprocessing
+# Benchmark case
   "P2A")
-        source ../benchmark/2002_p2a_benchmark/test $SAVE_LOG
+        #source ../benchmark/2002_p2a_benchmark/test $SAVE_LOG
+        \cp ../../preprocessor/presparx/P2A/* ./
+        presparx -o model -p
+        
+        
+        # generating non-LTE level population
+        printf "${YELLOW}RUNNING AMC${NC}\n"
+        POPSFILE='pops_sparx'
+        rm -rf $POPSFILE $POPSFILE*
+        sparx run task_amc \
+        source=model \
+        out=$POPSFILE \
+        trace='True' \
+        dat='True'
+        
+        \cp ../benchmark/2002_p2a_benchmark/model_1.d ./
+        \cp ../benchmark/2002_p2a_benchmark/pops_ratran.dat ./
+        gnuplot ../benchmark/2002_p2a_benchmark/plot
+        
         ;;
+  "P2B")
+        #source ../benchmark/2002_p2a_benchmark/test $SAVE_LOG
+        \cp ../../preprocessor/presparx/P2B/* ./
+        presparx -o model -p
+        
+        
+        # generating non-LTE level population
+        printf "${YELLOW}RUNNING AMC${NC}\n"
+        POPSFILE='pops_sparx'
+        rm -rf $POPSFILE $POPSFILE*
+        sparx run task_amc \
+        source=model \
+        out=$POPSFILE \
+        trace='True' \
+        dat='True'
+        
+        \cp ../benchmark/2002_p2b_benchmark/model_2.d ./
+        \cp ../benchmark/2002_p2b_benchmark/pops_ratran.dat ./
+        gnuplot ../benchmark/2002_p2b_benchmark/plot
+        
+        ;;
+# preprocessing
   "SHU1D")
         \cp ../../preprocessor/presparx/Shu1D/* ./
         presparx -o model -e
@@ -48,7 +88,7 @@ case $CASE in
 ###########################
 # testing preprocessor    #
 ###########################
-        #source ../grid/sph1d/test $SAVE_LOG
+        source ../grid/sph1d/test $SAVE_LOG
 ###########################
 # testing AMC             #
 ###########################

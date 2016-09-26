@@ -57,12 +57,18 @@ class mesh:
                                 R_p[i] =  R_p[i-1] + dr
                                 R_c[i-1] = R_p[i-1] + 0.5 * dr
                                 dr *= stretch_ratio_r
+                
                 elif ( spacing == 'user_defined' ):
-                        for i in range(1,nr+1):
-                                R_p[i] = gr.grid
+                        for i in range(0,nr):
+                                if (i != 0):
+                                        R_p[i] = 0.5 * (gr.grid[i-1] + gr.grid[i])
+                                R_c[i] = gr.grid[i]
+                        R_p[nr] = Rout
+                                
                 else:
                         raise RuntimeError('Spacing Type not defined : %s' % spacing)
                         sys.exit(2)
+                
                 theta_p = [0., pi]
                 theta_c = [0.5*pi]
                 phi_p = [0., 2. * pi]
