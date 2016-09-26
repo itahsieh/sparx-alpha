@@ -1,0 +1,160 @@
+#!/usr/bin/gnuplot
+set terminal postscript enhanced portrait color "Helvetica" 8
+set output 'p2b.eps'
+
+
+PC2CM=30.857*1e17
+
+set multiplot
+  set size square 0.5,0.5
+  set origin 0,0.4
+  set title 'H_2 Number Density' font "Helvetica,16"
+  set xlabel 'R[cm]' font "Helvetica,8"
+  set ylabel 'density (cc^{-1})' font "Helvetica,8"
+  set logscale xy
+  set format xy "10^{%L}"
+  set xrange[7e15:1e18]
+  set yrange[1e3:1e6]
+  plot 'model_2.d' using 1:2 with line lw 2 notitle
+  
+  set origin 0.5,0.4
+  set title 'Gas Temperature' font "Helvetica,16"
+  set ylabel 'T (K)' font "Helvetica,8"
+  unset logscale y
+  set format y "%g"
+  set yrange[0:20]
+  plot 'model_2.d' using 1:4 with line lw 2 notitle  
+
+  set origin 0,0
+  set title 'Rasial Velocity' font "Helvetica,16"
+  set ylabel 'V_r (km/s)' font "Helvetica,8"
+  set format y "%4.1f"
+  set yrange[-1:0.1]
+  set xzeroaxis lt 0
+  plot 'model_2.d' using 1:5 with line lw 2 notitle
+  
+  set origin 0.5,0
+  set title 'Turbulent Velocity' font "Helvetica,16"
+  set ylabel 'V_{tur} (km/s)' font "Helvetica,8"
+  unset logscale y
+  set format y "%4.2f"
+  set yrange[0:0.2]
+  unset xzeroaxis
+  plot 'model_2.d' using 1:6 with line lw 2 notitle
+unset multiplot 
+
+unset title
+set multiplot
+  set size square 0.5,0.5
+  set origin 0,0.57
+  set xlabel 'R[cm]' font "Helvetica,8"
+  set ylabel 'frac. population' font "Helvetica,8"
+  set logscale xy
+  set format xy "10^{%L}"
+  set xrange[7e15:1e18]
+  set yrange[0.099:1]
+  set label 1 "HCO^+ J=0" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):2 with line lt 1 lw 2 title 'SPARX 1D',\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):10 with line lt 3 lw 2 title 'RATRAN'
+
+  set origin 0.5,0.57
+  set yrange[0.099:1]
+  set label 1 "HCO^+ J=1" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):3 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):11 with line lt 3 lw 2 notitle
+  
+  set origin 0,0.23
+  set yrange[1e-2:1]
+  set label 1 "HCO^+ J=2" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):4 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):12 with line lt 3 lw 2 notitle
+  
+  set origin 0.5,0.23
+  set yrange[1e-4:1]
+  set label 1 "HCO^+ J=3" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):5 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):13 with line lt 3 lw 2 notitle
+  
+  set origin 0,-0.1
+  set yrange[1e-6:1]
+  set label 1 "HCO^+ J=4" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):6 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):14 with line lt 3 lw 2 notitle
+  
+  set origin 0.5,-0.1
+  set yrange[1e-8:1]
+  set label 1 "HCO^+ J=5" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):7 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):15 with line lt 3 lw 2 notitle
+unset multiplot
+
+set multiplot
+  set origin 0,0.57
+  set yrange[1e-8:1]
+  set label 1 "HCO^+ J=6" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):8 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):16 with line lt 3 lw 2 notitle
+
+  set origin 0.5,0.57
+  set yrange[1e-10:1]
+  set label 1 "HCO^+ J=7" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):9 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):17 with line lt 3 lw 2 notitle
+  
+  set origin 0,0.23
+  set yrange[1e-12:1]
+  set label 1 "HCO^+ J=8" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):10 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):18 with line lt 3 lw 2 notitle
+  
+  set origin 0.5,0.23
+  set yrange[1e-15:1]
+  set label 1 "HCO^+ J=9" at graph 0.2, graph 0.8 font "Times-Roman,16"
+  plot 'pops_sparx.dat' using ($1*PC2CM):11 with line lw 2 notitle,\
+       'pops_ratran.dat' using (0.5*($2+$3)*1e2):19 with line lt 3 lw 2 notitle
+  unset label
+unset multiplot
+
+
+
+
+
+set multiplot
+  set size square 0.5,0.5
+  set origin 0,0.4
+  set title 'H_2 Number Density' font "Helvetica,16"
+  set xlabel 'R[cm]' font "Helvetica,8"
+  set ylabel 'density (cc^{-1})' font "Helvetica,8"
+  set logscale xy
+  set format xy "10^{%L}"
+  set parametric 
+  set trange [1e-4*PC2CM:0.1*PC2CM]
+  set xrange[1e15:1e18]
+  set yrange[1e4:1e8]
+  plot t,1e6*(t/(0.01*PC2CM))**-1.5 lw 2 notitle
+  
+  set origin 0.5,0.4
+  set title 'Gas Temperature' font "Helvetica,16"
+  set ylabel 'T (K)' font "Helvetica,8"
+  unset logscale y
+  set format y "%g"
+  set yrange[0:20]
+  plot t,10 lw 2 notitle  
+
+  set origin 0,0
+  set title 'Rasial Velocity' font "Helvetica,16"
+  set ylabel 'V_r (km/s)' font "Helvetica,8"
+  set format y "%4.1f"
+  set yrange[-0.5:0.1]
+  set xzeroaxis lt 0
+  plot t,2.*(-0.04)*(t/(0.01*PC2CM))**-0.5 lw 2 notitle
+  
+  set origin 0.5,0
+  set title 'Turbulent Velocity' font "Helvetica,16"
+  set ylabel 'V_{tur} (km/s)' font "Helvetica,8"
+  unset logscale y
+  set format y "%4.2f"
+  set yrange[0:0.25]
+  unset xzeroaxis
+  plot t,0.2 lw 2 notitle
+unset multiplot 
