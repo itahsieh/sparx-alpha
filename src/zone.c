@@ -198,10 +198,8 @@ Zone *Zone_GetInner(Zone *zone, const GeVec3_d *pt)
 		}
 	}
 	
-	double x = pt->x[0];
-        double y = pt->x[1];
-        double z = pt->x[2];
-        double r = sqrt( x * x + y * y + z * z );
+        GeVec3_d SphPt = GeVec3_Cart2Sph(pt);
+        double r = SphPt.x[0];
 	if( r == 0.0 ){
                 return Zone_GetMinLeaf(zone);
         }
@@ -512,11 +510,13 @@ Zone *Zone_GetNext_sph1d(Zone *zone, size_t *side, const GeVec3_d *pt)
 
 	if( *side == 0) { /* Going inward */
 		next = Zone_GetInner(zone, pt);
-                *side = 1;
+                if (next)
+                        *side = 1;
 	}
 	else if( *side == 1) { /* Going outward */
 		next = Zone_GetOuter(zone);
-                *side = 0;
+                if (next)
+                        *side = 0;
 	}
 	else { /* Shouldn't happen */
 		Deb_ASSERT(0);
@@ -543,7 +543,7 @@ Zone *Zone_GetNext_sph3d(Zone *zone, size_t *side, const GeVec3_d *pt, const GeR
 		/* pos is the anticipated position on the driving axis,
 		* which could be off the grid */
 		pos = (int)GeVec3_X(idx, axis) + step;
-// 		Deb_PRINT("pos=%d\n",pos);
+                //Deb_PRINT("pos=%d\n",pos);
 		if((pos >= 0) && (pos < (int)GeVec3_X(parent->naxes, axis))) {
 			/* If anticipated position is within current grid, descend
 			 * to leaf of child zone at pos */
@@ -553,18 +553,27 @@ Zone *Zone_GetNext_sph3d(Zone *zone, size_t *side, const GeVec3_d *pt, const GeR
 		}
 		else {
 			/* Edge of current level reached, go to parent level */
-// 			Deb_PRINT("getting upper level!\n");
+                        //Deb_PRINT("getting upper level!\n");
 			return Zone_GetNext_sph3d(parent, side, pt, ray);
 		}
 	}
 	// no parent, root zone
 	else if(axis==0){ 
-		//if(side==0)
-		//	return Zone_GetLeaf_sph3d(zone, 0, pt, ray );
-		//else if(side==1)
+		if ( *side == 0 ){
+                        /* The ray has been reached inner boundary
+                           if the inner radius is 0, go peratrate. 
+                           or stop if R_in is not 0 */
+                        double R_in = zone->voxel.min.x[0];
+                        if ( R_in == 0. )
+                                return Zone_GetLeaf_sph3d(zone, *side, pt, ray );
+                        else
+                                return NULL;
+                }
+		else if ( *side == 1 ){
 			/* Outermost zone reached, no next-zone */
-// 			Deb_PRINT("getting out!\n");
+                        //Deb_PRINT("getting out!\n");
 			return NULL;
+                }
 	}
 	else if(axis==1){
 		return Zone_GetLeaf_sph3d(zone, *side, pt, ray );

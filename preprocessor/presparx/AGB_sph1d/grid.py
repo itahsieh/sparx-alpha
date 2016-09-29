@@ -8,7 +8,8 @@ spacing = 'uniform'
 nr = 64
 
 # inner radius (pc)
-Rin = 0.0
+from model import R_star
+Rin = R_star
 
 # outer radius (pc)
 Rout = 0.1 

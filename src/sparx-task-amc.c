@@ -23,8 +23,9 @@ static struct glb {
 	gsl_rng *rng[Sp_NTHREAD];
         gsl_qrng *qrng[Sp_NTHREAD];
 	unsigned long seed;
-	double tolerance, minpop, snr, *I_norm, *I_cmb, max_diff, overlap_vel, sor;
-	int stage, fully_random, lte, overlap, trace, popsold, qmc, ali, dat;
+	double tolerance, minpop, snr, max_diff, overlap_vel, sor;
+	double  *I_norm, *I_cmb, *I_in;
+        int stage, fully_random, lte, overlap, trace, popsold, qmc, ali, dat;
 
 	pthread_mutex_t exc_mutex;
 } glb;
@@ -195,6 +196,9 @@ static void Cleanup(void)
 
 	if(glb.I_cmb)
 		free(glb.I_cmb);
+        
+        if(glb.I_in)
+                free(glb.I_in);
 
 	return;
 }
@@ -212,17 +216,32 @@ static int InitModel(void)
 		glb.I_norm[i] = Phys_PlanckFunc(FREQ(i), 20.0);
 		Deb_ASSERT(glb.I_norm[i] > 0); /* Just in case */
 	}
-
-	/* Set I_cmb -- DO NOT FORGET TO NORMALIZE! */
-	glb.I_cmb = Mem_CALLOC(NRAD, glb.I_cmb);
-	if(glb.model.parms.T_cmb > 0) {
-		for(size_t i = 0; i < NRAD; i++) {
-			glb.I_cmb[i] = Phys_PlanckFunc(FREQ(i), glb.model.parms.T_cmb) / glb.I_norm[i];
-			Deb_ASSERT(glb.I_cmb[i] > 0); /* Just in case */
-		}
-	}
+        /* Initialize boundary condition -- DO NOT FORGET TO NORMALIZE! */
+        #define INIT_BC( INTENSITY, TEPERATURE) \
+                (INTENSITY) = Mem_CALLOC(NRAD, (INTENSITY) ); \
+                if ( (TEPERATURE) > 0.) { \
+                        for(size_t i = 0; i < NRAD; i++) { \
+                                (INTENSITY)[i] = \
+                                        Phys_PlanckFunc(FREQ(i), (TEPERATURE) ) \
+                                        / glb.I_norm[i]; \
+                                Deb_ASSERT( (INTENSITY)[i] > 0.); /* Just in case */ \
+                        } \
+        }
 	
-
+	/* Set I_cmb */
+        INIT_BC( glb.I_cmb, glb.model.parms.T_cmb)
+        
+	/* Set I_in when the case of that the geometry is sph1d/sph3d 
+           and inner radius is not zero                                 */
+        int geom = root->voxel.geom;
+        if ( geom == GEOM_SPH1D || geom == GEOM_SPH3D ){
+                double R_in = root->voxel.min.x[0];
+                if ( R_in > 0.){
+                        INIT_BC( glb.I_in, glb.model.parms.T_in)
+                }
+        }
+        
+        #undef INIT_BC	
 
 	/* construct overlapping table */
 	if(glb.overlap){
@@ -1294,11 +1313,22 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
 		iter++;
 		#endif
 	}
-
-	/* Ray escaped cloud, add CMB to all lines */
-	for(size_t i = 0; i < NRAD; i++) {
-		intensity[i] += glb.I_cmb[i] * exp(-tau[i]);
-	}
+	
+        /* Ray has been reached inner boundary, to give inner B.C. T_in */
+        int geom = zone->voxel.geom;
+        if ( ( geom == GEOM_SPH1D || geom == GEOM_SPH3D ) && plane == 0 ){
+                for(size_t i = 0; i < NRAD; i++) 
+                        intensity[i] += glb.I_in[i] * exp(-tau[i]);
+        }
+        /* Ray escaped cloud, add CMB to all lines */
+        else if ( plane == 1){
+                for(size_t i = 0; i < NRAD; i++) 
+                        intensity[i] += glb.I_cmb[i] * exp(-tau[i]);
+        }
+        /* It shouldn't happen, just in case */
+        else{
+                Deb_ASSERT(0);
+        }
 
 	#if debug_ray //debug
 	printf("ds0=%12.4e, vfac0=%12.4e\n", (*ds0) / Sp_LENFAC, *vfac0);

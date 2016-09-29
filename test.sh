@@ -71,7 +71,11 @@ case $CASE in
         ;;
 # preprocessing
   "SHU1D")
-        \cp ../../preprocessor/presparx/Shu1D/* ./
+        \cp ../../preprocessor/presparx/Shu_sph1d/* ./
+        presparx -o model -e
+        ;;
+  "AGB1D")
+        \cp ../../preprocessor/presparx/AGB_sph1d/* ./
         presparx -o model -e
         ;;
   "DISK_SPH2D")

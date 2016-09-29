@@ -25,16 +25,27 @@ alpha-2.3.2     Mar 2016        improvement of portability
 alpha-2.3.3     Apr 2016        Visualization / contribution chart
 alpha-2.4.0     May 2016        Quasi Monte-Carlo scheme (&validated)
 
-## STATUS : PENDING
+## STATUS : ON-GOING
 alpha-3.0                       PRESPARX : integrated preprocessor
+                                        - sph1d : shu1d, , agb1d(pending), p2a, p2b
+                                        - sph2d : disk2d, toroid(pending)
+                                        - cyl2d : disk2d
+                                        - nested 3d : shu1d(pending)
                                 v3 data format
                                 molecular data consistency
-                                Inner boundary condition
+                                
                                 benchmark case test
                                 free-free emission
+                                
+                                -- not yet tested
+                                Inner boundary condition : sph1d/sph3d 
+                                sph3d central pixel penetratipon 
+                                
+                                -- pending
                                 correction for polarized stokes I emission
                                 correction for observed map coordinate
-                                
+
+## STATUS : PENDING
 alpha-3.1                       Algorithm update : SOR
 alpha-3.2                       LTE line-fittiog
 alpha-3.3                       unstructured grid support
