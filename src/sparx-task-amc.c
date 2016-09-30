@@ -1316,19 +1316,25 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
 	
         /* Ray has been reached inner boundary, to give inner B.C. T_in */
         int geom = zone->voxel.geom;
-        if ( ( geom == GEOM_SPH1D || geom == GEOM_SPH3D ) && plane == 0 ){
-                for(size_t i = 0; i < NRAD; i++) 
-                        intensity[i] += glb.I_in[i] * exp(-tau[i]);
+        if ( geom == GEOM_SPH1D || geom == GEOM_SPH3D ){
+                if ( plane == 0 ){
+                        for(size_t i = 0; i < NRAD; i++) 
+                                intensity[i] += glb.I_in[i] * exp(-tau[i]);
+                }
+                else if ( plane == 1){
+                        for(size_t i = 0; i < NRAD; i++) 
+                                intensity[i] += glb.I_cmb[i] * exp(-tau[i]);
+                }
+                else
+                        /* It shouldn't happen, just in case */
+                        Deb_ASSERT(0);
         }
         /* Ray escaped cloud, add CMB to all lines */
-        else if ( plane == 1){
+        else{
                 for(size_t i = 0; i < NRAD; i++) 
                         intensity[i] += glb.I_cmb[i] * exp(-tau[i]);
         }
-        /* It shouldn't happen, just in case */
-        else{
-                Deb_ASSERT(0);
-        }
+
 
 	#if debug_ray //debug
 	printf("ds0=%12.4e, vfac0=%12.4e\n", (*ds0) / Sp_LENFAC, *vfac0);

@@ -39,7 +39,8 @@ python setup.py install \
 --with-lib=$FFTW_HOME/lib \
 --with-lib=$HDF5_HOME/lib \
 --with-lib=$OPENMPI_HOME/lib \
---with-lib=$CFITSIO_HOME/lib 
+--with-lib=$CFITSIO_HOME/lib \
+--with-lib=$MIR/lib/linux
 printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
 
 

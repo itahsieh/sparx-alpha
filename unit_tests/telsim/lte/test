@@ -10,4 +10,5 @@ out=map \
 lte='True' \
 line=1 \
 tau=tau \
-subres="[['-10asec','-10asec','10asec','10asec',4]]"
+dist='100pc'
+#subres="[['-10asec','-10asec','10asec','10asec',4]]"

@@ -45,6 +45,8 @@ class profile:
                 self.volume = 0.0
                 # Max Velocity Dispersion to Vt
                 self.MVD2Vt = 0.0 
+                # MVD2Vt index
+                self.MVD2Vt_index = 0
                 
                 GridType = gr.GridType
                 if GridType == 'SPH1D':
@@ -81,12 +83,21 @@ class profile:
                         self.T_k[i]          = phys.T_k
                         self.V_gas[i]        = [phys.Vr, 0., 0.]
                         self.Vt[i]           = phys.Vt
-
+                
                 if md.molec:
                         self.X_mol = zeros(nr)
                         for i in range(nr):
                                 self.X_mol[i] = phys.X_mol
-
+                
+                if hasattr(phys, 'X_pH2'):
+                        self.X_pH2 = zeros(nr)
+                        for i in range(nr):
+                                self.X_pH2[i] = phys.X_pH2
+                if hasattr(phys, 'X_oH2'):
+                        self.X_oH2 = zeros(nr)
+                        for i in range(nr):
+                                self.X_oH2[i] = phys.X_oH2
+                                
                 if hasattr(phys, 'T_d'):
                         self.T_d = zeros(nr)
                         self.dust_to_gas = zeros(nr)
@@ -116,13 +127,23 @@ class profile:
                         self.T_k[i,j]   = phys.T_k
                         self.V_gas[i,j] = phys.V_cen
                         self.Vt[i,j]    = phys.Vt
-                        
                 
                 if md.molec:
                         self.X_mol = zeros((nr,nt))
                         for i in range(nr):
                             for j in range(nt):
                                 self.X_mol[i,j] = phys.X_mol
+                
+                if hasattr(phys, 'X_pH2'):
+                        self.X_pH2 = zeros((nr,nt))
+                        for i in range(nr):
+                            for j in range(nt):
+                                self.X_pH2[i,j] = phys.X_pH2
+                if hasattr(phys, 'X_oH2'):
+                        self.X_oH2 = zeros((nr,nt))
+                        for i in range(nr):
+                            for j in range(nt):
+                                self.X_oH2[i,j] = phys.X_oH2
                                 
                 if hasattr(phys, 'T_d'):
                         self.T_d = zeros((nr,nt))
@@ -171,6 +192,17 @@ class profile:
                         for i in range(nrc):
                             for j in range(nz):
                                 self.X_mol[i,j] = phys.X_mol
+
+                if hasattr(phys, 'X_pH2'):
+                        self.X_pH2 = zeros((nrc,nz))
+                        for i in range(nrc):
+                            for j in range(nz):
+                                self.X_pH2[i,j] = phys.X_pH2
+                if hasattr(phys, 'X_oH2'):
+                        self.X_oH2 = zeros((nrc,nz))
+                        for i in range(nrc):
+                            for j in range(nz):
+                                self.X_oH2[i,j] = phys.X_oH2
                                 
                 if hasattr(phys, 'T_d'):
                         self.T_d = zeros((nrc,nz))

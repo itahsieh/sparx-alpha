@@ -13,7 +13,7 @@ static struct glb {
 	MirImg_Axis x, y, v;
         MirFile *imgf, *StxQf, *StxUf, *tau_imgf;
         MirImg *image, *StokesQ, *StokesU, *StokesV, *sigma2, *tau_img;
-	double dist, rotate[3], I_norm, I_cmb;
+	double dist, rotate[3], I_norm, I_cmb, I_in;
 	SpModel model;
 	size_t line;
 	double lamb, freq;
@@ -70,7 +70,12 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu, size_t tid);
 static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu, size_t tid);
 static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu);
+
+
 static void ColumnDensityTracer(double dx, double dy, double *CD);
+static void IntensityBC( size_t side, double *I_nu, double *tau_nu);
+
+
 static void InitRay(double *dx, double *dy, GeRay *ray);
 static void InitLOSCoord( double *dx, 
                           double *dy, 
@@ -668,6 +673,14 @@ static int InitModel(void)
 			/* Normalize CMB */
 			glb.I_cmb /= glb.I_norm;
 		}
+		/* Calculate inner boundary intensity */
+                if(glb.model.parms.T_in > 0) {
+                        glb.I_in = Phys_PlanckFunc(glb.freq, glb.model.parms.T_in);
+                        Deb_ASSERT(glb.I_in > 0); /* Just in case */
+
+                        /* Normalize CMB */
+                        glb.I_in /= glb.I_norm;
+                }
 	}
 // 	FILE * fp = fopen("pops.dat","w");
 	for(zp = Zone_GetMinLeaf(root); zp; zp = Zone_AscendTree(zp)) {
@@ -1148,10 +1161,8 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
 			#endif
 		}
 	}
-
-	/* Add CMB to all channels -- this is done even if the ray misses the source */
-	for(size_t iv = 0; iv < glb.v.n; iv++)
-		I_nu[iv] += glb.I_cmb * exp(-tau_nu[iv]);
+	
+	IntensityBC( side, I_nu, tau_nu);
 
 	return;
 }
@@ -1246,9 +1257,7 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
                 }
         }
 
-        /* Add CMB to all channels -- this is done even if the ray misses the source */
-        for(size_t iv = 0; iv < glb.v.n; iv++)
-                I_nu[iv] += glb.I_cmb * exp(-tau_nu[iv]);
+        IntensityBC( side, I_nu, tau_nu);
 
         return;
 }
@@ -1450,9 +1459,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                 }
         }
 
-        /* Add CMB to all channels -- this is done even if the ray misses the source */
-        for(size_t iv = 0; iv < glb.v.n; iv++)
-                I_nu[iv] += glb.I_cmb * exp(-tau_nu[iv]);
+        IntensityBC( side, I_nu, tau_nu);
 
         return;
 }
@@ -1514,8 +1521,36 @@ static void ColumnDensityTracer(double dx, double dy, double *CD)
 
 	return;
 }
+/*---------------------------------------------------------------------------- */
+static void IntensityBC( size_t side, double *I_nu, double *tau_nu){
+        
+        int geom = glb.model.grid->voxel.geom;
+        
+        #define ADD_BC( INTENSITY ) \
+        for(size_t iv = 0; iv < glb.v.n; iv++)\
+                I_nu[iv] += (INTENSITY) * exp(-tau_nu[iv]);
+        
 
-
+        if ( geom == GEOM_SPH1D || geom == GEOM_SPH3D ){
+                if ( side == 0 ){
+                        /* Ray has been reached inner boundary, to give inner B.C. T_in */
+                        ADD_BC(glb.I_in)
+                }
+                else if ( side == 1){
+                        /* Add CMB to all channels -- this is done even if the ray misses the source */
+                        ADD_BC(glb.I_cmb)
+                }
+                else
+                        /* It shouldn't happen, just in case */
+                        Deb_ASSERT(0);
+        }
+        /* Ray escaped cloud, add CMB to all lines */
+        else{
+                /* Add CMB to all channels -- this is done even if the ray misses the source */
+                ADD_BC(glb.I_cmb)
+        }
+        #undef ADD_BC
+}
 /*---------------------------------------------------------------------------- */
 /* Initialize the position of the ray and its shooting direction */
 static void InitRay(double *dx, double *dy, GeRay *ray)
