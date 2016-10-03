@@ -27,17 +27,14 @@ alpha-2.4.0     May 2016        Quasi Monte-Carlo scheme (&validated)
 
 ## STATUS : ON-GOING
 alpha-3.0                       PRESPARX : integrated preprocessor
-                                        - sph1d : shu1d, , agb1d(pending), p2a, p2b
+                                        - sph1d : shu1d, , agb1d, p2a, p2b
                                         - sph2d : disk2d, toroid(pending)
                                         - cyl2d : disk2d
                                         - nested 3d : shu1d(pending)
                                 v3 data format
                                 molecular data consistency
-                                
                                 benchmark case test
                                 free-free emission
-                                
-                                -- not yet tested
                                 Inner boundary condition : sph1d/sph3d 
                                 sph3d central pixel penetratipon 
                                 
