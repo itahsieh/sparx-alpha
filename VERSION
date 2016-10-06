@@ -37,9 +37,9 @@ alpha-3.0                       PRESPARX : integrated preprocessor
                                 free-free emission
                                 Inner boundary condition : sph1d/sph3d 
                                 sph3d central pixel penetratipon 
+                                correction for polarized stokes I emission
                                 
                                 -- pending
-                                correction for polarized stokes I emission
                                 correction for observed map coordinate
 
 ## STATUS : PENDING

@@ -1276,8 +1276,6 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
 
         /* Reset tau for all channels */
         Mem_BZERO2(tau_nu, glb.v.n);
-        
-        
 
         size_t side;
         /* Shoot ray at model and see what happens! */
@@ -1491,7 +1489,7 @@ static void ColumnDensityTracer(double dx, double dy, double *CD)
         Mem_BZERO(CD);
         
 	/* Shoot ray at model and see what happens! */
-	if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
+	if ( GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side) ) {
 
 		/* Calculate intersection */
 		ray = GeRay_Inc(&ray, t);
@@ -1574,13 +1572,15 @@ static void InitRay(double *dx, double *dy, GeRay *ray)
         GeRay_E(*ray, 1) = 0;
         GeRay_E(*ray, 2) = 0;
 
-        /* Set direction of ray according to pixel position:
-         *   theta = PI/2 + dy
-         *   phi = -dx
+        /* Set "reversed" direction of ray according to pixel position
+         * !!! backward tracing !!! :
+         *   theta = PI/2 - dy
+         *   phi = PI - dx
          */
-        double phi = -(*dx);
-        double theta = 0.5 * M_PI + (*dy);
-
+        
+        double theta = 0.5 * M_PI - (*dy);
+        double phi = M_PI - (*dx);
+        
         /* Convert to Cartesian coordinates */
         GeRay_D(*ray, 0) = sin(theta) * cos(phi);
         GeRay_D(*ray, 1) = sin(theta) * sin(phi);

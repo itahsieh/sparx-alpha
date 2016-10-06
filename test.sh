@@ -112,7 +112,6 @@ case $CASE in
         source ../telsim/line/test       $SAVE_LOG
         ;;
   "LTE")
-        source ../grid/sph1d/test       $SAVE_LOG
         source ../telsim/lte/test       $SAVE_LOG
         ;;
   "ZEEMAN")
