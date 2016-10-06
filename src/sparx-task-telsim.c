@@ -440,8 +440,8 @@ int SpTask_Telsim(void)
                                             double StxI = MirImg_PIXEL(*glb.image, 0, ix, iy);
                                             double StxQ = MirImg_PIXEL(*glb.StokesQ, 0, ix, iy);
                                             double StxU = MirImg_PIXEL(*glb.StokesU, 0, ix, iy);
-                                            double Sigma2 = MirImg_PIXEL(*glb.sigma2, 0, ix, iy);
-                                            double pd = sqrt( StxQ*StxQ + StxU*StxU ) / (StxI - Sigma2);
+
+                                            double pd = sqrt( StxQ*StxQ + StxU*StxU ) / StxI;
                                             
                                             double xi=atan2(StxU,StxQ); xi = 0.5 * xi;
                                             double vecx=-pd*sin(xi);
@@ -986,6 +986,7 @@ static void *CalcImageThreadColdens(void *tid_p)
 static void *CalcImageThreadCont(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
+        size_t nvelo = glb.v.n;
 
          /* pix_id is used for distributing work to threads */
         size_t pix_id = 0;
@@ -998,12 +999,12 @@ static void *CalcImageThreadCont(void *tid_p)
                         size_t nsub = Init_nsub( ix, iy);
 
                         /* I_nu is the brightness for all channels at pixel (ix, iy) */
-                        double *I_nu = Mem_CALLOC(glb.v.n, I_nu);
-                        double *Q_nu = Mem_CALLOC(glb.v.n, Q_nu);
-                        double *U_nu = Mem_CALLOC(glb.v.n, U_nu);
-                        double *sigma2 = Mem_CALLOC(glb.v.n, sigma2);
+                        double *I_nu = Mem_CALLOC(nvelo, I_nu);
+                        double *Q_nu = Mem_CALLOC(nvelo, Q_nu);
+                        double *U_nu = Mem_CALLOC(nvelo, U_nu);
+                        double *sigma2 = Mem_CALLOC(nvelo, sigma2);
                         /* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
-                        double *tau_nu = Mem_CALLOC(glb.v.n, tau_nu);
+                        double *tau_nu = Mem_CALLOC(nvelo, tau_nu);
 
                         /* Loop through sub-resolution positions */
                         for(size_t isub = 0; isub < nsub; isub++) {
@@ -1012,15 +1013,15 @@ static void *CalcImageThreadCont(void *tid_p)
                                 /* Calculate sub-pixel position */
                                 InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub);
                                 /* I_sub is the brightness for all channels at each sub-resolution */
-                                double *I_sub = Mem_CALLOC(glb.v.n, I_sub);
-                                double *Q_sub = Mem_CALLOC(glb.v.n, Q_sub);
-                                double *U_sub = Mem_CALLOC(glb.v.n, U_sub);
-                                double *sigma2_sub = Mem_CALLOC(glb.v.n, sigma2_sub);
-                                double *tau_sub = Mem_CALLOC(glb.v.n, tau_sub);
+                                double *I_sub = Mem_CALLOC(nvelo, I_sub);
+                                double *Q_sub = Mem_CALLOC(nvelo, Q_sub);
+                                double *U_sub = Mem_CALLOC(nvelo, U_sub);
+                                double *sigma2_sub = Mem_CALLOC(nvelo, sigma2_sub);
+                                double *tau_sub = Mem_CALLOC(nvelo, tau_sub);
                                 /* Calculate radiative transfer for this sub-los */
                                 RadiativeXferCont(dx, dy, I_sub, Q_sub, U_sub, sigma2_sub, tau_sub);
                                 /* Add I_sub to I_nu */
-                                for(size_t iv = 0; iv < glb.v.n; iv++) {
+                                for(size_t iv = 0; iv < nvelo; iv++) {
                                         I_nu[iv] += I_sub[iv];
                                         Q_nu[iv] += Q_sub[iv];
                                         U_nu[iv] += U_sub[iv];
@@ -1037,12 +1038,12 @@ static void *CalcImageThreadCont(void *tid_p)
                         }
                         /* Save averaged I_nu to map */
                         double DnsubSquare = 1. / (double)(nsub * nsub);
-                        for(size_t iv = 0; iv < glb.v.n; iv++) {
+                        for(size_t iv = 0; iv < nvelo; iv++) {
                                 static const double alpha=0.15; // polarized efficiency
-                                MirImg_PIXEL(*glb.image, iv, ix, iy) = I_nu[iv] * DnsubSquare;
-                                MirImg_PIXEL(*glb.StokesQ, iv, ix, iy) = alpha * Q_nu[iv] * DnsubSquare;
-                                MirImg_PIXEL(*glb.StokesU, iv, ix, iy) = alpha * U_nu[iv] * DnsubSquare;
-                                MirImg_PIXEL(*glb.sigma2, iv, ix, iy) = 0.5 * alpha * sigma2[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.image, iv, ix, iy) = ( I_nu[iv] - sigma2[iv] ) * DnsubSquare;
+                                MirImg_PIXEL(*glb.StokesQ, iv, ix, iy) = Q_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.StokesU, iv, ix, iy) = U_nu[iv] * DnsubSquare;
+                                MirImg_PIXEL(*glb.sigma2, iv, ix, iy) = sigma2[iv] * DnsubSquare;
                                 if(glb.tau_img)
                                         MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
                         }
@@ -1212,7 +1213,7 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
                                                  * of the local line width -- very time consuming! */
                                                 double vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
                                                 /* Calculate molecular line emission and absorption coefficients */                                             
-                                                size_t i=glb.line;
+                                                size_t i = glb.line;
                                                 for(size_t j = 0; j < NRAD; j++) {
                                                         if(OVERLAP(i,j)){
                                                                 double tempj_nu, tempk_nu;
@@ -1276,6 +1277,8 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
         /* Reset tau for all channels */
         Mem_BZERO2(tau_nu, glb.v.n);
         
+        
+
         size_t side;
         /* Shoot ray at model and see what happens! */
         if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
@@ -1297,23 +1300,27 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                  * for ALL channels, and can significantly increase computation time.
                                  */
     
-                                 GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
-                                 double zproduct = GeVec3_DotProd(&z,&B);
-                                 double B_Mag = GeVec3_Mag(&B);
-                                 double costheta; 
+                                GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
+                                double zproduct = GeVec3_DotProd(&z,&B);
+                                double B_Mag = GeVec3_Mag(&B);
+                                double costheta; 
                                  
-                                 if (B_Mag == 0.)
-                                         // preventing costheta overflow
-                                         costheta = 0.;
-                                 else
-                                         costheta = zproduct / B_Mag;
+                                if (B_Mag == 0.)
+                                        // preventing costheta overflow
+                                        costheta = 0.;
+                                else
+                                        costheta = zproduct / B_Mag;
                                  
-                                 /* Z is Zeeman splitting factor (Hz/G)
-                                    see the reference for CN 
-                                    http://adsabs.harvard.edu/abs/1996ApJ...456..217C */
-                                 static const double Z = 2.18 * 1e6;
-                                 double dnu = Z * B_Mag;
-                                 double deltav = dnu * PHYS_CONST_MKS_LIGHTC / glb.freq;
+                                /* Z is Zeeman splitting factor (Hz/G)
+                                   see the reference for CN 
+                                   http://adsabs.harvard.edu/abs/1996ApJ...456..217C */
+                                //static const double Z = 2.18 * 1e6;
+                                 
+                                #define Z glb.model.parms.z
+                                double dnu = Z * B_Mag;
+                                #undef Z
+                                
+                                double deltav = dnu * PHYS_CONST_MKS_LIGHTC / glb.freq;
 
                                 for(size_t iv = 0; iv < glb.v.n; iv++) {
                                         /* Calculate velocity associated with this channel */
@@ -1329,7 +1336,7 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                                 vfac = vfac-vfac2;
                                                 double tempj_nu, tempk_nu;
                                                 SpPhys_GetMoljk(tid, pp, glb.line, vfac, &tempj_nu, &tempk_nu);
-                                                j_nu = 0.5*tempj_nu;
+                                                j_nu = 0.5 * tempj_nu;
                                                 k_nu += tempk_nu;
                                         }
 
@@ -1342,7 +1349,7 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                         /* Calculate intensity contributed by this step */
                                         //debug
                                         double temp = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
-                                        V_nu[iv] += temp*costheta;
+                                        V_nu[iv] += temp * costheta;
         
                                         /* Accumulate total optical depth for this channel (must be done
                                          * AFTER calculation of intensity!) */
@@ -1412,7 +1419,9 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                                 double B_Mag = GeVec3_Mag(&B);
                                 double psi = atan2( -eproduct, nproduct); 
                                 // gamma ia the angle bettwen B-field an the plane of sky
-                                double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B); 
+                                double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B);
+                                
+                                double alpha = pp->alpha;
  
                                 for(size_t iv = 0; iv < glb.v.n; iv++) {
                                         /* Reset emission and absorption coeffs */
@@ -1439,11 +1448,11 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                                                 // preventing undefined psi
                                         }
                                         else{
-                                                Q_nu[iv] += contribution * cos(2.0 * psi) * cosgammasquare;
-                                                U_nu[iv] += contribution * sin(2.0 * psi) * cosgammasquare;
+                                                Q_nu[iv] += alpha * contribution * cos(2.0 * psi) * cosgammasquare;
+                                                U_nu[iv] += alpha * contribution * sin(2.0 * psi) * cosgammasquare;
                                         }
                                         static const double d23 = 2. / 3. ;
-                                        sigma2[iv] += contribution * (cosgammasquare - d23);
+                                        sigma2[iv] += 0.5 * alpha * contribution * (cosgammasquare - d23);
 
                                         /* Accumulate total optical depth for this channel (must be done
                                          * AFTER calculation of intensity!) */

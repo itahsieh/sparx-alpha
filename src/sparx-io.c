@@ -329,6 +329,12 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 if(hstatus < 0)
                         status = 1;
         }
+        /* Read z (zeeman splitting) factor */
+        if(!status) {
+                hstatus = H5LTget_attribute_int(sfp->h5f_id, "/", "z", &model->parms.z);
+                if(hstatus < 0)
+                        status = 1;
+        }
 
 #if 0 
 	/* Set velocity field: the "velfield" attribute is expected
