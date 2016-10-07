@@ -141,7 +141,7 @@ int SpTask_Telsim(void)
                 glb.y.crpix = MirWr_CRPIX(glb.y.n);
                 SpPy_XDECREF(o);
         }
-        o* cell */
+        /* cell */
         if(!sts && !(sts = SpPy_GetInput_PyObj("cell", &o))) {
                 glb.x.delt = Sp_PYDBL(Sp_PYLST(o, 0));
                 glb.y.delt = Sp_PYDBL(Sp_PYLST(o, 1));
