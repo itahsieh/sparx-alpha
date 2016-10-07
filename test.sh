@@ -15,7 +15,6 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 
-
 cd unit_tests
 # create "tmp" directory only if it doesn't exist. then enter it
 mkdir -p tmp; cd tmp
@@ -92,7 +91,7 @@ case $CASE in
 ###########################
 # testing preprocessor    #
 ###########################
-        source ../grid/sph1d/test $SAVE_LOG
+        #source ../grid/sph1d/test $SAVE_LOG
 ###########################
 # testing AMC             #
 ###########################
@@ -143,6 +142,9 @@ case $CASE in
         gfortran ../algorithm/ALI_convergency/pops_error.f90 -o pops_error
         ./pops_error
         #gnuplot ../algorithm/ALI_convergency/plot  $SAVE_LOG
+        ;;
+  "VELO_INTERP")
+        source ../algorithm/VELO_INTERP_accuracy/test    $SAVE_LOG
         ;;
 
 #  parallelization and queuing system 

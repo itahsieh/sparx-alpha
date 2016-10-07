@@ -284,7 +284,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 }
                 free(coordinate);
         }
- 
+
         herr_t hstatus;
 
         /* Read T_cmb */
@@ -298,11 +298,12 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 hstatus = H5LTget_attribute_double(sfp->h5f_id, "/", "T_in", &model->parms.T_in);
                 if(hstatus < 0)
                         status = 1;
-        }
+        }printf("%d\n",status);
 	/* Read molecule name */
 	if(!status){
                 char *mol_name = NULL;
 		status = SpIO_H5GetAttribute_string(sfp->h5f_id, "/", "molec", &mol_name);
+                printf("%s\n",mol_name);
                 /* Load molecule if present */
                 if(strlen(mol_name) > 0) {
                         if(!(model->parms.mol = SpIO_FreadMolec(mol_name)))
@@ -310,7 +311,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 }
                 free(mol_name);
         }
-
+printf("%d\n",status);
         /* Read pops-switch */
         if(!status) {
                 hstatus = H5LTget_attribute_int(sfp->h5f_id, "/", "pops", &model->parms.pops);

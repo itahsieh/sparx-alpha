@@ -7,8 +7,18 @@ class profile:
                 md = self.model = model
 
                 self.molec = md.molec
-                self.T_cmb = md.T_cmb
-                self.T_in = md.T_in                
+                if hasattr(md, 'T_cmb'):
+                        self.T_cmb = md.T_cmb
+                
+                if hasattr(md, 'T_in'):
+                        self.T_in = md.T_in
+                        
+                if hasattr(md.model, 'B_cen'):
+                        self.B_field = 1
+                
+                if hasattr(md.model, 'T_d'):
+                        self.dust = 1
+
                 
                 # accumulated mass
                 self.mass = 0.0
@@ -33,11 +43,6 @@ class profile:
         
         def _MappingFunction(self, mesh):
                 gr = mesh.grid
-                md = self.model
-                
-                self.molec = md.molec
-                self.T_cmb = md.T_cmb
-                self.T_in = md.T_in                
                 
                 # accumulated mass
                 self.mass = 0.0

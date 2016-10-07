@@ -165,9 +165,7 @@ def main(pfile,direc,xaxis,yaxis,zaxis,cen_xx,cen_yy,cen_zz,density,Vxx,Vyy,Vzz,
                                                         Vy2[ii,jj,kk]=sin(tempTheta)*sin(tempPhi)*tempVr
                                                         Vz2[ii,jj,kk]=cos(tempTheta)*tempVr
                                                         max_rho=max(max_rho,rho2[ii,jj,kk])
-                                                             
-		                
-		                
+
 		                # write a row of grid table
 		                particle['LEVEL']  = level
         	                particle['POS'] = n1[1]*n1[2]*i+n1[2]*j+k

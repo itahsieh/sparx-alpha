@@ -24,13 +24,13 @@ alpha-2.3.1     Mar 2016        fix CRPIX consitent between MIRIAD&FITS
 alpha-2.3.2     Mar 2016        improvement of portability
 alpha-2.3.3     Apr 2016        Visualization / contribution chart
 alpha-2.4.0     May 2016        Quasi Monte-Carlo scheme (&validated)
-
-## STATUS : ON-GOING
-alpha-3.0                       PRESPARX : integrated preprocessor
+alpha-3.0.0     Oct 2016        PRESPARX : integrated preprocessor
                                         - sph1d : shu1d, , agb1d, p2a, p2b
-                                        - sph2d : disk2d, toroid(pending)
+                                        - sph2d : disk2d
                                         - cyl2d : disk2d
-                                        - nested 3d : shu1d(pending)
+                                        not yet implemented :
+                                        - sph2d : toroid
+                                        - nested 3d : shu1d
                                 v3 data format
                                 molecular data consistency
                                 benchmark case test
@@ -38,11 +38,12 @@ alpha-3.0                       PRESPARX : integrated preprocessor
                                 Inner boundary condition : sph1d/sph3d 
                                 sph3d central pixel penetratipon 
                                 correction for polarized stokes I emission
-                                
-                                -- pending
                                 correction for observed map coordinate
 
+## STATUS : ON-GOING
+
 ## STATUS : PENDING
+alpha-3.0.1                     velocity interpolation
 alpha-3.1                       Algorithm update : SOR
 alpha-3.2                       LTE line-fittiog
 alpha-3.3                       unstructured grid support

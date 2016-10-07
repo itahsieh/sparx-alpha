@@ -16,18 +16,22 @@ if [ ! -e $LOAD_MODULE_FILE ];then
   printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
 fi
 
-
 # LOAD MODULE AND DEFINE SPARXVERSION
 source $LOAD_MODULE_FILE
-#destination=$HOME/opt/$SPARXVERSION
-destination=$HOME/opt/sparx
 printf "${YELLOW}LOAD MODULE${NC}\n"
+
+# check bashrc to source SPARX's module
+if ! grep -q "# SPARX ENVIROMENT" ~/.bashrc ; then
+  echo "# SPARX ENVIROMENT" >> ~/.bashrc
+  echo "source $LOAD_MODULE_FILE" >> ~/.bashrc
+  printf "${RED}UPDATE ~/.bashrc${NC}\n"
+fi
+
 
 
 # INSTALLATION
+destination=$HOME/opt/sparx
 rm -rf build/*
-export CC=icc
-CC=icc \
 python setup.py install \
 --prefix=$destination \
 --version=$CLUSTERNAME \
@@ -40,17 +44,18 @@ python setup.py install \
 --with-lib=$HDF5_HOME/lib \
 --with-lib=$OPENMPI_HOME/lib \
 --with-lib=$CFITSIO_HOME/lib \
---with-lib=$MIR/lib/linux
-printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
+--with-lib=$MIR/lib/linux \
+&& printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
 
-
-
+if [ $? -eq 1 ]; then
+  exit $?
+fi
 
 # REPLACE the first 'sparx' occurrence in bin/sparx TO 'sparx-CLUSTERNAME'
 EXECUTABLE=$destination/bin/$SPARXVERSION
 sed -e "s/import sparx/import $SPARX_VERSION/" \
     -e "s/from sparx/from $SPARX_VERSION/" \
-        bin/sparx > $EXECUTABLE
+        $destination/bin/sparx > $EXECUTABLE
 chmod 755 $EXECUTABLE
 rm $destination/bin/sparx
 printf "${RED}CREATE bin/${SPARXVERSION}${NC}\n"
@@ -68,37 +73,16 @@ printf "${RED}CREATE bin/pre${SPARXVERSION}${NC}\n"
 
 
 # REPLACE sparx_module in FILE to 'sparx_CLUSTERNAME' 
-PYTHONPATH=$destination/lib/python2.7/site-packages
+SPARX_PYTHONPATH=$destination/lib/python2.7/site-packages
 for FILE in `ls lib/sparx | grep .py`;do
   sed -e "s/import sparx/import $SPARX_VERSION/" \
       -e "s/from sparx/from $SPARX_VERSION/" \
-          lib/sparx/$FILE > $PYTHONPATH/$SPARX_VERSION/$FILE
+          lib/sparx/$FILE > $SPARX_PYTHONPATH/$SPARX_VERSION/$FILE
   printf "${LIGHTBLUE}CREATE $SPARX_VERSION/$FILE${NC}\n"
 done
 
 
-# check LOAD_MODULE_FILE to set SPARX's PATH
-if ! grep -q "# SPARX PATH" $LOAD_MODULE_FILE; then
-  echo "# SPARX PATH" \
-        >> $LOAD_MODULE_FILE
-  echo 'PATH=$PATH:$HOME/opt/sparx/bin' \
-        >> $LOAD_MODULE_FILE
-  echo 'export PYTHONPATH=$PYTHONPATH:'$PYTHONPATH \
-        >> $LOAD_MODULE_FILE
-  echo 'alias sparx=$SPARXVERSION' \
-        >> $LOAD_MODULE_FILE
-  echo 'alias presparx=$PRESPARX' \
-        >> $LOAD_MODULE_FILE
-  printf "${LIGHTCYAN}UPDATE $LOAD_MODULE_FILE${NC}\n"
-fi
 
-
-# check bashrc to source SPARX's module
-if ! grep -q "# SPARX ENVIROMENT" ~/.bashrc ; then
-  echo "# SPARX ENVIROMENT" >> ~/.bashrc
-  echo "source $LOAD_MODULE_FILE" >> ~/.bashrc
-  printf "${RED}UPDATE ~/.bashrc${NC}\n"
-fi
 
 
 

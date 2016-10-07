@@ -715,6 +715,7 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 {
 	#define USE_LVG 0
 	#define USE_CONST 0
+        #define INTERPOLATION 1
         
 	GeVec3_d v_gas;
 
@@ -734,7 +735,33 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			#elif USE_CONST
 			v_gas = GeVec3_Normalize(pos);
 			v_gas = GeVec3_Scale(&v_gas, velo); /* 100 km/s/pc velocity gradient */
-			#else
+                        #elif INTERPOLATION
+                        /* Project radial velocity onto position vector */
+                        {
+                        GeVec3_d SphPos = GeVec3_Cart2Sph(pos);
+                        double r_pos = SphPos.x[0];
+                        
+                        double r_zone = zone->voxel.cen.x[0];
+                        double v_zone = GeVec3_X(pp->v_cen, 0);
+                        
+                        Zone *zp = zone;
+                        Zone *zp_near = ( r_pos < r_zone ) ? 
+                                Zone_GetInner(zp, pos) :
+                                Zone_GetOuter(zp) ;
+                        SpPhys *pp_near = zp_near->data;
+                        double v_near = GeVec3_X(pp_near->v_cen,0);
+                        double r_near = zp_near->voxel.cen.x[0];
+                        
+                        double a = ( r_pos - r_zone ) / ( r_near - r_zone );
+                        Deb_ASSERT( 0.0 <= a && a <= 1.0);
+                        double b = 1.0 - a;
+                        
+                        double scale_factor = a * v_zone + b * v_near;
+                        
+                        v_gas = GeVec3_Normalize(pos);
+                        v_gas = GeVec3_Scale(&v_gas, scale_factor);
+                        }
+                        #else
 			/* Project radial velocity onto position vector */
 			v_gas = GeVec3_Normalize(pos);
 			v_gas = GeVec3_Scale(&v_gas, GeVec3_X(pp->v_cen, 0));
