@@ -1,0 +1,24 @@
+#!/bin/bash
+
+for NR in 3 #9 27 81 243 729
+do
+
+MODEL='model'
+POPS='pops__uniform_nr'$NR
+rm -f $MODEL $POPS
+
+LVGPATH='../../preprocessor/presparx/LVG1D'
+\cp $LVGPATH/model.py model.py
+sed "s/nr = 64/nr = $NR/g" $LVGPATH/grid.py > grid.py
+presparx -o $MODEL 
+
+sparx run task_amc \
+source=$MODEL \
+out=$POPS \
+dat='True' \
+snr=100 \
+nrays=1000 \
+raniter=1 \
+fixiter=1 
+
+done

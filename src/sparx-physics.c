@@ -715,7 +715,7 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 {
 	#define USE_LVG 0
 	#define USE_CONST 0
-        #define INTERPOLATION 1
+        #define INTERPOLATION 0
         
 	GeVec3_d v_gas;
 

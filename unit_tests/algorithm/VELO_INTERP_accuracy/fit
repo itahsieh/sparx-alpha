@@ -1,0 +1,27 @@
+set logscale xy     
+
+set terminal wxt 3 enhanced font 'Verdana,10' persist
+Error="<awk '{print $1,$2,$3}' pops__interp_error.dat"
+UniformError="<awk '{print $1,$2,$3}' pops__uniform_error.dat"
+
+ref_snr=729
+
+f(x)=sqrt( (a/x)**2 + (a/ref_snr)**2 )
+a=0.1
+b=1e-2
+fit log(f(x)) Error using 1:(log($2)) via a
+
+set object circle at first ref_snr,a/ref_snr radius char 0.5 fillstyle empty border lc rgb '#aa1100' lw 2
+
+set key bottom left
+set title "LVG"
+set ylabel 'Error'
+set xlabel 'resolution'
+plot Error using 1:2 with point title 'interpolated L2', \
+     Error using 1:3 with point title 'interpolated L_inf', \
+     UniformError using 1:2 with point title 'uniform L2', \
+     UniformError using 1:3 with point title 'uniform L_inf', \
+     a/x with lines notitle
+unset object
+     
+

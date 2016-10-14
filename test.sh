@@ -144,7 +144,10 @@ case $CASE in
         #gnuplot ../algorithm/ALI_convergency/plot  $SAVE_LOG
         ;;
   "VELO_INTERP")
-        source ../algorithm/VELO_INTERP_accuracy/test    $SAVE_LOG
+        #source ../algorithm/VELO_INTERP_accuracy/test    $SAVE_LOG
+        #gfortran ../algorithm/VELO_INTERP_accuracy/pops_error.f90 -o pops_error
+        #./pops_error
+        #gnuplot ../algorithm/VELO_INTERP_accuracy/fit  $SAVE_LOG
         ;;
 
 #  parallelization and queuing system 
