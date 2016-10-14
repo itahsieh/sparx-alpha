@@ -30,8 +30,11 @@ class model:
                 self._Vt1D(r)
                 self._MolecAbd1D(r)
                 self._DustToGas1D(r)
-                self._Tdust1D(r)
-                self._kappa_d_1D(r)
+                
+                # Dust Temperature (Kelvin)
+                self.T_d = self.T_k
+                # dust kappa
+                self.kapp_d = 'table,jena_thin_e5'
                 
         # Gas Density (number/m^3)
         def _Density1D(self,r):
@@ -57,12 +60,5 @@ class model:
         def _DustToGas1D(self,r):
                 self.dust_to_gas = 0.01
 
-        # Dust Temperature (Kelvin)
-        def _Tdust1D(self,r):
-                self.T_d = self.T_k
 
-        # dust kappa
-        def _kappa_d_1D(self,r):
-                self.kapp_d = 'table,jena_thin_e5'
-                #kappa_d = 'powerlaw, 1.874e+12, 2.300e-02,-2.0'
 

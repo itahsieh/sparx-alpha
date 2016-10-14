@@ -514,7 +514,9 @@ Zone *Zone_GetNext_sph1d(Zone *zone, size_t *side, const GeVec3_d *pt)
                         *side = 1;
 	}
 	else if( *side == 1) { /* Going outward */
-		next = Zone_GetOuter(zone);
+
+                next = Zone_GetOuter(zone);
+
                 if (next)
                         *side = 0;
 	}

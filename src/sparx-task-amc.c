@@ -828,30 +828,19 @@ static void *CalcExcThread(void *tid_p)
                                 gsl_rng_set(glb.rng[tid], glb.seed);
                         }
                 }
-                
+
 		/* Calculate NHIST times for statistics */
 		for(size_t ihist = 0; ihist < (glb.stage == STAGE_RAN? NHIST:1); ihist++) {
                         
                         #if  TIMER
                         clock_t start = clock();
                         #endif
-                        
-                        #if 1
+
                         if(glb.qmc)
                                 CalcRays_QRNG(tid, zp, ds0, vfac0, intensity, tau);
                         else
                                 CalcRays_RNG(tid, zp, ds0, vfac0, intensity, tau);
-                        #else 
-			#define XI()\
-				gsl_rng_uniform(glb.rng[tid])
-			for(size_t i = 0; i < pp->nray; i++) {
-				ds0[i] = XI() * 0.1 * Sp_LENFAC;
-				double vel = (XI() - 0.5) * 4.3 * pp->width;
-				vfac0[i] = Num_GaussNormal(vel, pp->width);
-			}
-			#undef XI
-                        #endif
-                        
+
                         #if  TIMER
                         float Tmc = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
                         #endif
@@ -1313,7 +1302,7 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
 		iter++;
 		#endif
 	}
-	
+
         /* Ray has been reached inner boundary, to give inner B.C. T_in */
         int geom = zone->voxel.geom;
         if ( geom == GEOM_SPH1D || geom == GEOM_SPH3D ){

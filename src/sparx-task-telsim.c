@@ -2193,9 +2193,9 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
 
 
         GeVec3_d SampCartPosRotate = *SampCartPos;
-        SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.rotate[2]);
-        SampCartPosRotate = GeVec3_Rotate_y( &SampCartPosRotate, glb.rotate[1]);
         SampCartPosRotate = GeVec3_Rotate_x( &SampCartPosRotate, glb.rotate[0]);
+        SampCartPosRotate = GeVec3_Rotate_y( &SampCartPosRotate, glb.rotate[1]);
+        SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.rotate[2]);
         
         double dx = atan( SampCartPosRotate.x[1] / ( glb.dist / Sp_LENFAC - SampCartPosRotate.x[0] ) );
         double dy = atan( SampCartPosRotate.x[2] / ( glb.dist / Sp_LENFAC - SampCartPosRotate.x[0] ) );

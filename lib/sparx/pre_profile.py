@@ -12,14 +12,23 @@ class profile:
                 
                 if hasattr(md, 'T_in'):
                         self.T_in = md.T_in
-                        
-                if hasattr(md.model, 'B_cen'):
+                
+                
+                GridType = mesh.grid.GridType
+                if GridType == 'SPH1D':
+                        tmp_cor = 1.
+                elif GridType == 'SPH2D' or GridType == 'CYL2D':
+                        tmp_cor = 1.,1.
+                elif GridType == 'SPH3D' or GridType == 'CYL3D' or GridType == 'REC3D':
+                        tmp_cor = 1.,1.,1.
+                
+                if hasattr(md.model(tmp_cor), 'B_cen'):
                         self.B_field = 1
                 
-                if hasattr(md.model, 'T_d'):
+                if hasattr(md.model(tmp_cor), 'T_d'):
                         self.dust = 1
-
                 
+
                 # accumulated mass
                 self.mass = 0.0
                 # accumulated volume

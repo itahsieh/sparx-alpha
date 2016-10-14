@@ -123,9 +123,9 @@ case $CASE in
         source ../telsim/coldens/test   $SAVE_LOG
         ;;
   "CONTRIBUTION")
-        #source ../telsim/contribution/sph1d/test     $SAVE_LOG
+        source ../telsim/contribution/sph1d/test     $SAVE_LOG
         #source ../telsim/contribution/sph3d/test     $SAVE_LOG
-        source ../telsim/contribution/cyl3d/test      $SAVE_LOG
+        #source ../telsim/contribution/cyl3d/test      $SAVE_LOG
         ;;
  
 

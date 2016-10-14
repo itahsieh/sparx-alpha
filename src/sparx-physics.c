@@ -745,18 +745,29 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
                         double v_zone = GeVec3_X(pp->v_cen, 0);
                         
                         Zone *zp = zone;
+                        
                         Zone *zp_near = ( r_pos < r_zone ) ? 
                                 Zone_GetInner(zp, pos) :
                                 Zone_GetOuter(zp) ;
-                        SpPhys *pp_near = zp_near->data;
-                        double v_near = GeVec3_X(pp_near->v_cen,0);
-                        double r_near = zp_near->voxel.cen.x[0];
                         
+                        double v_near, r_near;
+                        if (zp_near){
+                                SpPhys *pp_near = zp_near->data;
+                                v_near = GeVec3_X(pp_near->v_cen,0);
+                                r_near = zp_near->voxel.cen.x[0];
+                        }
+                        else{
+                                v_near = GeVec3_X(pp->v_cen, 0);
+                                r_near = ( zp->pos == 0 ) ? 
+                                        zone->voxel.min.x[0] :
+                                        zone->voxel.max.x[0] ;
+                        }
+
                         double a = ( r_pos - r_zone ) / ( r_near - r_zone );
-                        Deb_ASSERT( 0.0 <= a && a <= 1.0);
+
                         double b = 1.0 - a;
                         
-                        double scale_factor = a * v_zone + b * v_near;
+                        double scale_factor = a * v_near + b * v_zone;
                         
                         v_gas = GeVec3_Normalize(pos);
                         v_gas = GeVec3_Scale(&v_gas, scale_factor);
