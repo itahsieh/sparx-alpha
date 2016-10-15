@@ -764,7 +764,6 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
                         }
 
                         double a = ( r_pos - r_zone ) / ( r_near - r_zone );
-
                         double b = 1.0 - a;
                         
                         double scale_factor = a * v_near + b * v_zone;
