@@ -1,7 +1,7 @@
 program compare_error
   implicit none
   ! model : Cosine /Shu1d
-  character*32,parameter::model='pops__uniform'
+  character*32,parameter::model='pops__interp'
   integer,parameter::nlev=21,Nres=6
   integer,parameter,dimension(Nres)::ncell=(/ 3,9,27,81,243,729 /)
   

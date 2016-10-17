@@ -4,7 +4,7 @@ for NR in 3 #9 27 81 243 729
 do
 
 MODEL='model'
-POPS='pops__uniform_nr'$NR
+POPS='pops__interp_nr'$NR
 rm -f $MODEL $POPS
 
 LVGPATH='../../preprocessor/presparx/LVG1D'
