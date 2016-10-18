@@ -239,6 +239,12 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
                 if(hstatus < 0)
                         status = 1;
         }
+        /* Write polariz-switch */
+        if(!status) {
+                hstatus = H5LTset_attribute_double(sfp->h5f_id, "/", "z", &model.parms.z, (size_t)1);
+                if(hstatus < 0)
+                        status = 1;
+        }
 
 	/* Write grid */
 	if(!status)
@@ -284,7 +290,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 }
                 free(coordinate);
         }
- 
+
         herr_t hstatus;
 
         /* Read T_cmb */
@@ -303,6 +309,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
 	if(!status){
                 char *mol_name = NULL;
 		status = SpIO_H5GetAttribute_string(sfp->h5f_id, "/", "molec", &mol_name);
+
                 /* Load molecule if present */
                 if(strlen(mol_name) > 0) {
                         if(!(model->parms.mol = SpIO_FreadMolec(mol_name)))
@@ -437,11 +444,13 @@ Molec *SpIO_FreadMolec(const char *molname)
 	}
 	else {
 		mol = Mol_ReadLamda(fp, path, molname);
+
 		if(!mol)
 			Err_SETSTRING("Error loading molecule from `%s'", path);
 		else
-			SpPhys_ProcLamda(mol);		
+			SpPhys_ProcLamda(mol);	
 	}
+
 
 	cleanup:
 	if(fp)
@@ -451,36 +460,6 @@ Molec *SpIO_FreadMolec(const char *molname)
 	return mol;
 }
 
-/*----------------------------------------------------------------------------*/
-Molec *SpIO_FreadMolec_hyper(const char *molname)
-{
-	FILE *fp;
-	char *path;
-	Molec *mol = 0;
-
-	path = Mem_Sprintf("%s/%s.dat", Sp_parm.molec_path, molname);
-	fp = fopen(path, "r");
-
-	if(!fp) {
-		Err_SETSTRING("File `%s' could not be opened", path);
-		goto cleanup;
-		
-	}
-	else {
-		mol = Mol_ReadLamda_hyper(fp, path, molname);
-		if(!mol)
-			Err_SETSTRING("Error loading molecule from `%s'", path);
-		else
-			SpPhys_ProcLamda(mol);		
-	}
-
-	cleanup:
-	if(fp)
-		fclose(fp);
-	free(path);
-
-	return mol;
-}
 
 /*----------------------------------------------------------------------------*/
 Kappa *SpIO_FreadKappa(const char *name)

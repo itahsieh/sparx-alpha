@@ -607,8 +607,10 @@ void SpPhys_ProcLamda(Molec *mol)
 		 *       E_l = lower level energy
 		 *       h = Planck's constant
 		 */
-		nu = rad->freq = (E_u - E_l) / h;
-
+		//nu = rad->freq = (E_u - E_l) / h;
+                nu = rad->freq *= 1e9;
+               
+                
 		/* Einstein B coefficient for stimulated emission:
 		 * 	B_ul = A_ul * c^2 / (2.0 * h * nu^3)
 		 *
@@ -715,6 +717,7 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 {
 	#define USE_LVG 0
 	#define USE_CONST 0
+        #define INTERPOLATION 0
         
 	GeVec3_d v_gas;
 
@@ -734,7 +737,43 @@ GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone)
 			#elif USE_CONST
 			v_gas = GeVec3_Normalize(pos);
 			v_gas = GeVec3_Scale(&v_gas, velo); /* 100 km/s/pc velocity gradient */
-			#else
+                        #elif INTERPOLATION
+                        /* Project radial velocity onto position vector */
+                        {
+                        GeVec3_d SphPos = GeVec3_Cart2Sph(pos);
+                        double r_pos = SphPos.x[0];
+                        
+                        double r_zone = zone->voxel.cen.x[0];
+                        double v_zone = GeVec3_X(pp->v_cen, 0);
+                        
+                        Zone *zp = zone;
+                        
+                        Zone *zp_near = ( r_pos < r_zone ) ? 
+                                Zone_GetInner(zp, pos) :
+                                Zone_GetOuter(zp) ;
+                        
+                        double v_near, r_near;
+                        if (zp_near){
+                                SpPhys *pp_near = zp_near->data;
+                                v_near = GeVec3_X(pp_near->v_cen,0);
+                                r_near = zp_near->voxel.cen.x[0];
+                        }
+                        else{
+                                v_near = GeVec3_X(pp->v_cen, 0);
+                                r_near = ( zp->pos == 0 ) ? 
+                                        zone->voxel.min.x[0] :
+                                        zone->voxel.max.x[0] ;
+                        }
+
+                        double a = ( r_pos - r_zone ) / ( r_near - r_zone );
+                        double b = 1.0 - a;
+
+                        double scale_factor = a * v_near + b * v_zone;
+
+                        v_gas = GeVec3_Normalize(pos);
+                        v_gas = GeVec3_Scale(&v_gas, scale_factor);
+                        }
+                        #else
 			/* Project radial velocity onto position vector */
 			v_gas = GeVec3_Normalize(pos);
 			v_gas = GeVec3_Scale(&v_gas, GeVec3_X(pp->v_cen, 0));

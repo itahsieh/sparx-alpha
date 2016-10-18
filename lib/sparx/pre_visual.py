@@ -48,7 +48,7 @@ class plot:
                 plt.plot(r,phys.V_gas[:,0])
                 plt.xscale('log')
                 plt.yscale('linear')
-                plt.ylabel('Infalling Velocity (m/s)')
+                plt.ylabel('Velocity (m/s)')
                 
                 # Abundance plot
                 plt.subplot(224)

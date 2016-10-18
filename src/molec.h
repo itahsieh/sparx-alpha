@@ -65,7 +65,6 @@ void Mol_Free(void *ptr);
 void Mol_Fprintf(FILE *fp, const Molec *mol);
 
 Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name);
-Molec *Mol_ReadLamda_hyper(FILE *fp, const char *fname, const char *name);
 void Mol_FwriteBinary(const Molec *mol, FILE *fp);
 Molec *Mol_FreadBinary(FILE *fp);
 
