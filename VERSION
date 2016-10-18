@@ -39,11 +39,12 @@ alpha-3.0.0     Oct 2016        PRESPARX : integrated preprocessor
                                 sph3d central pixel penetratipon 
                                 correction for polarized stokes I emission
                                 correction for observed map coordinate
+alpha-3.0.1     Oct 2016        bug fixing
 
 ## STATUS : ON-GOING
 
 ## STATUS : PENDING
-alpha-3.0.1                     velocity interpolation
+alpha-3.0.2                     velocity interpolation
 alpha-3.1                       Algorithm update : SOR
 alpha-3.2                       LTE line-fittiog
 alpha-3.3                       unstructured grid support

@@ -3,7 +3,7 @@
 # Python Distutils setup script for SPARX
 
 # VERSION_NUMBER of SPARX
-VERSION_NUMBER = '3.0.0'
+VERSION_NUMBER = '3.0.1'
 # MIRIAD support option
 MIRSUPPORT = 1
 # number of Thread using in per job
