@@ -201,24 +201,7 @@ int SpPy_GetInput_molec(const char *name, Molec **molec)
 	return status;
 }
 
-/*----------------------------------------------------------------------------*/
-int SpPy_GetInput_molec_hyper(const char *name, Molec **molec_hyper)
-/* Get user input as size_t and return error status */
-{
-	int status = 0;
-	PyObject *obj;
 
-	status = SpPy_GetInput_PyObj(name, &obj);
-	if(!status) {
-		if(!(*molec_hyper = SpIO_FreadMolec_hyper(Sp_PYSTR(obj)))) {
-			PyWrErr_SetString(PyExc_Exception, "Error opening molecule '%s'", Sp_PYSTR(obj));
-			status = 1;
-		}
-		Py_DECREF(obj);
-	}
-
-	return status;
-}
 
 /*----------------------------------------------------------------------------*/
 int SpPy_GetInput_spfile(const char *name, SpFile **fp, int mode)

@@ -607,8 +607,10 @@ void SpPhys_ProcLamda(Molec *mol)
 		 *       E_l = lower level energy
 		 *       h = Planck's constant
 		 */
-		nu = rad->freq = (E_u - E_l) / h;
-
+		//nu = rad->freq = (E_u - E_l) / h;
+                nu = rad->freq *= 1e9;
+               
+                
 		/* Einstein B coefficient for stimulated emission:
 		 * 	B_ul = A_ul * c^2 / (2.0 * h * nu^3)
 		 *

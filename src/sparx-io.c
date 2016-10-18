@@ -444,11 +444,13 @@ Molec *SpIO_FreadMolec(const char *molname)
 	}
 	else {
 		mol = Mol_ReadLamda(fp, path, molname);
+
 		if(!mol)
 			Err_SETSTRING("Error loading molecule from `%s'", path);
 		else
-			SpPhys_ProcLamda(mol);		
+			SpPhys_ProcLamda(mol);	
 	}
+
 
 	cleanup:
 	if(fp)
@@ -458,36 +460,6 @@ Molec *SpIO_FreadMolec(const char *molname)
 	return mol;
 }
 
-/*----------------------------------------------------------------------------*/
-Molec *SpIO_FreadMolec_hyper(const char *molname)
-{
-	FILE *fp;
-	char *path;
-	Molec *mol = 0;
-
-	path = Mem_Sprintf("%s/%s.dat", Sp_parm.molec_path, molname);
-	fp = fopen(path, "r");
-
-	if(!fp) {
-		Err_SETSTRING("File `%s' could not be opened", path);
-		goto cleanup;
-		
-	}
-	else {
-		mol = Mol_ReadLamda_hyper(fp, path, molname);
-		if(!mol)
-			Err_SETSTRING("Error loading molecule from `%s'", path);
-		else
-			SpPhys_ProcLamda(mol);		
-	}
-
-	cleanup:
-	if(fp)
-		fclose(fp);
-	free(path);
-
-	return mol;
-}
 
 /*----------------------------------------------------------------------------*/
 Kappa *SpIO_FreadKappa(const char *name)

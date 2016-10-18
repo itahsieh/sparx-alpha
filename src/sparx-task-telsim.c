@@ -48,14 +48,14 @@ static DatINode UNITS[] = {
 	mean_dev[(size_t)(iy) + glb.y.n * (size_t)(ix) ]
 
 #define RELVEL(i,j)\
-	(glb.model.parms.mol->OL[NRAD*i+j]->RelativeVel)
+	glb.model.parms.mol->OL[NRAD*(i)+(j)]->RelativeVel
 #define OVERLAP(i,j)\
-	(glb.model.parms.mol->OL[NRAD*i+j]->overlap)
+	glb.model.parms.mol->OL[NRAD*(i)+(j)]->overlap
 
 #define NRAD\
-	(glb.model.parms.mol->nrad)
+	glb.model.parms.mol->nrad
 #define FREQ(i)\
-	(glb.model.parms.mol->rad[i]->freq)
+	glb.model.parms.mol->rad[(i)]->freq
 
 
 /* Subroutine prototypes */
@@ -288,7 +288,8 @@ int SpTask_Telsim(void)
                                 popsold = 1;
                 }
                 sts = SpPy_GetInput_model("source","source", &glb.model, &popsold, task_id);
-        }	
+        }
+        
 
 /* 2. Initialize model */
 	if(!sts) sts = InitModel();
@@ -640,22 +641,24 @@ static int InitModel(void)
                 glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
                 Deb_ASSERT(glb.line < glb.model.parms.mol->nrad);
         }
-        
+
 	/* initialization : construct overlapping table */
         if(glb.overlap){
-                glb.model.parms.mol->OL = Mem_CALLOC(NRAD*NRAD,glb.model.parms.mol->OL);
-                for(size_t i=0; i<NRAD; i++){
-                 for(size_t j=0; j<NRAD; j++){
-                        glb.model.parms.mol->OL[NRAD*i+j] = Mem_CALLOC(1,glb.model.parms.mol->OL[NRAD*i+j]);
-                        RELVEL(i,j) = ( 1e0-FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
-                        if( fabs(RELVEL(i,j)) < glb.overlap_vel ){
-                                OVERLAP(i,j)=1;
-                        }
-                        else{
-                                OVERLAP(i,j)=0;
-                        }
-                 }
+            glb.model.parms.mol->OL = Mem_CALLOC(NRAD*NRAD,glb.model.parms.mol->OL);
+            for(size_t i=0; i<NRAD; i++){
+                for(size_t j=0; j<NRAD; j++){
+                    glb.model.parms.mol->OL[NRAD*i+j] = Mem_CALLOC(1,glb.model.parms.mol->OL[NRAD*i+j]);
+                    RELVEL(i,j) = ( 1e0-FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
+                    if( fabs(RELVEL(i,j)) < glb.overlap_vel ){
+                        OVERLAP(i,j)=1;
+                        //if ( i != j && i == glb.line )
+                            //printf("%zu %zu %e %e %e\n",i,j,FREQ(i),FREQ(j),RELVEL(i,j));
+                    }
+                    else{
+                        OVERLAP(i,j)=0;
+                    }
                 }
+            }
         }
 
         /* Set normalization intensity to 20K -- normalization prevents rounding
@@ -1183,79 +1186,79 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
         Mem_BZERO2(tau_nu, glb.v.n);
         /* Shoot ray at model and see what happens! */
         if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
-                /* Calculate intersection */
-                ray = GeRay_Inc(&ray, t);
-                /* Locate starting leaf zone according to intersection */
-                Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
-                /* Keep going until there's no next zone to traverse to */
-                while(zp) {
-                        /* Calculate path to next boundary */
-                        GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-//                      Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
-                        /* Pointer to physical parameters associated with this zone */
-                        SpPhys *pp = zp->data;
-                        /* Do radiative transfer only if gas is present in this zone */
-                        if(pp->non_empty_leaf) {
-                                /* Do calculations on all channels at this pixel. Try to minimize the 
-                                 * amount of operations in this loop, since everything here is repeated 
-                                 * for ALL channels, and can significantly increase computation time.
-                                 */
-                                for(size_t iv = 0; iv < glb.v.n; iv++) {
-                                        /* Calculate velocity associated with this channel */
-                                        double dv = ((double)iv - glb.v.crpix) * glb.v.delt;
-                                        /* Reset emission and absorption coeffs */
-                                        double j_nu = 0;
-                                        double k_nu = 0;
+            /* Calculate intersection */
+            ray = GeRay_Inc(&ray, t);
+            /* Locate starting leaf zone according to intersection */
+            Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
+            /* Keep going until there's no next zone to traverse to */
+            while(zp) {
+                /* Calculate path to next boundary */
+                GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
+//              Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
+                /* Pointer to physical parameters associated with this zone */
+                SpPhys *pp = zp->data;
+                /* Do radiative transfer only if gas is present in this zone */
+                if(pp->non_empty_leaf) {
+                    /* Do calculations on all channels at this pixel. Try to minimize the 
+                     * amount of operations in this loop, since everything here is repeated 
+                     * for ALL channels, and can significantly increase computation time.
+                     */
+                    for(size_t iv = 0; iv < glb.v.n; iv++) {
+                        /* Calculate velocity associated with this channel */
+                        double dv = ((double)iv - glb.v.crpix) * glb.v.delt;
+                        /* Reset emission and absorption coeffs */
+                        double j_nu = 0;
+                        double k_nu = 0;
 
-                                        if(pp->has_tracer) {
-                                                /* Calculate velocity line profile factor for this channel:
-                                                 * This version averages over the line profile in steps
-                                                 * of the local line width -- very time consuming! */
-                                                double vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
-                                                /* Calculate molecular line emission and absorption coefficients */                                             
-                                                size_t i = glb.line;
-                                                for(size_t j = 0; j < NRAD; j++) {
-                                                        if(OVERLAP(i,j)){
-                                                                double tempj_nu, tempk_nu;
-                                                                if(i==j){
-                                                                        /* Calculate molecular line emission and absorption coefficients */
-                                                                        SpPhys_GetMoljk(tid, pp, j, vfac, &tempj_nu, &tempk_nu);
-                                                                }
-                                                                else{
-                                                                        /* Calculate velocity line profile factor */
-                                                                        double vfac2 = pp->has_tracer ? SpPhys_GetVfac(&ray, t, dv-RELVEL(i,j), zp, 0) : 0.0;
-                                                                        /* Calculate molecular line emission and absorption coefficients */
-                                                                        SpPhys_GetMoljk(tid, pp, j, vfac2, &tempj_nu, &tempk_nu);
-                                                                }
-                                                                j_nu += tempj_nu;
-                                                                k_nu += tempk_nu;
-                                                       }
-                                                }
-                                        }
-                                        /* Add continuum emission/absorption */
-                                        j_nu += pp->cont[glb.line].j;
-                                        k_nu += pp->cont[glb.line].k;
-
-                                        /* Calculate source function and optical depth if
-                                         * absorption is NOT zero */
-                                        double dtau_nu = k_nu * t * Sp_LENFAC;
-                                        double S_nu = (fabs(k_nu) > 0.0) ?
-                                                j_nu / ( k_nu * glb.I_norm ) : 0.;
-
-                                        /* Calculate intensity contributed by this step */
-                                        //debug
-                                        I_nu[iv] += S_nu * (1.0 - exp(-dtau_nu))  * exp(-tau_nu[iv]);
-
-                                        /* Accumulate total optical depth for this channel (must be done
-                                         * AFTER calculation of intensity!) */
-                                        tau_nu[iv] += dtau_nu;
+                        if(pp->has_tracer) {
+                            /* Calculate velocity line profile factor for this channel:
+                             * This version averages over the line profile in steps
+                             * of the local line width -- very time consuming! */
+                            double vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
+                            /* Calculate molecular line emission and absorption coefficients */                                             
+                            size_t i = glb.line;
+                            for(size_t j = 0; j < NRAD; j++) {
+                                if(OVERLAP(i,j)){
+                                    double tempj_nu, tempk_nu;
+                                    if(i==j){
+                                        /* Calculate molecular line emission and absorption coefficients */
+                                        SpPhys_GetMoljk(tid, pp, j, vfac, &tempj_nu, &tempk_nu);
+                                    }
+                                    else{
+                                        /* Calculate velocity line profile factor */
+                                        double vfac2 = pp->has_tracer ? SpPhys_GetVfac(&ray, t, dv-RELVEL(i,j), zp, 0) : 0.0;
+                                        /* Calculate molecular line emission and absorption coefficients */
+                                        SpPhys_GetMoljk(tid, pp, j, vfac2, &tempj_nu, &tempk_nu);
+                                    }
+                                    j_nu += tempj_nu;
+                                    k_nu += tempk_nu;
                                 }
+                            }
                         }
-                        /* Calculate next position */
-                        ray = GeRay_Inc(&ray, t);
-                        /* Get next zone to traverse to */
-                        zp = Zone_GetNext(zp, &side, &ray);
+                        /* Add continuum emission/absorption */
+                        j_nu += pp->cont[glb.line].j;
+                        k_nu += pp->cont[glb.line].k;
+
+                        /* Calculate source function and optical depth if
+                         * absorption is NOT zero */
+                        double dtau_nu = k_nu * t * Sp_LENFAC;
+                        double S_nu = (fabs(k_nu) > 0.0) ?
+                                j_nu / ( k_nu * glb.I_norm ) : 0.;
+
+                        /* Calculate intensity contributed by this step */
+                        //debug
+                        I_nu[iv] += S_nu * (1.0 - exp(-dtau_nu))  * exp(-tau_nu[iv]);
+
+                        /* Accumulate total optical depth for this channel (must be done
+                         * AFTER calculation of intensity!) */
+                        tau_nu[iv] += dtau_nu;
+                    }
                 }
+                /* Calculate next position */
+                ray = GeRay_Inc(&ray, t);
+                /* Get next zone to traverse to */
+                zp = Zone_GetNext(zp, &side, &ray);
+            }
         }
 
         IntensityBC( side, I_nu, tau_nu);

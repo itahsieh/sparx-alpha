@@ -332,7 +332,6 @@ int SpIO_OpenModel(const char *fname, const char *popsfname, SpModel *model, int
 int SpIO_FwriteModel(SpFile *sfp, SpModel model);
 int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int *read_pops);
 Molec *SpIO_FreadMolec(const char *molname);
-Molec *SpIO_FreadMolec_hyper(const char *molname);
 Kappa *SpIO_FreadKappa(const char *name);
 Kappa *SpIO_LoadKappa(const char *string);
 void SpIO_SetTaskName(const char *str);
