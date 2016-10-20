@@ -7,7 +7,7 @@ class error:
                 ModelType = phys.model.ModelType
                 if ModelType == 'Function':
                         self.calc_exact_mass(mesh,phys)
-                        print 'Analytical Mass : %f Msun' %self.exact_mass
+                        print 'Analytical Mass : %e Msun' %self.exact_mass
                         MassError = 100. * ( phys.mass - self.exact_mass ) / self.exact_mass
                         print 'Mass Error of the Gridding : %f %%' %MassError
                 else:
