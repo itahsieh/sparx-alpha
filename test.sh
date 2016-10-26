@@ -71,19 +71,19 @@ case $CASE in
 # preprocessing
   "SHU1D")
         \cp ../../preprocessor/presparx/Shu_sph1d/* ./
-        presparx -o model -e
+        presparx -o model -epv
         ;;
   "AGB1D")
         \cp ../../preprocessor/presparx/AGB_sph1d/* ./
-        presparx -o model -e
+        presparx -o model -epv
         ;;
   "DISK_SPH2D")
         \cp ../../preprocessor/presparx/Disk_sph2d/* ./
-        presparx -o model -v -p
+        presparx -o model -epv
         ;;
   "DISK_CYL2D")
         \cp ../../preprocessor/presparx/Disk_cyl2d/* ./
-        presparx -o model -v -p
+        presparx -o model -epv
         ;;
 
 # AMC solver

@@ -22,6 +22,7 @@ class plot:
                 elif GridType == 'CYL3D':
                         pass
                 
+                plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
                 filename='profile.png'
                 savefig(filename)
                 print filename,'generated'

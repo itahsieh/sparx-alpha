@@ -280,22 +280,7 @@ def main(pfile,direc,xaxis,yaxis,zaxis,cen_xx,cen_yy,cen_zz,density,Vxx,Vyy,Vzz,
  
 
 
-# Open a file in "w"rite mode
-if (writegrid):
-        fmb=open('multiblock.pvd', mode = "w")
-        print >>fmb,'<?xml version="1.0"?>'
-        print >>fmb,'<VTKFile type="Collection" version="0.1" byte_order="LittleEndian" compressor="vtkZLibDataCompressor">'
-        print >>fmb,'  <Collection>'
-filename = "model"
-h5file = openFile(filename, mode = "w", title = "Test file")
-h5file.delNodeAttr("/", "TITLE", name=None)
-h5file.delNodeAttr("/", "CLASS", name=None)
-h5file.delNodeAttr("/", "VERSION", name=None)
-h5file.delNodeAttr("/", "PYTABLES_FORMAT_VERSION", name=None)
-h5file.setNodeAttr("/", "molec", molec, name=None)
-h5file.setNodeAttr("/", "T_cmb", T_cmb, name=None)
-h5file.setNodeAttr("/", "gas_to_dust", gas_to_dust, name=None)
-h5file.setNodeAttr("/", "velfield", "grid ", name=None)	
+
 # Create Cartesian Grid
 naxe=[mi,mj,mk]
 dx=Lx/float(naxe[0]);dy=Ly/float(naxe[1]);dz=Lz/float(naxe[2])
@@ -348,10 +333,26 @@ for i in range(naxe[0]):
                                 Vy[i,j,k]=sin(tempTheta)*sin(tempPhi)*tempVr
                                 Vz[i,j,k]=cos(tempTheta)*tempVr 
 current_level=0
-(part,current_level)=main(h5file,root,x,y,z,cen_x,cen_y,cen_z,rho,Vx,Vy,Vz,naxe,nref,0,0,fmb,0,current_level)
+
+# Open a file in "w"rite mode
+filename = "model"
+h5file = openFile(filename, mode = "w", title = "Test file")
+h5file.delNodeAttr("/", "TITLE", name=None)
+h5file.delNodeAttr("/", "CLASS", name=None)
+h5file.delNodeAttr("/", "VERSION", name=None)
+h5file.delNodeAttr("/", "PYTABLES_FORMAT_VERSION", name=None)
+h5file.setNodeAttr("/", "molec", molec, name=None)
+h5file.setNodeAttr("/", "T_cmb", T_cmb, name=None)
+h5file.setNodeAttr("/", "gas_to_dust", gas_to_dust, name=None)
+h5file.setNodeAttr("/", "velfield", "grid ", name=None) 
+if (writegrid):
+        fmb=open('multiblock.pvd', mode = "w")
+        print >>fmb,'<?xml version="1.0"?>'
+        print >>fmb,'<VTKFile type="Collection" version="0.1" byte_order="LittleEndian" compressor="vtkZLibDataCompressor">'
+        print >>fmb,'  <Collection>'
+(part,current_level) = main(h5file,root,x,y,z,cen_x,cen_y,cen_z,rho,Vx,Vy,Vz,naxe,nref,0,0,fmb,0,current_level)
 # Close (and flush) the file
 h5file.close()
-
 if (writegrid):
         print >>fmb,'  </Collection>'
         print >>fmb,'</VTKFile>'
