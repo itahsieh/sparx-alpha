@@ -69,8 +69,10 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol)
 
 	/* Allocate tau for book keeping */
 	pp->tau = Mem_CALLOC(mol->nrad, pp->tau);
-	//pp->J_bar = Mem_CALLOC(mol->nrad, pp->J_bar);
-
+        #if STORE_JBAR
+	pp->J_bar = Mem_CALLOC(mol->nrad, pp->J_bar);
+        pp->J_ext = Mem_CALLOC(mol->nrad, pp->J_ext);
+        #endif
 	/* Allocate continuum emission/absorption */
 	double *freq = Mem_CALLOC(mol->nrad, freq);
 	for(size_t i = 0; i < mol->nrad; i++) {

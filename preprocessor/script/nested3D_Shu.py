@@ -109,108 +109,107 @@ def main(pfile,direc,xaxis,yaxis,zaxis,cen_xx,cen_yy,cen_zz,density,Vxx,Vyy,Vzz,
         Vy2=np.zeros(n2)
         Vz2=np.zeros(n2)	
 	for i in range(n1[0]):
-	        for j in range(n1[1]):
-	                for k in range(n1[2]):
-                                
-                                
-                                # generate subgrid
-                                dx2=(xaxis[i+1]-xaxis[i])/float(n2[0])
-				dy2=(yaxis[j+1]-yaxis[j])/float(n2[1])
-				dz2=(zaxis[k+1]-zaxis[k])/float(n2[2])
-				x2=np.zeros(n2[0]+1)
-                                y2=np.zeros(n2[1]+1)
-                                z2=np.zeros(n2[2]+1)
-				for tempi in range(n2[0]+1):
-				        x2[tempi]=xaxis[i]+float(tempi)*dx2
-			        for tempj in range(n2[1]+1):
-				        y2[tempj]=yaxis[j]+float(tempj)*dy2
-				for tempk in range(n2[2]+1):
-				        z2[tempk]=zaxis[k]+float(tempk)*dz2
-                                cen_x2=np.zeros(n2[0])
-                                cen_y2=np.zeros(n2[1])
-                                cen_z2=np.zeros(n2[2])
-                                for ii in range(n2[0]):
-                                        cen_x2[ii]=0.5*(x2[ii]+x2[ii+1])
-                                for jj in range(n2[1]):
-                                        cen_y2[jj]=0.5*(y2[jj]+y2[jj+1])
-                                for kk in range(n2[2]):
-                                        cen_z2[kk]=0.5*(z2[kk]+z2[kk+1])
-                                        
-				max_rho=0.0
-				for ii in range(n2[0]):
-	                                for jj in range(n2[1]):
-	                                        for kk in range(n2[2]):
-	                                                # interpolate
-	                                                tempR=sqrt(cen_x2[ii]*cen_x2[ii]+cen_y2[jj]*cen_y2[jj]+cen_z2[kk]*cen_z2[kk])
-                                                        if (cen_z2[kk]==0.):
-                                                                tempTheta=0.5*pi
-                                                        else:
-                                                              tempTheta=atan( sqrt(cen_x2[ii]*cen_x2[ii]+cen_y2[jj]*cen_y2[jj]) / cen_z2[kk] )
-                                                        if (tempTheta<0):
-                                                                tempTheta=tempTheta+pi
-                                                        if (cen_x2[ii]==0.):
-                                                                if(cen_y2[jj]>0):
-                                                                        tempPhi=0.5*pi
-                                                                else:
-                                                                        tempPhi=-0.5*pi
-                                                        else:
-                                                                tempPhi=atan(cen_y2[jj]/cen_x2[ii])
-                                                        if (cen_x2[ii]<0): 
-                                                                tempPhi=tempPhi+pi
-                                                        elif (tempPhi<0):
-                                                                tempPhi=tempPhi+2*pi
-                                                        rho2[ii,jj,kk]=n_max*(tempR/r0)**-1.5
-                                                        tempVr=-v_max * (tempR/r0)**-0.5
-                                                        Vx2[ii,jj,kk]=sin(tempTheta)*cos(tempPhi)*tempVr
-                                                        Vy2[ii,jj,kk]=sin(tempTheta)*sin(tempPhi)*tempVr
-                                                        Vz2[ii,jj,kk]=cos(tempTheta)*tempVr
-                                                        max_rho=max(max_rho,rho2[ii,jj,kk])
+            for j in range(n1[1]):
+                for k in range(n1[2]):
+                    # generate subgrid
+                    dx2=(xaxis[i+1]-xaxis[i])/float(n2[0])
+                    dy2=(yaxis[j+1]-yaxis[j])/float(n2[1])
+                    dz2=(zaxis[k+1]-zaxis[k])/float(n2[2])
+                    x2=np.zeros(n2[0]+1)
+                    y2=np.zeros(n2[1]+1)
+                    z2=np.zeros(n2[2]+1)
+                    for tempi in range(n2[0]+1):
+                            x2[tempi]=xaxis[i]+float(tempi)*dx2
+                    for tempj in range(n2[1]+1):
+                            y2[tempj]=yaxis[j]+float(tempj)*dy2
+                    for tempk in range(n2[2]+1):
+                            z2[tempk]=zaxis[k]+float(tempk)*dz2
+                    cen_x2=np.zeros(n2[0])
+                    cen_y2=np.zeros(n2[1])
+                    cen_z2=np.zeros(n2[2])
+                    for ii in range(n2[0]):
+                            cen_x2[ii]=0.5*(x2[ii]+x2[ii+1])
+                    for jj in range(n2[1]):
+                            cen_y2[jj]=0.5*(y2[jj]+y2[jj+1])
+                    for kk in range(n2[2]):
+                            cen_z2[kk]=0.5*(z2[kk]+z2[kk+1])
+                            
+                    max_rho=0.0
+                    for ii in range(n2[0]):
+                        for jj in range(n2[1]):
+                            for kk in range(n2[2]):
+                                    # interpolate
+                                    tempR = sqrt( cen_x2[ii]*cen_x2[ii] + cen_y2[jj]*cen_y2[jj] + cen_z2[kk]*cen_z2[kk] )
+                                    if ( cen_z2[kk] == 0. ):
+                                            tempTheta=0.5*pi
+                                    else:
+                                            tempTheta=atan( sqrt(cen_x2[ii]*cen_x2[ii]+cen_y2[jj]*cen_y2[jj]) / cen_z2[kk] )
+                                    if (tempTheta<0):
+                                            tempTheta=tempTheta+pi
+                                    if (cen_x2[ii]==0.):
+                                            if(cen_y2[jj]>0):
+                                                    tempPhi=0.5*pi
+                                            else:
+                                                    tempPhi=-0.5*pi
+                                    else:
+                                            tempPhi=atan(cen_y2[jj]/cen_x2[ii])
+                                    if (cen_x2[ii]<0): 
+                                            tempPhi=tempPhi+pi
+                                    elif (tempPhi<0):
+                                            tempPhi=tempPhi+2*pi
+                                    rho2[ii,jj,kk]=n_max*(tempR/r0)**-1.5
+                                    tempVr=-v_max * (tempR/r0)**-0.5
+                                    Vx2[ii,jj,kk]=sin(tempTheta)*cos(tempPhi)*tempVr
+                                    Vy2[ii,jj,kk]=sin(tempTheta)*sin(tempPhi)*tempVr
+                                    Vz2[ii,jj,kk]=cos(tempTheta)*tempVr
+                                    max_rho=max(max_rho,rho2[ii,jj,kk])
 
-		                # write a row of grid table
-		                particle['LEVEL']  = level
-        	                particle['POS'] = n1[1]*n1[2]*i+n1[2]*j+k
-        	                particle['geom'] = geom
-        	                particle['X_max'] =[ xaxis[i+1],yaxis[j+1],zaxis[k+1]]
-        	                particle['X_min'] =[ xaxis[i],yaxis[j],zaxis[k]]
-        	                particle['X_cen'] =[ cen_xx[i],cen_yy[j],cen_zz[k]]
-        	                if ( ((log(max_rho)/log(2)-level)>Critical_density or abs(tempR-R_out)<0.5*sqrt(3.)*(xaxis[i+1]-xaxis[i])) and level<Max_level ):
-			                particle['NCHILDREN'] =n2[0]*n2[1]*n2[2]
-			                particle['NAXES'] =n2
-				        gdir='grid'+'%(0)d'%{'0':n1[1]*n1[2]*i+n1[2]*j+k}
-			                group = pfile.createGroup(direc,gdir,gdir)
-			                if (direc=="/"):
-				                path=direc+gdir
-			                else:
-				                path=direc+"/"+gdir
-				        h5file.delNodeAttr(path, "TITLE", name=None)
-					h5file.delNodeAttr(path, "CLASS", name=None)
-					h5file.delNodeAttr(path, "VERSION", name=None)
-					h5file.setNodeAttr(path, "molec", molec, name=None)
-					h5file.setNodeAttr(path, "T_cmb", T_cmb, name=None)
-					h5file.setNodeAttr(path, "gas_to_dust", gas_to_dust, name=None)
-					h5file.setNodeAttr(path, "velfield", "grid ", name=None)
-					if (level+1>cl):
-					        cl=level+1
-			                        print cl
-			                (npart,cl)=main(pfile,path,x2,y2,z2,cen_x2,cen_y2,cen_z2,rho2,Vx2,Vy2,Vz2,n2,nref,level+1,particle['POS'],pf2,npart,cl)  
-		                else:
-			                if (tempR<=R_out):
-                                                # H2 number density (m^-3)
-			                        particle['n_H2'] = density[i,j,k]
-			                        # velocity at cell center (m/s)
-			                        particle['V_cen'] = [Vxx[i,j,k],Vyy[i,j,k],Vzz[i,j,k]]
-        		                        # magnetic field at cell center 
-        		                        # unit : Guass, used in Zeeman effect 
-        		                        # but the magnitude doesn't matter when calculating dust polarization
-        		                        particle['B_cen'] = [0.,0.,0.]
-        		                        # kinetic temperature (Kelvin)
-        		                        particle['T_k'] =T_k
-        		                        # fractional abundance (fraction related to H2 numebr)
-        		                        particle['X_mol'] =X_mol
-        		                        # turbulent speed (m/s)
-        		                        particle['V_t'] =V_t
-                                # Insert a new particle record
-        	                particle.append()
+                    # write a row of grid table
+                    particle['LEVEL']  = level
+                    particle['POS'] = n1[1]*n1[2]*i+n1[2]*j+k
+                    particle['geom'] = geom
+                    particle['X_max'] =[ xaxis[i+1],yaxis[j+1],zaxis[k+1]]
+                    particle['X_min'] =[ xaxis[i],yaxis[j],zaxis[k]]
+                    particle['X_cen'] =[ cen_xx[i],cen_yy[j],cen_zz[k]]
+                    if ( ((log(max_rho)/log(2)-level)>Critical_density or abs(tempR-R_out)<0.5*sqrt(3.)*(xaxis[i+1]-xaxis[i])) and level<Max_level ):
+                            particle['NCHILDREN'] =n2[0]*n2[1]*n2[2]
+                            particle['NAXES'] =n2
+                            gdir='grid'+'%(0)d'%{'0':n1[1]*n1[2]*i+n1[2]*j+k}
+                            group = pfile.createGroup(direc,gdir,gdir)
+                            if (direc=="/"):
+                                    path=direc+gdir
+                            else:
+                                    path=direc+"/"+gdir
+                            h5file.delNodeAttr(path, "TITLE", name=None)
+                            h5file.delNodeAttr(path, "CLASS", name=None)
+                            h5file.delNodeAttr(path, "VERSION", name=None)
+                            h5file.setNodeAttr(path, "molec", molec, name=None)
+                            h5file.setNodeAttr(path, "T_cmb", T_cmb, name=None)
+                            h5file.setNodeAttr(path, "gas_to_dust", gas_to_dust, name=None)
+                            h5file.setNodeAttr(path, "velfield", "grid ", name=None)
+                            if (level+1>cl):
+                                    cl=level+1
+                                    print cl
+                            (npart,cl)=main(pfile,path,x2,y2,z2,cen_x2,cen_y2,cen_z2,rho2,Vx2,Vy2,Vz2,n2,nref,level+1,particle['POS'],pf2,npart,cl)  
+                    else:
+                            if (tempR<=R_out):
+                                    # H2 number density (m^-3)
+                                    particle['n_H2'] = density[i,j,k]
+                                    # velocity at cell center (m/s)
+                                    particle['V_cen'] = [Vxx[i,j,k],Vyy[i,j,k],Vzz[i,j,k]]
+                                    # magnetic field at cell center 
+                                    # unit : Guass, used in Zeeman effect 
+                                    # but the magnitude doesn't matter when calculating dust polarization
+                                    particle['B_cen'] = [0.,0.,0.]
+                                    # kinetic temperature (Kelvin)
+                                    particle['T_k'] =T_k
+                                    # fractional abundance (fraction related to H2 numebr)
+                                    particle['X_mol'] =X_mol
+                                    # turbulent speed (m/s)
+                                    particle['V_t'] =V_t
+                    # Insert a new particle record
+                    particle.append()
+                    
 	table.flush()
 	del table.attrs.FIELD_0_FILL 
 	del table.attrs.FIELD_1_FILL

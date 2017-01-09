@@ -23,7 +23,7 @@ static struct glb {
 	gsl_rng *rng[Sp_NTHREAD];
         gsl_qrng *qrng[Sp_NTHREAD];
 	unsigned long seed;
-	double tolerance, minpop, snr, max_diff, overlap_vel, sor;
+	double tolerance, minpop, snr, max_diff, overlap_vel;
 	double  *I_norm, *I_cmb, *I_in;
         int stage, fully_random, lte, overlap, trace, popsold, qmc, ali, dat;
 
@@ -52,15 +52,48 @@ static void CalcRays_QRNG(
         double *vfac0,
         double *intensity, 
         double *tau);
-static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double *ds0,
-	double *vfac0, double *intensity, double *tau);
-static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
-	const double *vfac0, const double *intensity, const double *tau);
-static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vfac0,
-	const double *intensity, const double *tau, double *J_bar);
+static void RadiativeXfer(
+    size_t tid, 
+    Zone *zone, 
+    GeRay *ray, 
+    double vel, 
+    double *ds0,
+    double *vfac0, 
+    double *intensity, 
+    double *tau
+);
+static void CalcDetailedBalance_LU(
+    size_t tid, 
+    SpPhys *pp, 
+    const double *ds0,
+    const double *vfac0, 
+    const double *intensity, 
+    const double *tau
+);
+static void CalcDetailedBalance_QR(
+    size_t tid, 
+    SpPhys *pp, 
+    const double *ds0,
+    const double *vfac0, 
+    const double *intensity, 
+    const double *tau
+);
+static void CalcJbar(
+    size_t tid, 
+    SpPhys *pp, 
+    const double *ds0, 
+    const double *vfac0,
+    const double *intensity, 
+    const double *tau, 
+    double *J_bar
+);
 static double CalcDiff(const double *hist, size_t *max_diff_lev,size_t izone,size_t tid);
 static double CalcDiff2(const double *hist, size_t *max_diff_lev);
 static void Cleanup(void);
+static void Write_ASCII_pops(const char *FILENAME);
+static void Write_ASCII_source(const char *FILENAME);
+static void Write_ASCII_Jbar(const char *FILENAME);
+static void Write_ASCII_Jext(const char *FILENAME);
 
 /*----------------------------------------------------------------------------*/
 
@@ -124,8 +157,6 @@ int SpTask_Amc(void)
 	if(!sts) sts = SpPy_GetInput_dbl("snr", &glb.snr);
         glb.tolerance = 0.1/glb.snr;
 	if(!sts) sts = SpPy_GetInput_dbl("minpop", &glb.minpop);
-        if(!sts) sts = SpPy_GetInput_dbl("sor", &glb.sor);
-
         if(!sts) sts = SpPy_GetInput_dbl("overlap", &glb.overlap_vel);
         glb.overlap = (glb.overlap_vel == 0.0) ? 0 : 1;
         
@@ -226,7 +257,7 @@ static int InitModel(void)
                                         / glb.I_norm[i]; \
                                 Deb_ASSERT( (INTENSITY)[i] > 0.); /* Just in case */ \
                         } \
-        }
+                }
 	
 	/* Set I_cmb */
         INIT_BC( glb.I_cmb, glb.model.parms.T_cmb)
@@ -245,21 +276,17 @@ static int InitModel(void)
 
 	/* construct overlapping table */
 	if(glb.overlap){
-		glb.model.parms.mol->OL = Mem_CALLOC(NRAD*NRAD,glb.model.parms.mol->OL);
-		for(size_t i=0; i<NRAD; i++){
-			for(size_t j=0; j<NRAD; j++){
-				glb.model.parms.mol->OL[NRAD*i+j] = Mem_CALLOC(1,glb.model.parms.mol->OL[NRAD*i+j]);
-				RELVEL(i,j) = ( 1e0-FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
-				if( fabs(RELVEL(i,j)) <= glb.overlap_vel ){
-					OVERLAP(i,j)=1;
-				}
-				else{
-					OVERLAP(i,j)=0;
-				}
-// 				printf("%2d",OVERLAP(i,j));
-			}
-// 			printf("\n");
-		}
+	    glb.model.parms.mol->OL = Mem_CALLOC(NRAD*NRAD,glb.model.parms.mol->OL);
+	    for(size_t i=0; i<NRAD; i++){
+	    	for(size_t j=0; j<NRAD; j++){
+	    	    glb.model.parms.mol->OL[NRAD*i+j] = Mem_CALLOC(1,glb.model.parms.mol->OL[NRAD*i+j]);
+	    	    RELVEL(i,j) = ( 1e0-FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
+	    	    if( fabs(RELVEL(i,j)) <= glb.overlap_vel )
+	    	    	OVERLAP(i,j)=1;
+	    	    else
+	    	    	OVERLAP(i,j)=0;
+	    	}
+	    }
 	}
 
 	
@@ -373,9 +400,9 @@ static void *InitModelThread(void *tid_p)
 				SpPhys_InitCollRates(pp);
 
 				/* Set initial pops to either optically thin or LTE */
-				if (glb.popsold == 0){   // only if not using old pops (added by I-Ta 2012.10.26)
-					for(size_t j = 0; j < pp->mol->nlev; j++) {
-						for(size_t k = 0; k < Sp_NTHREAD; k++) {
+				if (!glb.popsold){   // only if not using old pops (added by I-Ta 2012.10.26)
+					for(size_t k = 0; k < Sp_NTHREAD; k++) {
+                                                for(size_t j = 0; j < pp->mol->nlev; j++) {
 							if(glb.lte) {
 								pp->pops[k][j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
 							}
@@ -422,7 +449,6 @@ static void *InitModelThread(void *tid_p)
 
 static int CalcExc(void)
 {
-	Zone *zone = glb.model.grid;
 	/* set the minimal converged cell number for the fully-random stage */
 	size_t ran_min_nconv = (size_t)(0.995*(double)glb.nzone+0.5);
 	
@@ -468,21 +494,17 @@ static int CalcExc(void)
 		glb.nconv = 0;
 		
 		/* Some pretty output for the user's convenience */
-		if(!glb.fully_random) {
-			Sp_PRINT("\n");
-                        if(glb.qmc)
-                                Sp_PRINT("Iterating for convergence with FIXED set of random rays, Quasi Random Ray\n");
-                        else
-                                Sp_PRINT("Iterating for convergence with FIXED set of random rays, seed=%lu\n", glb.seed);
-		}
-		else {
-			Sp_PRINT("\n");
-                        if(glb.qmc)
-                                Sp_PRINT("Iterating for convergence with FULLY RANDOM rays,  Quasi Random Ray\n");
-                        else
-                                Sp_PRINT("Iterating for convergence with FULLY RANDOM rays,  initial seed=%lu\n", glb.seed);
-		}
-
+                Sp_PRINT("\n");
+                Sp_PRINT("Iterating for convergence with ");
+                if(glb.qmc)
+                                                Sp_PRINT("FIXED Quasi Random rays\n");
+                else{
+                        if(!glb.fully_random)
+                                                Sp_PRINT("FIXED Pseudo Random rays, seed=%lu\n", glb.seed);
+                        else 
+                                                Sp_PRINT("FULLY Pseudo Random rays, initial seed=%lu\n", glb.seed);
+                }
+		
 		Sp_PRINT("%6s|%15s|%10s|%10s|%10s|%9s|%20s\n", "Iter.", "Converged/Total", "Prcntg.", "Max diff.", "Goal", "Elapsed", "Status");
 		Sp_PRINT("------|---------------|----------|----------|----------|---------|--------------------\n");
 		
@@ -490,7 +512,7 @@ static int CalcExc(void)
 		//for(iter = 0; !sts && (glb.nconv < glb.nzone ); iter++) {
 		for (size_t iter = 0; 
                      !sts && (glb.nconv < ( glb.fully_random ? ran_min_nconv : glb.nzone ) );
-                     iter++){
+                     iter++) {
 			/* Check for thread termination */
 			if(SpUtil_TermThread()) {
 				sts = 1;
@@ -498,9 +520,7 @@ static int CalcExc(void)
 			}
 
 			/* Reset global parameters */
-			glb.nconv = 0;
-			glb.max_diff = 0;
-			glb.nray_tot = 0;
+			glb.nconv = 0; glb.max_diff = 0; glb.nray_tot = 0;
 
 			/* Calculate excitation */
 			SpUtil_Threads2(Sp_NTHREAD, CalcExcThread);
@@ -508,6 +528,19 @@ static int CalcExc(void)
 			/* Sync pops from all processes and threads */
 			SyncProcs();
 
+/* try estimate delta-S_j */
+if (glb.ali && glb.dat && Sp_MPIRANK == 0 ){
+    char filename[32];
+    sprintf(filename, "%s_iter%0zu", glb.outf->name, iter);
+
+    Write_ASCII_pops(filename);
+    Write_ASCII_source(filename);
+    #if STORE_JBAR
+    Write_ASCII_Jbar(filename);
+    Write_ASCII_Jext(filename);
+    #endif
+}
+                        
 			/* Get time for this iteration */
                         time_t t_iter;
 			time(&t_iter);
@@ -596,6 +629,7 @@ static int CalcExc(void)
 #if 0
 			/* Write out convergent information for visualization */
 			if(glb.stage==1 && Sp_MPIRANK == 0){
+                                Zone *zone = glb.model.grid;
                                 char filename[13];
 				sprintf(filename,"SPARX%4.4zu.vtk",iter);
 				FILE *fp = fopen(filename,"w");
@@ -735,38 +769,12 @@ static int CalcExc(void)
 		fclose(fp);
 	}
 #endif
-        if(glb.dat){
-            if(Sp_MPIRANK == 0){
+        if( glb.dat && Sp_MPIRANK == 0 ){
                 char filename[32];
-                sprintf(filename,"%s.dat",glb.outf->name);
-                FILE *fp=fopen(filename,"w");
-                for(size_t izone = 0; izone < glb.nzone; izone++){
-                        Zone *zp = glb.zones[izone];
-                        SpPhys *pp = zp->data;
-                        double tempR;
-                        switch (zp->voxel.geom){
-                                case GEOM_REC3D:{
-                                        double x = zp->voxel.cen.x[0]-zone->voxel.cen.x[0];
-                                        double y = zp->voxel.cen.x[1]-zone->voxel.cen.x[1];
-                                        double z = zp->voxel.cen.x[2]-zone->voxel.cen.x[2];
-                                        tempR = sqrt( x*x + y*y+ z*z );
-                                }
-                                        break;
-                                case GEOM_SPH1D:
-                                        tempR = zp->voxel.cen.x[0];
-                                        break;
-                                default:
-                                        Deb_ASSERT(0);
-                        
-                        }
-                        fprintf(fp,"%11.4e ", tempR);
-                        for (size_t j = 0; j < pp->mol->nlev; j++ )
-                                fprintf(fp,"%11.4e ", pp->pops[0][j]);
-                        fprintf(fp,"\n");
-                }
-                fclose(fp);
-            }
+                sprintf(filename, "%s.dat", glb.outf->name);
+                Write_ASCII_pops(filename);
         }
+        
 	/* Check for Python exceptions */
 	if(!sts && PyErr_Occurred()) {
 		sts = 1;
@@ -791,7 +799,7 @@ static void *CalcExcThread(void *tid_p)
         float Tdb_thread = 0.0;
         float Tall_thread = 0.0;
         #endif
-        
+
 	for(size_t izone = 0; izone < glb.nzone; izone++) {
 		/* Skip zones that don't belong to this rank/thread */
 		if((glb.zone_tid[izone] != tid) || (glb.zone_rank[izone] != Sp_MPIRANK))
@@ -804,16 +812,15 @@ static void *CalcExcThread(void *tid_p)
 		Zone *zp = glb.zones[izone];
 		SpPhys *pp = zp->data;
 		
-		// restore
-		for(size_t i = 0; i < NLEV; i++) {
+		// restore the populations to compare with the updated result
+		for(size_t i = 0; i < NLEV; i++) 
                         popsold[i]=pp->pops[tid][i];
-		}
 
 		/* Buffers for calculating excitation */
-		double *ds0 = Mem_CALLOC(pp->nray, ds0);
+		double *ds0 =   Mem_CALLOC(pp->nray, ds0);
 		double *vfac0 = Mem_CALLOC(pp->nray, vfac0);
 		double *intensity = Mem_CALLOC(pp->nray * NRAD, intensity);
-		double *tau = Mem_CALLOC(pp->nray * NRAD, tau);
+		double *tau =   Mem_CALLOC(pp->nray * NRAD, tau);
                 
                 if(!glb.fully_random){
                         if(glb.qmc){
@@ -824,7 +831,7 @@ static void *CalcExcThread(void *tid_p)
                                 gsl_qrng_get(glb.qrng[tid], QRN);
                         }
                         else{
-                        // reset random seed while in the fixed-ray stage
+                                // reset random seed while in the fixed-ray stage
                                 gsl_rng_set(glb.rng[tid], glb.seed);
                         }
                 }
@@ -845,16 +852,17 @@ static void *CalcExcThread(void *tid_p)
                         float Tmc = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
                         #endif
 
-                        CalcDetailedBalance(tid, pp, ds0, vfac0, intensity, tau);
+                        CalcDetailedBalance_LU(tid, pp, ds0, vfac0, intensity, tau);
 
                         #if  TIMER
                         float Tall = (float)(clock() - start) / (float)CLOCKS_PER_SEC;
                         float Tdb =  Tall - Tmc;
-                        
                         Tmc_thread += Tmc;
                         Tdb_thread += Tdb;
                         Tall_thread += Tall;
                         #endif
+
+                        
                         
 			if(glb.stage == STAGE_RAN){
 				for(size_t i = 0; i < NLEV; i++) {
@@ -871,24 +879,21 @@ static void *CalcExcThread(void *tid_p)
                 double diff;
 		if (glb.stage == STAGE_RAN){  
 			// Stage 2, calculate difference by inner loop: Monte Carlo noise
-			diff = CalcDiff(hist, NULL,izone,tid);
-			pp->diff=diff;
+			diff = CalcDiff(hist, NULL, izone, tid);
+			pp->diff = diff;
 		}
 		else{
 			// Stage 1, calculate difference by outer loop: iterative noise
 			diff = 0.0;
 			for(size_t i = 0; i < NLEV; i++) {
-			     	if(pp->pops[tid][i]>glb.minpop){
-					double temp = fabs( pp->pops[tid][i] - popsold[i] ) / pp->pops[tid][i];
-					diff = ( diff>temp? diff:temp );
+			     	if( pp->pops[tid][i] > glb.minpop ) {
+					double temp_diff = fabs( pp->pops[tid][i] - popsold[i] ) / pp->pops[tid][i];
+					diff = ( diff > temp_diff ? diff : temp_diff );
 				}
 			} 
 		}
 		/* ================ */
-		
-		
-		
-		
+
 		/* Lock mutex for global parameters */
 		pthread_mutex_lock(&glb.exc_mutex);
 
@@ -908,21 +913,6 @@ static void *CalcExcThread(void *tid_p)
 			if( diff < TOLERANCE )
 				glb.nconv += 1;
 		}
-		
-		
-		/* The old critiria
-		if(diff <= (glb.fully_random ? MCNOISE : TOLERANCE)) {
-			glb.nconv += 1;
-		}
-		else if(!glb.fully_random) {
-			//debug
-			//pp->nray += (size_t)(0.01 * glb.nray);
-		}
-		else {
-			pp->nray *= 4;
-		}
-		*/
-		
 
 		/* Make sure nray does not exceed upper limit */
 		if(pp->nray > MAXRAYS) {
@@ -940,11 +930,11 @@ static void *CalcExcThread(void *tid_p)
 		free(intensity);
 		free(tau);
 	}
-#if TIMER	
 
+	#if TIMER	
         printf("Tid = %zu , Detailed Balance : %f ms \n", tid, 100.*Tdb_thread/Tall_thread);
-#endif
-#undef TIMER	
+        #endif
+        #undef TIMER	
 
 	free(hist);
 	free(popsold);
@@ -1021,8 +1011,10 @@ static void SyncPops(size_t izone)
 				MPI_Send(pp->pops[0], (int)NLEV, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
 				MPI_Send(pp->tau, (int)NRAD, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
 				MPI_Send(&pp->ds, 1, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
-				
-				//MPI_Send(pp->J_bar, (int)NRAD, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
+#if STORE_JBAR
+				MPI_Send(pp->J_bar, (int)NRAD, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
+                                MPI_Send(pp->J_ext, (int)NRAD, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
+#endif
 				MPI_Send(&pp->nray, sizeof(size_t), MPI_CHAR, 0, Sp_MPITAG, MPI_COMM_WORLD);
 				//MPI_Send(&pp->diff, 1, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
 			}
@@ -1033,8 +1025,10 @@ static void SyncPops(size_t izone)
 				MPI_Recv(pp->pops[0], (int)NLEV, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
 				MPI_Recv(pp->tau, (int)NRAD, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
 				MPI_Recv(&pp->ds, 1, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
-				
-				//MPI_Recv(pp->J_bar, (int)NRAD, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
+#if STORE_JBAR
+				MPI_Recv(pp->J_bar, (int)NRAD, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
+                                MPI_Recv(pp->J_ext, (int)NRAD, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
+#endif
 				MPI_Recv(&pp->nray, sizeof(size_t), MPI_CHAR, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
 				//MPI_Recv(&pp->diff, 1, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
 			}
@@ -1043,9 +1037,11 @@ static void SyncPops(size_t izone)
 		/* Sync all processes with master */
 		MPI_Bcast(pp->pops[0], (int)NLEV, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		MPI_Bcast(pp->tau, (int)NRAD, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		
-		//MPI_Bcast(pp->J_bar, (int)NRAD, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(&pp->nray, sizeof(size_t), MPI_CHAR, 0, MPI_COMM_WORLD);
+#if STORE_JBAR
+		MPI_Bcast(pp->J_bar, (int)NRAD, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                MPI_Bcast(pp->J_ext, (int)NRAD, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+#endif
+                MPI_Bcast(&pp->nray, sizeof(size_t), MPI_CHAR, 0, MPI_COMM_WORLD);
 		//MPI_Bcast(&pp->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
 	#endif
@@ -1219,30 +1215,31 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
 			for(size_t i = 0; i < NRAD; i++) {
 				double j_nu = 0.;
                                 double k_nu = 0.;
+                                
                                 if(pp->has_tracer) {
-				 if(glb.overlap){
-				  for(size_t j = 0; j < NRAD; j++) {
-				   if(OVERLAP(i,j)==1){
-                                        double tempj_nu, tempk_nu;
-					if(i==j){
-                                                /* Calculate molecular line emission and absorption coefficients */
-                                                SpPhys_GetMoljk(tid, pp, j, vfac, &tempj_nu, &tempk_nu);
-                                        }
-					else{
-						/* Calculate velocity line profile factor */
-						double vfac2 = pp->has_tracer ? SpPhys_GetVfac(ray, t, vel-RELVEL(i,j), zp, 0) : 0.0;
-						/* Calculate molecular line emission and absorption coefficients */
-						SpPhys_GetMoljk(tid, pp, j, vfac2, &tempj_nu, &tempk_nu);
-					}
-					j_nu += tempj_nu;
-					k_nu += tempk_nu;
-				   }
-				  }
-				 }
-                                 else{
+				    if(glb.overlap){
+				        for(size_t j = 0; j < NRAD; j++) {
+				            if(OVERLAP(i,j)==1){
+                                                double tempj_nu, tempk_nu;
+					        if(i==j){
+                                                        /* Calculate molecular line emission and absorption coefficients */
+                                                        SpPhys_GetMoljk(tid, pp, j, vfac, &tempj_nu, &tempk_nu);
+                                                }
+					        else{
+					        	/* Calculate velocity line profile factor */
+					        	double vfac2 = pp->has_tracer ? SpPhys_GetVfac(ray, t, vel - RELVEL(i,j), zp, 0) : 0.0;
+					        	/* Calculate molecular line emission and absorption coefficients */
+					        	SpPhys_GetMoljk(tid, pp, j, vfac2, &tempj_nu, &tempk_nu);
+					        }
+					        j_nu += tempj_nu;
+					        k_nu += tempk_nu;
+				            }
+				        }
+				    }
+                                    else{
                                         /* Calculate molecular line emission and absorption coefficients */
-					SpPhys_GetMoljk(tid, pp, i, vfac, &j_nu, &k_nu);
-				 }
+                                        SpPhys_GetMoljk(tid, pp, i, vfac, &j_nu, &k_nu);
+				    }
 				}
 				else {
 					j_nu = k_nu = 0.;
@@ -1337,15 +1334,26 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
 
 /*----------------------------------------------------------------------------*/
 
-static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vfac0,
-	const double *intensity, const double *tau, double *J_bar)
+static void CalcJbar(
+    size_t tid, 
+    SpPhys *pp, 
+    const double *ds0, 
+    const double *vfac0,
+    const double *intensity, 
+    const double *tau, 
+    double *J_bar
+)
 /* Calculate J_bar, the mean radiation field intensity, by averaging the
  * radiation field over direction and velocity */
 {
 	/* Reset Jbar (very important!) */
-	//Mem_BZERO2(pp->J_bar, NRAD);
-	Mem_BZERO2(J_bar, NRAD);
-
+        #if STORE_JBAR
+	Mem_BZERO2(pp->J_bar, NRAD);
+        Mem_BZERO2(pp->J_ext, NRAD);
+        #else
+        Mem_BZERO2(J_bar, NRAD);
+        #endif
+        
 	/* Reset tau */
 	Mem_BZERO2(pp->tau, NRAD);
 
@@ -1373,9 +1381,13 @@ static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vf
 				/* Accumulate intensities weighted over vfac in J_bar: the average
 				 * over velocity is extremely important -- failure to do so would
 				 * result in a dependence of the excitation on size of grid! */
-				//pp->J_bar[j] += vfac0[i] * (INTENSITY(i, j) * exp(-dtau_nu) + S_nu * (1.0 - exp(-dtau_nu)));
-				J_bar[j] += vfac0[i] * (INTENSITY(i, j) * exp(-dtau_nu) + S_nu * (1.0 - exp(-dtau_nu)));
-				
+                                #if STORE_JBAR
+                                double J_ext = INTENSITY(i, j) * exp(-dtau_nu);
+				pp->J_bar[j] += vfac0[i] * ( J_ext + S_nu * (1.0 - exp(-dtau_nu)) );
+                                pp->J_ext[j] += vfac0[i] * J_ext;
+				#else
+                                J_bar[j] += vfac0[i] * (INTENSITY(i, j) * exp(-dtau_nu) + S_nu * (1.0 - exp(-dtau_nu)));
+				#endif
 				/* Store total tau in zone for bookkeeping */
 				pp->tau[j] += vfac0[i] * (TAU(i, j) + dtau_nu);
 			}
@@ -1390,9 +1402,13 @@ static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vf
 	if(vfac0_sum > 0) {
 		for(size_t i = 0; i < NRAD; i++) {
 			/* Denormalized and average J_bar */
-			//pp->J_bar[i] = pp->J_bar[i] * glb.I_norm[i] / vfac0_sum;
+                        #if STORE_JBAR
+			pp->J_bar[i] = pp->J_bar[i] * glb.I_norm[i] / vfac0_sum;
+                        pp->J_ext[i] = pp->J_ext[i] * glb.I_norm[i] / vfac0_sum;
+			J_bar[i] = pp->J_bar[i];
+                        #else
 			J_bar[i] = J_bar[i] * glb.I_norm[i] / vfac0_sum;
-
+                        #endif
 			/* Calculate averaged tau for this zone */
 			pp->tau[i] /= vfac0_sum;
 		}
@@ -1400,103 +1416,66 @@ static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vf
 
 	return;
 }
-
 /*----------------------------------------------------------------------------*/
+#define RMAT(i, j)\
+        rmat[(j) + NLEV * (i)]
 
-static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
-	const double *vfac0, const double *intensity, const double *tau)
+#define CMAT(i, j)\
+        (pp->cmat[(j) + NLEV * (i)])
+        
+static void CalcDetailedBalance_LU(
+    size_t tid, 
+    SpPhys *pp, 
+    const double *ds0,
+    const double *vfac0, 
+    const double *intensity, 
+    const double *tau
+)
 /* Calculate and invert detailed balance equations to solve for level
  * populations, and save results in pp */
 {
-	size_t  max_diff_lev = 0;
-	double diff = 0;
-	const double MAXDIFF = glb.minpop;
-        //const double MAXDIFF = TOLERANCE * 0.1;
+        size_t  max_diff_lev = 0;
+        double diff = 0;
+        const double MAXDIFF = glb.minpop;
 
-	/* Allocate J_bar array (no need now) */
-	double *J_bar = Mem_CALLOC(NRAD, J_bar);
+        /* Allocate J_bar array (no need now) */
+        double *J_bar = Mem_CALLOC(NRAD, J_bar);
         
-#define QR_DECOMPOSE 0
-#define LU_DECOMPOSE 1
-        
-#if QR_DECOMPOSE
-	/* Allocate rates matrix: (NLEV + 1) x NLEV,
-	 * where the additional row is for the constraint
-	 * that all levels must sum to unity */
-        double *rmat = Mem_CALLOC((NLEV + 1) * NLEV, rmat);
-        /* RHS of rate equation */
-        double *rhs = Mem_CALLOC(NLEV + 1, rhs);
-        rhs[NLEV] = 1.0;
-        
-#elif LU_DECOMPOSE
         double *rmat = Mem_CALLOC(NLEV * NLEV, rmat);
         /* RHS of rate equation */
         double *rhs = Mem_CALLOC(NLEV, rhs);
         rhs[NLEV-1] = 1.0;
-        
-#else
-        Deb_ASSERT(0);
-                
-#endif
 
-	/* Allocate hist array */
-	double *hist = Mem_CALLOC(NHIST * NLEV, hist);
+        /* Allocate hist array */
+        double *hist = Mem_CALLOC(NHIST * NLEV, hist);
 
-	for(size_t iter = 0; iter < glb.maxi; iter++) {
-		for(size_t ihist = 0; ihist < NHIST; ihist++) {
-			/* Calculate J_bar, the mean radiation field intensity */
-			CalcJbar(tid, pp, ds0, vfac0, intensity, tau, J_bar);
+        for(size_t iter = 0; iter < glb.maxi; iter++) {
+                for(size_t ihist = 0; ihist < NHIST; ihist++) {
+                        /* Calculate J_bar, the mean radiation field intensity */
+                        CalcJbar(tid, pp, ds0, vfac0, intensity, tau, J_bar);
 
-			/* Reset rates matrix */
-#if QR_DECOMPOSE
-			Mem_BZERO2(rmat, (NLEV + 1) * NLEV);
-#elif LU_DECOMPOSE
+                        /* Reset rates matrix */
                         Mem_BZERO2(rmat, NLEV * NLEV);
-#else
-                        Deb_ASSERT(0);
-#endif
-
-                        #define RMAT(i, j)\
-                                rmat[(j) + NLEV * (i)]
-                        #define CMAT(i, j)\
-                                (pp->cmat[(j) + NLEV * (i)])
                         
-			/* Add radiative terms to rates matrix */
-			for(size_t i = 0; i < NRAD; i++) {
-				size_t up = RAD(i)->up;
-				size_t lo = RAD(i)->lo;
+                        /* Add radiative terms to rates matrix */
+                        for(size_t i = 0; i < NRAD; i++) {
+                                size_t up = RAD(i)->up;
+                                size_t lo = RAD(i)->lo;
 
-				/* Diagonal terms are transitions `out of' row state */
-				RMAT(up, up) -= (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
-				RMAT(lo, lo) -= (J_bar[i] * RAD(i)->B_lu);
+                                /* Diagonal terms are transitions `out of' row state */
+                                RMAT(up, up) -= (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
+                                RMAT(lo, lo) -= (J_bar[i] * RAD(i)->B_lu);
 
-				/* Off-diagonal terms are transitions `into' row state */
-				RMAT(up, lo) += (J_bar[i] * RAD(i)->B_lu);
-				RMAT(lo, up) += (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
-			}
-
-#if QR_DECOMPOSE
-			/* Add collisional terms to rates matrix */
-			for(size_t i = 0; i < NLEV; i++) {
-				for(size_t j = 0; j < NLEV; j++) {
-					RMAT(i, j) += CMAT(i, j);
-				}
-				/* Last row is the constraint that all level densities
-				 * must sum to unity */
-				RMAT(NLEV, i) = 1.0;
-			}
-			
-			/* Invert matrix with QR decomposition and solve for
-			 * level populations */
-			Num_QRDecompSolve(rmat, NLEV + 1, NLEV, rhs, pp->pops[tid]);
-			
-#elif LU_DECOMPOSE
-                        /* Add collisional terms to rates matrix */
-                        for(size_t i = 0; i < NLEV-1; i++) {
-                                for(size_t j = 0; j < NLEV; j++) {
-                                        RMAT(i, j) += CMAT(i, j);
-                                }
+                                /* Off-diagonal terms are transitions `into' row state */
+                                RMAT(up, lo) += (J_bar[i] * RAD(i)->B_lu);
+                                RMAT(lo, up) += (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
                         }
+
+                        /* Add collisional terms to rates matrix */
+                        for(size_t i = 0; i < NLEV-1; i++) 
+                                for(size_t j = 0; j < NLEV; j++) 
+                                        RMAT(i, j) += CMAT(i, j);
+
                         /* Last row is the constraint that all level densities
                          * must sum to unity */
                         for(size_t j = 0; j < NLEV; j++) 
@@ -1512,14 +1491,109 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
                          * level populations */
                         Num_LUDecompSolve(rmat, NLEV, rhs, pp->pops[tid]);
                         
-#else
-                        Deb_ASSERT(0);
-                        
-#endif
+                        for(size_t i = 0; i < NLEV; i++) {
+                                /* Zero out negative/uncertain pops */
+                                if(pp->pops[tid][i] < 0)
+                                        pp->pops[tid][i] = 0.0;
+                                
+                                /* restore the history of iteration */
+                                HIST(ihist, i) = pp->pops[tid][i];
+                        }
+                }
+                /* Calculate relative difference */
+                //diff = CalcDiff(hist, &max_diff_lev);
+                diff = CalcDiff2(hist, &max_diff_lev);
 
-                        #undef RMAT
-                        #undef CMAT
+                /* Stop iterating if diff is less than MAXDIFF */
+                if(diff <= MAXDIFF)
+                        break;
+        }
+        
+        /* Warn for non-convergence */
+        if(diff > MAXDIFF) {
+                Sp_PWARN("non-convergence detected at level %lu in zone <%lu,%lu,%lu> (diff=%.3e MAXDIFF=%.3e %.3e %.3e )\n",
+                        max_diff_lev,
+                        GeVec3_X(pp->zp->index, 0),
+                        GeVec3_X(pp->zp->index, 1),
+                        GeVec3_X(pp->zp->index, 2),
+                        diff,MAXDIFF,TOLERANCE,glb.tolerance);
+        }
+
+        /* Cleanup */
+        free(J_bar);
+        free(rmat);
+        free(rhs);
+        free(hist);
+
+        return;
+}
+/*----------------------------------------------------------------------------*/
+
+static void CalcDetailedBalance_QR(
+    size_t tid, 
+    SpPhys *pp, 
+    const double *ds0,
+    const double *vfac0, 
+    const double *intensity, 
+    const double *tau
+)
+/* Calculate and invert detailed balance equations to solve for level
+ * populations, and save results in pp */
+{
+	size_t  max_diff_lev = 0;
+	double diff = 0;
+	const double MAXDIFF = glb.minpop;
+
+	/* Allocate J_bar array (no need now) */
+	double *J_bar = Mem_CALLOC(NRAD, J_bar);
+
+	/* Allocate rates matrix: (NLEV + 1) x NLEV,
+	 * where the additional row is for the constraint
+	 * that all levels must sum to unity */
+        double *rmat = Mem_CALLOC((NLEV + 1) * NLEV, rmat);
+        /* RHS of rate equation */
+        double *rhs = Mem_CALLOC(NLEV + 1, rhs);
+        rhs[NLEV] = 1.0;
+
+	/* Allocate hist array */
+	double *hist = Mem_CALLOC(NHIST * NLEV, hist);
+
+	for(size_t iter = 0; iter < glb.maxi; iter++) {
+		for(size_t ihist = 0; ihist < NHIST; ihist++) {
+			/* Calculate J_bar, the mean radiation field intensity */
+			CalcJbar(tid, pp, ds0, vfac0, intensity, tau, J_bar);
+
+			/* Reset rates matrix */
+			Mem_BZERO2(rmat, (NLEV + 1) * NLEV);
                         
+			/* Add radiative terms to rates matrix */
+			for(size_t i = 0; i < NRAD; i++) {
+				size_t up = RAD(i)->up;
+				size_t lo = RAD(i)->lo;
+
+				/* Diagonal terms are transitions `out of' row state */
+				RMAT(up, up) -= (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
+				RMAT(lo, lo) -= (J_bar[i] * RAD(i)->B_lu);
+
+				/* Off-diagonal terms are transitions `into' row state */
+				RMAT(up, lo) += (J_bar[i] * RAD(i)->B_lu);
+				RMAT(lo, up) += (RAD(i)->A_ul + J_bar[i] * RAD(i)->B_ul);
+			}
+
+			/* Add collisional terms to rates matrix */
+			for(size_t i = 0; i < NLEV; i++) {
+				for(size_t j = 0; j < NLEV; j++) 
+					RMAT(i, j) += CMAT(i, j);
+				
+				/* Last row is the constraint that all level densities
+				 * must sum to unity */
+				RMAT(NLEV, i) = 1.0;
+			}
+			
+			/* Invert matrix with QR decomposition and solve for
+			 * level populations */
+			Num_QRDecompSolve(rmat, NLEV + 1, NLEV, rhs, pp->pops[tid]);
+
 			for(size_t i = 0; i < NLEV; i++) {
                                 /* Zero out negative/uncertain pops */
                                 if(pp->pops[tid][i] < 0)
@@ -1538,10 +1612,6 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 			break;
 	}
 
-#undef QR_DECOMPOSE
-#undef LU_DECOMPOSE
-	
-	
 	/* Warn for non-convergence */
 	if(diff > MAXDIFF) {
 		Sp_PWARN("non-convergence detected at level %lu in zone <%lu,%lu,%lu> (diff=%.3e MAXDIFF=%.3e %.3e %.3e )\n",
@@ -1561,6 +1631,8 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
 	return;
 }
 
+#undef RMAT
+#undef CMAT
 /*----------------------------------------------------------------------------*/
 
 static double CalcDiff(const double *hist, size_t *max_diff_lev,size_t izone,size_t tid)
@@ -1582,7 +1654,7 @@ static double CalcDiff(const double *hist, size_t *max_diff_lev,size_t izone,siz
 		
 		/* ============= */
 		/* added by I-Ta */
-		pp->pops[tid][i]=mean;
+		pp->pops[tid][i] = mean;
 		/* ============= */
 
 		/* Calculate relative difference from mean if
@@ -1650,7 +1722,96 @@ static double CalcDiff2(const double *hist, size_t *max_diff_lev)
 	return max_diff;
 }
 
+/*----------------------------------------------------------------------------*/
 
+static void Write_ASCII_pops(const char *FILENAME)
+{
+        Zone *zone = glb.model.grid;
+        
+        char filename[32];
+        sprintf( filename, "%s_pops.dat", FILENAME);
+        FILE *fp=fopen( filename, "w");
+        
+        for(size_t izone = 0; izone < glb.nzone; izone++){
+                Zone *zp = glb.zones[izone];
+                SpPhys *pp = zp->data;
+                double R;
+                switch (zp->voxel.geom){
+                        case GEOM_REC3D:{
+                                double x = zp->voxel.cen.x[0] - zone->voxel.cen.x[0];
+                                double y = zp->voxel.cen.x[1] - zone->voxel.cen.x[1];
+                                double z = zp->voxel.cen.x[2] - zone->voxel.cen.x[2];
+                                R = sqrt( x*x + y*y+ z*z );
+                        }
+                                break;
+                        case GEOM_SPH1D:
+                                R = zp->voxel.cen.x[0];
+                                break;
+                        default:
+                                Deb_ASSERT(0);
+                }
+                //fprintf(fp,"%11.4e ", R);
+                fprintf(fp,"%zu ", izone);
+                for (size_t j = 0; j < pp->mol->nlev; j++ )
+                        fprintf(fp,"%13.6e ", pp->pops[0][j]);
+                fprintf(fp,"\n");
+        }
+        fclose(fp);
+}
 
+/*----------------------------------------------------------------------------*/
+static void Write_ASCII_source(const char *FILENAME)
+{
+        char filename[32];
+        sprintf( filename, "%s_source.dat", FILENAME);
+        FILE *fp=fopen( filename, "w");
+        for(size_t izone = 0; izone < glb.nzone; izone++) {
+                fprintf(fp,"%3zu ", izone);
+                /* Zone related pointers */
+                SpPhys *pp = glb.zones[izone]->data;
+                for(size_t i = 0; i < NRAD; i++){
+                        double j, k;
+                        SpPhys_GetMoljk(0, pp, i, 1.0, &j, &k);
+                        double S = fabs(k) > 0.0 ? j / k : 0.0;
+                        fprintf(fp,"%13.6e ", S);
+                }
+                fprintf(fp,"\n");
+        }
+        fclose(fp);
+}
+/*----------------------------------------------------------------------------*/
+static void Write_ASCII_Jbar(const char *FILENAME)
+{
+        char filename[32];
+        sprintf( filename, "%s_Jbar.dat", FILENAME);
+        FILE *fp=fopen(filename,"w");
+        for(size_t izone = 0; izone < glb.nzone; izone++) {
+                fprintf(fp,"%3zu ", izone);
+                /* Zone related pointers */
+                SpPhys *pp = glb.zones[izone]->data;
+                for(size_t i = 0; i < NRAD; i++){
+                        fprintf(fp,"%13.6e ",pp->J_bar[i]);
+                }
+                fprintf(fp,"\n");
+        }
+        fclose(fp);
+}
+/*----------------------------------------------------------------------------*/
+static void Write_ASCII_Jext(const char *FILENAME)
+{
+        char filename[32];
+        sprintf( filename, "%s_Jext.dat", FILENAME);
+        FILE *fp=fopen(filename,"w");
+        for(size_t izone = 0; izone < glb.nzone; izone++) {
+                fprintf(fp,"%3zu ", izone);
+                /* Zone related pointers */
+                SpPhys *pp = glb.zones[izone]->data;
+                for(size_t i = 0; i < NRAD; i++){
+                        fprintf(fp,"%13.6e ",pp->J_ext[i]);
+                }
+                fprintf(fp,"\n");
+        }
+        fclose(fp);
+}
 
 

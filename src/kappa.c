@@ -152,7 +152,7 @@ static double Kap_FromFreq_table(const Kappa *kap, double freq)
         Deb_ASSERT( min_loglam < max_loglam);
         if (loglam > max_loglam ){
                 if (!over_max){
-                        printf("Wavelength exceeds the table of kappa, lambda adopts the upper limit.\n");
+                        printf("Warning : Wavelength exceeds the table of kappa, lambda adopts the upper limit.\n");
                         //printf("log(lambda) = %f, max log(lambda) = %f\n", loglam, max_loglam);
                 }
                 over_max = 1;
@@ -160,7 +160,7 @@ static double Kap_FromFreq_table(const Kappa *kap, double freq)
         }
         else if(loglam < min_loglam){
                 if (!under_min){
-                        printf("Wavelength falls short of the table, lambda adopts the lower limit.\n");
+                        printf("Warning : Wavelength falls short of the table, lambda adopts the lower limit.\n");
                         //printf("log(lambda) = %f, min log(lambda) = %f\n", loglam, min_loglam);
                 }
                 under_min = 1;

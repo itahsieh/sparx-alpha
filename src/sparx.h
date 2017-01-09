@@ -183,8 +183,11 @@ typedef struct SpPhys {
 		*pops[Sp_NTHREAD], /* Fractional density of each level */
 		
 		//*popsold, /* old level population */
-		//*J_bar, /* mean intensity */
-		
+#define STORE_JBAR 1
+#if STORE_JBAR
+		*J_bar, /* mean intensity */
+                *J_ext, /* external intensity */
+#endif
 		*cmat, /* nlev x nlev matrix of collisional rates */
 		*tau, /* nrad array of average tau */
 		ds, /* Path length averaged over all directions */

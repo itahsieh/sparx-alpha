@@ -9,12 +9,11 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 
-# CHECK if LOAD_MODULE_FILE exits
+# REPLACE LOAD_MODULE_FILE 
 LOAD_MODULE_FILE=~/.load_sparx_module
-if [ ! -e $LOAD_MODULE_FILE ];then
-  cp load_tiara_module.sh $LOAD_MODULE_FILE
-  printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
-fi
+\cp load_tiara_module.sh $LOAD_MODULE_FILE
+printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
+
 
 # LOAD MODULE AND DEFINE SPARXVERSION
 source $LOAD_MODULE_FILE
@@ -45,9 +44,10 @@ python setup.py install \
 --with-lib=$OPENMPI_HOME/lib \
 --with-lib=$CFITSIO_HOME/lib \
 --with-lib=$MIR/lib/linux \
-&& printf "${LIGHTCYAN}BUILDING IS DONE!${NC}\n"
+&& printf "${LIGHTCYAN}INSTALLATION IS DONE!${NC}\n"
 
 if [ $? -eq 1 ]; then
+  printf "${LIGHTCYAN}BUILDING IS STOPPED${NC}\n"
   exit $?
 fi
 
@@ -78,8 +78,8 @@ for FILE in `ls lib/sparx | grep .py`;do
   sed -e "s/import sparx/import $SPARX_VERSION/" \
       -e "s/from sparx/from $SPARX_VERSION/" \
           lib/sparx/$FILE > $SPARX_PYTHONPATH/$SPARX_VERSION/$FILE
-  printf "${LIGHTBLUE}CREATE $SPARX_VERSION/$FILE${NC}\n"
 done
+printf "${LIGHTBLUE}CREATE $SPARX_VERSION/*.py${NC}\n"
 
 
 

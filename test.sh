@@ -14,7 +14,6 @@ LIGHTCYAN='\033[1;36m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-
 cd unit_tests
 # create "tmp" directory only if it doesn't exist. then enter it
 mkdir -p tmp; cd tmp
@@ -129,7 +128,6 @@ case $CASE in
         ;;
  
 
-        
 # Algorithm testing
   "QMC")
         source ../algorithm/AMC_accuracy/test       $SAVE_LOG
@@ -137,12 +135,15 @@ case $CASE in
         #./pops_error
         #gnuplot ../algorithm/AMC_accuracy/fit  $SAVE_LOG
         ;;
-  "SOR")
-        #source ../algorithm/ALI_convergency/test    $SAVE_LOG
-        gfortran ../algorithm/ALI_convergency/pops_error.f90 -o pops_error
-        ./pops_error
-        #gnuplot ../algorithm/ALI_convergency/plot  $SAVE_LOG
+  "FIM")
+        source ../algorithm/ALI_convergency/test    $SAVE_LOG
         ;;
+  "FIM-A")
+        python ../algorithm/ALI_convergency/analysis.py
+        ;;
+  "FIM-B")
+        python ../algorithm/ALI_convergency/analysis_pops.py
+        ;; 
   "VELO_INTERP")
         source ../algorithm/VELO_INTERP_accuracy/test    $SAVE_LOG
         #gfortran ../algorithm/VELO_INTERP_accuracy/pops_error.f90 -o pops_error

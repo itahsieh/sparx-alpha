@@ -2287,7 +2287,6 @@ class Task_AMC(Task):
 			Key("qmc", Type.Bool, "True", "Quasi-Monte-Carlo method"),
 			Key("ali", Type.Bool, "False", "Lambda iteration only / Three-staged Monte-Carlo convergent automation"),
 			Key("dat", Type.Bool, "False", "1-D level populations ascii file ouput"),
-			Key("sor", Type.Float, "1.0", "successive and over-relaxation method"),
 		]
 
 		# C function to call

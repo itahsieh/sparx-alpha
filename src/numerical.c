@@ -288,12 +288,13 @@ void Num_EigenSolver(double *A, size_t N, double *eigen_value)
         for (int i = 0; i < N; i++){
                 double eval_i = gsl_vector_get (eval, i);
                 eigen_value[i] = eval_i;
+                printf ("eigenvalue = %g\n", eval_i);
+                /*
                 gsl_vector_view 
                         evec_i = gsl_matrix_column (evec, i);
-
-                printf ("eigenvalue = %g\n", eval_i);
-                //printf ("eigenvector = \n");
-                //gsl_vector_fprintf (stdout, &evec_i.vector, "%g");
+                printf ("eigenvector = \n");
+                gsl_vector_fprintf (stdout, &evec_i.vector, "%g");
+                */
         }
 
         gsl_vector_free (eval);

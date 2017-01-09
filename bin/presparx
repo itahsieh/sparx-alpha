@@ -19,7 +19,7 @@ OutputFile = ''
 try:
         opts, args = getopt.getopt(argv,"o:vpe",["--out","out=","--plot","--vtk","--error"])
 except getopt.GetoptError:
-        print 'can not recognize option : ', args
+        print 'cannot recognize option : ', args
         usage()
         sys.exit(2)
 
