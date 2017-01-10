@@ -90,37 +90,62 @@ class profile:
                 self.T_k = zeros(nr)
                 self.V_gas = zeros((nr,3))
                 self.Vt = zeros(nr)
-                for i in range(nr):
-                        r    = mesh.R_c[i]
-                        phys = md.model(r)
-                        self.n_H2[i]         = phys.n_H2
-                        self.T_k[i]          = phys.T_k
-                        self.V_gas[i]        = [phys.Vr, 0., 0.]
-                        self.Vt[i]           = phys.Vt
                 
                 if md.molec:
-                        self.X_mol = zeros(nr)
-                        for i in range(nr):
-                                self.X_mol[i] = phys.X_mol
+                    self.X_mol = zeros(nr)
                 
                 if hasattr(phys, 'X_pH2'):
-                        self.X_pH2 = zeros(nr)
-                        for i in range(nr):
-                                self.X_pH2[i] = phys.X_pH2
+                    self.X_pH2 = zeros(nr)
+                
                 if hasattr(phys, 'X_oH2'):
-                        self.X_oH2 = zeros(nr)
-                        for i in range(nr):
-                                self.X_oH2[i] = phys.X_oH2
-                                
+                    self.X_oH2 = zeros(nr)
+                
+                if hasattr(phys, 'X_e'):
+                    self.X_e = zeros(nr)
+                
+                if hasattr(phys, 'X_H'):
+                    self.X_H = zeros(nr)
+                
+                if hasattr(phys, 'X_He'):
+                    self.X_He = zeros(nr)
+                
                 if hasattr(phys, 'T_d'):
-                        self.T_d = zeros(nr)
-                        self.dust_to_gas = zeros(nr)
-                        self.kapp_d = []
-                        for i in range(nr):
-                                self.T_d[i]          = phys.T_d
-                                self.dust_to_gas[i]  = phys.dust_to_gas
-                                self.kapp_d.append(phys.kapp_d)
-
+                    self.T_d = zeros(nr)
+                    self.dust_to_gas = zeros(nr)
+                    self.kapp_d = []
+                    
+                for i in range(nr):
+                    r    = mesh.R_c[i]
+                    phys = md.model(r)
+                    
+                    self.n_H2[i]         = phys.n_H2
+                    self.T_k[i]          = phys.T_k
+                    self.V_gas[i]        = [phys.Vr, 0., 0.]
+                    self.Vt[i]           = phys.Vt
+                    
+                    if md.molec:
+                        self.X_mol[i] = phys.X_mol
+                
+                    if hasattr(phys, 'X_pH2'):
+                        self.X_pH2[i] = phys.X_pH2
+                    
+                    if hasattr(phys, 'X_oH2'):
+                        self.X_oH2[i] = phys.X_oH2
+                    
+                    if hasattr(phys, 'X_e'):
+                        self.X_e[i] = phys.X_e
+                    
+                    if hasattr(phys, 'X_H'):
+                        self.X_H[i] = phys.X_H    
+                    
+                    if hasattr(phys, 'X_He'):
+                        self.X_He[i] = phys.X_He    
+                    
+                    if hasattr(phys, 'T_d'):
+                        self.T_d[i]          = phys.T_d
+                        self.dust_to_gas[i]  = phys.dust_to_gas
+                        self.kapp_d.append(phys.kapp_d)
+                
         def _MappingFunction_sph2d(self,mesh):
                 gr = mesh.grid
                 md = self.model
