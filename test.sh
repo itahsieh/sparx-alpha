@@ -86,6 +86,12 @@ case $CASE in
         presparx -o model -epv
         ;;
 
+  "N1333")
+        \cp ../../preprocessor/presparx/N1333I4A/* ./
+        presparx -o model 
+        ;;
+        
+        
 # AMC solver
   "AMC")
 ###########################
