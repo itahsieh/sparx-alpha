@@ -78,9 +78,8 @@ for FILE in `ls lib/sparx | grep .py`;do
   sed -e "s/import sparx/import $SPARX_VERSION/" \
       -e "s/from sparx/from $SPARX_VERSION/" \
           lib/sparx/$FILE > $SPARX_PYTHONPATH/$SPARX_VERSION/$FILE
-  printf "${LIGHTBLUE}CREATE $SPARX_VERSION/$FILE${NC}\n"
 done
-
+printf "${LIGHTBLUE}CREATE $SPARX_VERSION/*.py${NC}\n"
 
 
 

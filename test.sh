@@ -85,7 +85,6 @@ case $CASE in
         \cp ../../preprocessor/presparx/Disk_cyl2d/* ./
         presparx -o model -epv
         ;;
-
   "N1333")
         \cp ../../preprocessor/presparx/N1333I4A/* ./
         presparx -o model 
