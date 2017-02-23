@@ -820,5 +820,31 @@ size_t ZoneIndex( GEOM_TYPE geom, size_t i, size_t j, size_t k, Zone * root)
 }
 
 
+/*----------------------------------------------------------------------------*/
 
+double Zone_ZoneSize(Zone *zp)
+{
+    switch(zp->voxel.geom){
+                case GEOM_SPH1D:
+                    return 2.0 * zp->voxel.max.x[0];
+                case GEOM_SPH3D:
+                    return 2.0 * zp->voxel.max.x[0];
+                case GEOM_CYL3D:
+                    return Num_MAX(
+                        2.0 * zp->voxel.max.x[0],
+                        zp->voxel.max.x[2] - zp->voxel.min.x[2]
+                    );
+                case GEOM_REC3D:
+                    return Num_MAX(
+                        zp->voxel.max.x[0] - zp->voxel.min.x[0],
+                        Num_MAX(
+                            zp->voxel.max.x[1] - zp->voxel.min.x[1],
+                            zp->voxel.max.x[2] - zp->voxel.min.x[2]
+                        )
+                    );
+                default:
+                        /* Should not happen */
+                        Deb_ASSERT(0);
+        }
+}
 

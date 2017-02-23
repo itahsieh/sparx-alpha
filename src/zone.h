@@ -72,7 +72,10 @@ Zone *Zone_Fread(void *(*DataAlloc)(const void *data_parms), const void *data_pa
 
 Zone *Zone_GetNext(Zone *zone, size_t *plane, const GeRay *ray);
 
+
 size_t ZoneIndex( GEOM_TYPE geom, size_t i, size_t j, size_t k, Zone * root);
+
+double Zone_ZoneSize(Zone *zp);
 
 #endif
 

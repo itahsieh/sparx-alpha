@@ -20,6 +20,7 @@ class error:
 
     
     def calc_exact_mass(self,mesh,phys):
+        gr = mesh.grid
         md = phys.model
 
         r_min = gr.Rin

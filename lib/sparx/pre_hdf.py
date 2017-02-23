@@ -263,7 +263,7 @@ class export:
                                 particle['alpha']       = phys.alpha[i,j]
                                 particle.append()
                         table.flush()
-                        DelAttrs_molec(table)
+                        DelAttrs_polariz(table)
 
 
 

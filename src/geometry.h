@@ -234,9 +234,21 @@ GeRay GeRay_QRand_sph3d(const double *QRanNumber, const GeVox *voxel);
 GeRay GeRay_QRand_rec3d(const double *QRanNumber, const GeVox *voxel);
 GeRay GeRay_QRand_cyl3d(const double *QRanNumber, const GeVox *voxel);
 
+
+
+
 size_t GeVox_VertIndex2Pos(size_t i, size_t j, size_t k);
-GeVox GeVox_Init(int cosys, double xmin, double ymin, double zmin, double xmax, double ymax, double zmax);
+GeVox GeVox_Init(int cosys, 
+                 double xmin, 
+                 double ymin, 
+                 double zmin,
+                 double xmax,
+                 double ymax, 
+                 double zmax
+                );
 GeVox GeVox_Init2(int cosys, GeVec3_d min, GeVec3_d max);
+
+
 
 
 #if Sp_MIRSUPPORT

@@ -2333,6 +2333,9 @@ GeVox GeVox_Init2(int geom, GeVec3_d min, GeVec3_d max)
 	return vox;
 }
 
+
+
+
 /*----------------------------------------------------------------------------*/
 
 void GeRay_AWInit(GeRay *ray, const GeVox *voxel)

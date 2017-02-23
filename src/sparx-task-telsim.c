@@ -1566,28 +1566,60 @@ static void IntensityBC( size_t side, double *I_nu, double *tau_nu){
 static void InitRay(double *dx, double *dy, GeRay *ray)
 {       
         Zone *root = glb.model.grid;
+        double observing_distance = glb.dist / Sp_LENFAC;
 
         /* Reset ray */
         Mem_BZERO(ray);
-
-        /* Init ray position to <dist, 0, 0> */
-        GeRay_E(*ray, 0) = glb.dist / Sp_LENFAC;
-        GeRay_E(*ray, 1) = 0;
-        GeRay_E(*ray, 2) = 0;
-
-        /* Set "reversed" direction of ray according to pixel position
-         * !!! backward tracing !!! :
-         *   theta = PI/2 - dy
-         *   phi = PI - dx
-         */
         
-        double theta = 0.5 * M_PI - (*dy);
-        double phi = M_PI - (*dx);
+
+        double ModelSize = Zone_ZoneSize(root);
+        double Model2DistanceRatio = ModelSize / observing_distance;
         
-        /* Convert to Cartesian coordinates */
-        GeRay_D(*ray, 0) = sin(theta) * cos(phi);
-        GeRay_D(*ray, 1) = sin(theta) * sin(phi);
-        GeRay_D(*ray, 2) = cos(theta);
+        if ( Model2DistanceRatio > 1.0 ){
+            // distance is too close
+            Sp_PRINT("The observing distance is too close!\n");
+            Deb_ASSERT(0);
+        }
+        else{ 
+            if ( Model2DistanceRatio > 1e-4 ){
+                // stereopsis projection
+                /* Init ray position to <dist, 0, 0> */
+                GeRay_E(*ray, 0) = observing_distance;
+                GeRay_E(*ray, 1) = 0.0;
+                GeRay_E(*ray, 2) = 0.0;
+
+                /* Set "reversed" direction of ray according to pixel position
+                * !!! backward tracing !!! :
+                *   theta = PI/2 - dy
+                *   phi = PI - dx
+                */
+                
+                double theta = 0.5 * M_PI - (*dy);
+                double phi = M_PI - (*dx);
+                
+                /* Convert to Cartesian coordinates */
+                GeRay_D(*ray, 0) = sin(theta) * cos(phi);
+                GeRay_D(*ray, 1) = sin(theta) * sin(phi);
+                GeRay_D(*ray, 2) = cos(theta);
+            }
+            /* parallel projection mode 
+                if the ratio of domain size and observing distance is less than 10^-4,
+                then switch to parallel projection mode to avoid precision lost
+                particularly in cylindrical and spherical coordinate
+                the ray shooting solves the second order equation with the coefficient 
+                c = Ex^2 - r^2
+            */
+            else{
+                GeRay_E(*ray, 0) = ModelSize;
+                GeRay_E(*ray, 1) = (*dx) * (observing_distance - ModelSize);
+                GeRay_E(*ray, 2) = (*dy) * (observing_distance - ModelSize);
+
+                GeRay_D(*ray, 0) = -1.0;
+                GeRay_D(*ray, 1) = 0.0;
+                GeRay_D(*ray, 2) = 0.0;
+            }
+        }
+        
 
         /* Rotate ray:
          * Since what we REALLY want to rotate is the model and that the rays
