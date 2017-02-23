@@ -830,14 +830,14 @@ double Zone_ZoneSize(Zone *zp)
                 case GEOM_SPH3D:
                     return 2.0 * zp->voxel.max.x[0];
                 case GEOM_CYL3D:
-                    return Num_MAX(
+                    return max(
                         2.0 * zp->voxel.max.x[0],
                         zp->voxel.max.x[2] - zp->voxel.min.x[2]
                     );
                 case GEOM_REC3D:
-                    return Num_MAX(
+                    return max(
                         zp->voxel.max.x[0] - zp->voxel.min.x[0],
-                        Num_MAX(
+                        max(
                             zp->voxel.max.x[1] - zp->voxel.min.x[1],
                             zp->voxel.max.x[2] - zp->voxel.min.x[2]
                         )
