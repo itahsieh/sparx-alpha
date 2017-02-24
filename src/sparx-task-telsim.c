@@ -162,6 +162,7 @@ int SpTask_Telsim(void)
         
         /* dist */
         if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.dist);
+        glb.dist /= Sp_LENFAC;
           
         /* rotate */
         if(!sts && !(sts = SpPy_GetInput_PyObj("rotate", &o))) {
@@ -1566,14 +1567,13 @@ static void IntensityBC( size_t side, double *I_nu, double *tau_nu){
 static void InitRay(double *dx, double *dy, GeRay *ray)
 {       
         Zone *root = glb.model.grid;
-        double observing_distance = glb.dist / Sp_LENFAC;
 
         /* Reset ray */
         Mem_BZERO(ray);
         
 
         double ModelSize = Zone_ZoneSize(root);
-        double Model2DistanceRatio = ModelSize / observing_distance;
+        double Model2DistanceRatio = ModelSize / glb.dist;
         
         if ( Model2DistanceRatio > 1.0 ){
             // distance is too close
@@ -1584,7 +1584,7 @@ static void InitRay(double *dx, double *dy, GeRay *ray)
             if ( Model2DistanceRatio > 1e-4 ){
                 // stereopsis projection
                 /* Init ray position to <dist, 0, 0> */
-                GeRay_E(*ray, 0) = observing_distance;
+                GeRay_E(*ray, 0) = glb.dist;
                 GeRay_E(*ray, 1) = 0.0;
                 GeRay_E(*ray, 2) = 0.0;
 
@@ -1611,8 +1611,8 @@ static void InitRay(double *dx, double *dy, GeRay *ray)
             */
             else{
                 GeRay_E(*ray, 0) = ModelSize;
-                GeRay_E(*ray, 1) = (*dx) * (observing_distance - ModelSize);
-                GeRay_E(*ray, 2) = (*dy) * (observing_distance - ModelSize);
+                GeRay_E(*ray, 1) = (*dx) * glb.dist;
+                GeRay_E(*ray, 2) = (*dy) * glb.dist;
 
                 GeRay_D(*ray, 0) = -1.0;
                 GeRay_D(*ray, 1) = 0.0;
@@ -2232,8 +2232,8 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
         SampCartPosRotate = GeVec3_Rotate_y( &SampCartPosRotate, glb.rotate[1]);
         SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.rotate[2]);
         
-        double dx = atan( SampCartPosRotate.x[1] / ( glb.dist / Sp_LENFAC - SampCartPosRotate.x[0] ) );
-        double dy = atan( SampCartPosRotate.x[2] / ( glb.dist / Sp_LENFAC - SampCartPosRotate.x[0] ) );
+        double dx = atan( SampCartPosRotate.x[1] / ( glb.dist - SampCartPosRotate.x[0] ) );
+        double dy = atan( SampCartPosRotate.x[2] / ( glb.dist - SampCartPosRotate.x[0] ) );
         InitRay( &dx, &dy, &ray);
         
         /* Shoot ray at model and see what happens! */
