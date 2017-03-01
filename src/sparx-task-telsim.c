@@ -1045,7 +1045,6 @@ static void *CalcImageThreadCont(void *tid_p)
                         /* Save averaged I_nu to map */
                         double DnsubSquare = 1. / (double)(nsub * nsub);
                         for(size_t iv = 0; iv < nvelo; iv++) {
-                                static const double alpha=0.15; // polarized efficiency
                                 MirImg_PIXEL(*glb.image, iv, ix, iy) = ( I_nu[iv] - sigma2[iv] ) * DnsubSquare;
                                 MirImg_PIXEL(*glb.StokesQ, iv, ix, iy) = Q_nu[iv] * DnsubSquare;
                                 MirImg_PIXEL(*glb.StokesU, iv, ix, iy) = U_nu[iv] * DnsubSquare;
@@ -1448,15 +1447,16 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                                         
                                         I_nu[iv] += contribution;
                                         if (B_Mag == 0.){
-                                                // do nothing
-                                                // preventing undefined psi
+                                            // do nothing
+                                            // preventing undefined psi
                                         }
                                         else{
-                                                Q_nu[iv] += alpha * contribution * cos(2.0 * psi) * cosgammasquare;
-                                                U_nu[iv] += alpha * contribution * sin(2.0 * psi) * cosgammasquare;
+                                            Q_nu[iv] += alpha * contribution * cos(2.0 * psi) * cosgammasquare;
+                                            U_nu[iv] += alpha * contribution * sin(2.0 * psi) * cosgammasquare;
+                                            static const double d23 = 2. / 3. ;
+                                            sigma2[iv] += 0.5 * alpha * contribution * (cosgammasquare - d23);
                                         }
-                                        static const double d23 = 2. / 3. ;
-                                        sigma2[iv] += 0.5 * alpha * contribution * (cosgammasquare - d23);
+                                        
 
                                         /* Accumulate total optical depth for this channel (must be done
                                          * AFTER calculation of intensity!) */
