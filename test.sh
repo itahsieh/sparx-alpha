@@ -89,6 +89,10 @@ case $CASE in
         \cp ../../preprocessor/presparx/N1333I4A/* ./
         presparx -o model 
         ;;
+  "COMET2D")
+        \cp ../../preprocessor/presparx/comet2D/* ./
+        presparx -o model -epv
+        ;;
         
         
 # AMC solver
@@ -132,8 +136,10 @@ case $CASE in
         #source ../telsim/contribution/sph3d/test     $SAVE_LOG
         #source ../telsim/contribution/cyl3d/test      $SAVE_LOG
         ;;
- 
-
+  "SOURCE")
+        source ../telsim/OuterSource/test     $SAVE_LOGG
+        
+        ;;
         
 # Algorithm testing
   "QMC")

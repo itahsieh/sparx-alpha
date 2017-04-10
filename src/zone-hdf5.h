@@ -40,15 +40,27 @@ typedef struct ZoneH5_Record_Polariz {
         double alpha;
 } ZoneH5_Record_Polariz;
 
-int ZoneH5_FwriteTable_Zone(hid_t h5f_id, const ZoneH5_Record_Zone *records);
-int ZoneH5_FwriteTable_Grid(hid_t h5f_id, const ZoneH5_Record_Grid *records, size_t nrecord);
-int ZoneH5_FwriteTable_Molec(hid_t h5f_id, const ZoneH5_Record_Molec *records, size_t nrecord);
-int ZoneH5_FwriteTable_Dust(hid_t h5f_id, const ZoneH5_Record_Dust *records, size_t nrecord);
-int ZoneH5_FwriteTable_Polariz(hid_t h5f_id, const ZoneH5_Record_Polariz *records, size_t nrecord);
+typedef struct ZoneH5_Record_Source {
+    double temperature;
+    double theta;
+    double phi;
+    double radius;
+    double distance;
+} ZoneH5_Record_Source;
+
+
+int ZoneH5_FwriteTable_Zone(    hid_t h5f_id, const ZoneH5_Record_Zone      *records);
+int ZoneH5_FwriteTable_Grid(    hid_t h5f_id, const ZoneH5_Record_Grid      *records, size_t nrecord);
+int ZoneH5_FwriteTable_Molec(   hid_t h5f_id, const ZoneH5_Record_Molec     *records, size_t nrecord);
+int ZoneH5_FwriteTable_Dust(    hid_t h5f_id, const ZoneH5_Record_Dust      *records, size_t nrecord);
+int ZoneH5_FwriteTable_Polariz( hid_t h5f_id, const ZoneH5_Record_Polariz   *records, size_t nrecord);
+int ZoneH5_FwriteTable_Source(  hid_t h5f_id, const ZoneH5_Record_Source    *records, size_t nrecord);
+
 
 int ZoneH5_FreadTable_Zone(     hid_t h5f_id, ZoneH5_Record_Zone        *records);
 int ZoneH5_FreadTable_Grid(     hid_t h5f_id, ZoneH5_Record_Grid        *records);
 int ZoneH5_FreadTable_Molec(    hid_t h5f_id, ZoneH5_Record_Molec       *records);
 int ZoneH5_FreadTable_Dust(     hid_t h5f_id, ZoneH5_Record_Dust        *records);
 int ZoneH5_FreadTable_Polariz(  hid_t h5f_id, ZoneH5_Record_Polariz     *records);
+int ZoneH5_FreadTable_Source(   hid_t h5f_id, ZoneH5_Record_Source      *records);
 #endif

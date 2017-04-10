@@ -10,14 +10,15 @@
 
 DatINode *Dat_IList_NameLookup(DatINode *list, const char *name)
 {
-	size_t i;
-
-	for(i = 0; list[i].name; i++) {
-		if(!strcmp(list[i].name, name))
-			return &list[i];
-	}
-
-	return NULL;
+    size_t i;
+    
+    for(i = 0; list[i].name; i++) {
+        
+        if(!strcmp(list[i].name, name))
+            return &list[i];
+    }
+    
+    return NULL;
 }
 
 /*----------------------------------------------------------------------------*/

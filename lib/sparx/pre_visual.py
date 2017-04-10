@@ -14,7 +14,8 @@ class plot:
                 elif GridType == 'SPH2D':
                         self._plot_sph2d(mesh,phys)
                 elif GridType == 'SPH3D':
-                        pass
+                        self._plot_sph3d(mesh,phys)
+                
                 elif GridType == 'REC3D':
                         pass
                 elif GridType == 'CYL2D':
@@ -82,13 +83,13 @@ class plot:
                 
                 # Temperature plot
                 plt.subplot(232, aspect=1)
-                plt.pcolormesh(x, y, phys.T_k, norm=matplotlib.colors.LogNorm())
+                plt.pcolormesh(x, y, phys.T_k, norm = matplotlib.colors.Normalize( vmin = 0.0, vmax = 1.05 * amax(phys.T_k) ), cmap='gist_heat')
                 plt.title('Kinetic Temperature (Kelvin)')
                 plt.colorbar()
                 
                 # Velocity plot
                 plt.subplot(233, aspect=1)
-                plt.pcolormesh(x, y, phys.X_mol, norm=matplotlib.colors.LogNorm(vmin=0.1*amin(phys.X_mol), vmax=10.*amax(phys.X_mol)))
+                plt.pcolormesh(x, y, phys.X_mol, norm = matplotlib.colors.LogNorm( vmin = 0.1 * amin( phys.X_mol), vmax = 10. * amax(phys.X_mol) ), cmap='magma' )
                 plt.title('Molecular Abundance (Fraction)')
                 plt.colorbar()
                 
@@ -98,20 +99,66 @@ class plot:
                 absmax = 0.05 * max(abs(V_gas_max),abs(V_gas_min))
                 
                 plt.subplot(234, aspect=1)
-                plt.pcolormesh(x, y, phys.V_gas[:,:,0], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
+                plt.pcolormesh(x, y, phys.V_gas[:,:,0], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax), cmap='seismic')
                 plt.title('V_r (m/s)')
                 plt.colorbar()
                 
                 plt.subplot(235, aspect=1)
-                plt.pcolormesh(x, y, phys.V_gas[:,:,1], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
+                plt.pcolormesh(x, y, phys.V_gas[:,:,1], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax), cmap='seismic')
                 plt.title('V_theta (m/s)')
                 plt.colorbar()
                 
                 plt.subplot(236, aspect=1)
-                plt.pcolormesh(x, y, phys.V_gas[:,:,2], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax))
+                plt.pcolormesh(x, y, phys.V_gas[:,:,2], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax), cmap='seismic')
                 plt.title('V_phi (m/s)')
                 plt.colorbar()
+        
+        def _plot_sph3d(self,mesh,phys):     
+                r = mesh.R_c
+                theta = mesh.theta_c
                 
+                theta_grid, r_grid, = np.meshgrid(theta, r)
+                
+                x = r_grid * np.sin(theta_grid)
+                y = r_grid * np.cos(theta_grid)
+                
+                # Density plot
+                plt.subplot(231, aspect=1)
+                plt.pcolormesh(x, y, phys.n_H2[:,:,0], norm=matplotlib.colors.LogNorm(), cmap='jet')
+                plt.title('H2 density (m^-3)')
+                plt.colorbar()
+                
+                # Temperature plot
+                plt.subplot(232, aspect=1)
+                plt.pcolormesh(x, y, phys.T_k[:,:,0], norm = matplotlib.colors.Normalize( vmin = 0.0, vmax = 1.05 * amax(phys.T_k[:,:,0]) ), cmap='gist_heat')
+                plt.title('Kinetic Temperature (Kelvin)')
+                plt.colorbar()
+                
+                # Velocity plot
+                plt.subplot(233, aspect=1)
+                plt.pcolormesh(x, y, phys.X_mol[:,:,0], norm = matplotlib.colors.LogNorm( vmin = 0.1 * amin( phys.X_mol[:,:,0]), vmax = 10. * amax(phys.X_mol[:,:,0]) ), cmap='magma' )
+                plt.title('Molecular Abundance (Fraction)')
+                plt.colorbar()
+                
+                # Velocity plot
+                V_gas_max = amax(phys.V_gas[:,:,0,:])
+                V_gas_min = amin(phys.V_gas[:,:,0,:])
+                absmax = 0.05 * max(abs(V_gas_max),abs(V_gas_min))
+                
+                plt.subplot(234, aspect=1)
+                plt.pcolormesh(x, y, phys.V_gas[:,:,0,0], norm = matplotlib.colors.Normalize( vmin = -absmax, vmax = absmax), cmap='seismic' )
+                plt.title('V_r (m/s)')
+                plt.colorbar()
+                
+                plt.subplot(235, aspect=1)
+                plt.pcolormesh(x, y, phys.V_gas[:,:,0,1], norm = matplotlib.colors.Normalize( vmin = -absmax, vmax = absmax), cmap='seismic' )
+                plt.title('V_theta (m/s)')
+                plt.colorbar()
+                
+                plt.subplot(236, aspect=1)
+                plt.pcolormesh(x, y, phys.V_gas[:,:,0,2], norm = matplotlib.colors.Normalize( vmin = -absmax, vmax = absmax), cmap='seismic' )
+                plt.title('V_phi (m/s)')
+                plt.colorbar()                
                 
         def _plot_cyl2d(self,mesh,phys):     
                 rc = mesh.Rc_c
@@ -168,7 +215,7 @@ class vtk_output:
                 elif GridType == 'SPH2D':
                         self._vtk_sph2d(mesh,phys)
                 elif GridType == 'SPH3D':
-                        pass
+                        self._vtk_sph3d(mesh,phys)
                 elif GridType == 'REC3D':
                         pass
                 elif GridType == 'CYL2D':
@@ -292,7 +339,61 @@ class vtk_output:
                         Vz = Vr * cos(theta)            - Vt * sin(theta)
                         print >>fvtk1,'%(0)7.2e %(1)7.2e %(2)7.2e'%{'0':Vx,'1':Vy,'2':Vz}
                 fvtk1.close()
+
+        def _vtk_sph3d(self,mesh,phys):
+                nr = mesh.grid.nr
+                nt = mesh.grid.nt
+                np = mesh.grid.np
                 
+                fvtk1=open(self.filename, mode = "w")
+                print >>fvtk1,'# vtk DataFile Version 3.0'
+                print >>fvtk1,'ENV_DISK'
+                print >>fvtk1,'ASCII'
+                print >>fvtk1,'DATASET STRUCTURED_GRID'
+                print >>fvtk1,'DIMENSIONS %(0)d %(1)d %(2)d'%{'0':np+1,'1':nt+1,'2':nr+1}
+                print >>fvtk1,'POINTS %(0)d float'%{'0':(nr+1)*(nt+1)*(np+1)}
+                for i in range(nr+1):
+                  for j in range(nt+1):
+                    for k in range(np+1):
+                        r       = mesh.R_p[i]
+                        theta   = mesh.theta_p[j]
+                        phi     = mesh.phi_p[k]
+                        x = r * sin(theta) * cos(phi)
+                        y = r * sin(theta) * sin(phi)
+                        z = r * cos(theta) 
+                        print >>fvtk1,'%(0)e %(1)e %(2)e'%{'0':x,'1':y,'2':z}
+                print >>fvtk1,'CELL_DATA %(0)d'%{'0':nr * nt * np}
+                print >>fvtk1,'SCALARS density float 1'
+                print >>fvtk1,'LOOKUP_TABLE default'
+                for i in range(nr):
+                  for j in range(nt):
+                    for k in range(np):
+                        print >>fvtk1,'%(0)8.2e'%{'0':phys.n_H2[i,j,k]},
+                    print >>fvtk1
+                print >>fvtk1,'SCALARS temperature float 1'
+                print >>fvtk1,'LOOKUP_TABLE default'
+                for i in range(nr):
+                  for j in range(nt):
+                    for k in range(np):
+                        print >>fvtk1,'%(0)7.1f'%{'0':phys.T_k[i,j,k]},
+                    print >>fvtk1
+                print >>fvtk1,'VECTORS velocity float'
+                for i in range(nr):
+                  for j in range(nt):
+                    for k in range(np):
+                        Vr = phys.V_gas[i,j,k][0]
+                        Vt = phys.V_gas[i,j,k][1]
+                        Vp = phys.V_gas[i,j,k][2]
+                        theta   = mesh.theta_p[j]
+                        phi     = mesh.phi_p[k]
+                        Vx = Vr * sin(theta) * cos(phi) + Vt * cos(theta) * cos(phi) - Vp * sin(phi)
+                        Vy = Vr * sin(theta) * sin(phi) + Vt * cos(theta) * sin(phi) + Vp * cos(phi)
+                        Vz = Vr * cos(theta)            - Vt * sin(theta)
+                        print >>fvtk1,'%(0)7.2e %(1)7.2e %(2)7.2e'%{'0':Vx,'1':Vy,'2':Vz}
+                fvtk1.close()
+
+
+           
         def _vtk_cyl2d(self,mesh,phys):
                 nrc = mesh.grid.nrc
                 np = 90

@@ -11,11 +11,11 @@ class error:
             self.calc_exact_mass(mesh,phys)
             print 'Analytical Mass : %e Msun' %self.exact_mass
             MassError = 100. * ( phys.mass - self.exact_mass ) / self.exact_mass
-            print 'Mass Error of the Gridding : %f %%' %MassError
+            print 'Mass Error of the Gridding : %e %%' %MassError
         else:
-            print 'Total mass = %f MSun' %phys.mass
+            print 'Total mass = %e MSun' %phys.mass
             
-        print 'Largest Velocity Dispersion to Turbulent Velocity : %f' %phys.MVD2Vt
+        print 'Largest Velocity Dispersion to Turbulent Velocity : %e' %phys.MVD2Vt
         print 'Largest Dispersion occurs at spatial index = ', phys.MVD2Vt_index
 
     

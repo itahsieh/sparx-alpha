@@ -13,6 +13,9 @@ class profile:
         if hasattr(md, 'T_in'):
             self.T_in = md.T_in
         
+        if hasattr(md, 'OuterSource'):
+            self.OuterSource = md.OuterSource
+        
         
         GridType = mesh.grid.GridType
         if GridType == 'SPH1D':
@@ -69,7 +72,8 @@ class profile:
                 self._MappingFunction_sph2d(mesh)
                 self._Mass_VeloDisp_sph2d(mesh)
         elif GridType == 'SPH3D':
-                pass
+                self._MappingFunction_sph3d(mesh)
+                self._Mass_VeloDisp_sph3d(mesh)
         elif GridType == 'CYL2D':
                 self._MappingFunction_cyl2d(mesh)
                 self._Mass_VeloDisp_cyl2d(mesh)
@@ -180,6 +184,32 @@ class profile:
 
                     self.V_gas[i,j] = phys.V_cen
 
+    def _MappingFunction_sph3d(self,mesh):
+            gr = mesh.grid
+            md = self.model
+            
+            nr = gr.nr
+            nt = gr.nt
+            np = gr.np
+            
+            r       = mesh.R_c[0]
+            theta   = mesh.theta_c[0]
+            phi     = mesh.phi_c[0]
+            phys    = md.model(r,theta,phi)
+            
+            self._InitPhys( (nr,nt,np), phys )
+            
+            for i in range(nr):
+                for j in range(nt):
+                    for k in range(np):
+                        r       = mesh.R_c[i]
+                        theta   = mesh.theta_c[j]
+                        phi     = mesh.phi_c[j]
+                        phys    = md.model(r,theta,phi)
+                        
+                        self._MappingPhys(phys, md.molec, (i,j,k))
+
+                        self.V_gas[i,j,k] = phys.V_cen
                         
 
     def _MappingFunction_cyl2d(self,mesh):
@@ -333,7 +363,66 @@ class profile:
                             self.MVD2Vt = VeloDispersion2Vt
                             self.MVD2Vt_index = [i,j]
             
-            
+    def _Mass_VeloDisp_sph3d(self,mesh):     
+            gr = mesh.grid                
+            nr = gr.nr
+            nt = gr.nt
+            np = gr.np
+
+            for i in range(nr):
+                for j in range(nt):
+                    for k in range(np):
+                        r_in    = mesh.R_p[i]
+                        r_out   = mesh.R_p[i+1]
+                        theta_in        = mesh.theta_p[j] 
+                        theta_out       = mesh.theta_p[j+1]
+                        phi_in        = mesh.phi_p[k] 
+                        phi_out       = mesh.phi_p[k+1]
+                        
+                        # volume
+                        dVolume = (phi_out - phi_in) / 3. * (r_out**3-r_in**3) * (cos(theta_in)-cos(theta_out)) # pc^3
+                        
+                        self.volume += dVolume # pc^3
+                        dVolume *= volume_pc2m # m^3
+                        
+                        # delta mass
+                        dMass = self.n_H2[i,j,k] * dVolume * MeanMolecularMass # kg
+                        # accumulated mass
+                        self.mass += dMass #kg
+                        
+                        # max delta V (m/s)
+                        # no need to concern the velocity deviation along theta & phi
+                        # because sparx tracer would take care of it
+                        if      i == 0  :
+                                Vr_r = self.V_gas[i+1,j,k,0] - self.V_gas[i,j,k,0]
+                        elif    i == nr-1:
+                                Vr_r = self.V_gas[i,j,k,0] - self.V_gas[i-1,j,k,0]
+                        else:
+                                Vr_r = max( abs(self.V_gas[i+1,j,k,0] - self.V_gas[i,j,k,0]), abs(self.V_gas[i,j,k,0] - self.V_gas[i-1,j,k,0]) )
+                                
+                        if      j == 0:
+                                Vt_t = self.V_gas[i,j+1,k,1] - self.V_gas[i,j,k,1]
+                        elif    j == nt-1:
+                                Vt_t = self.V_gas[i,j,k,1] - self.V_gas[i,j-1,k,1]
+                        else:
+                                Vt_t = max( abs(self.V_gas[i,j+1,k,1] - self.V_gas[i,j,k,1]), abs(self.V_gas[i,j,k,1] - self.V_gas[i,j-1,k,1]) )
+                        
+                        if      k == 0:
+                                Vp_p = self.V_gas[i,j,k+1,2] - self.V_gas[i,j,k,2]
+                        elif    k == np-1:
+                                Vp_p = self.V_gas[i,j,k,2] - self.V_gas[i,j,k-1,2]
+                        else:
+                                Vp_p = max( abs(self.V_gas[i,j,k+1,2] - self.V_gas[i,j,k,2]), abs(self.V_gas[i,j,k,2] - self.V_gas[i,j,k-1,2]) )
+                        
+                        VeloDispersion = sqrt(Vr_r * Vr_r + Vt_t * Vt_t + Vp_p*Vp_p)
+
+                        # Velocity Dispersion to Vt
+                        VeloDispersion2Vt = VeloDispersion / self.Vt[i,j,k]
+                        # update Maximum VD2Vt
+                        if VeloDispersion2Vt > self.MVD2Vt :
+                                self.MVD2Vt = VeloDispersion2Vt
+                                self.MVD2Vt_index = [i,j,k]
+ 
     def _Mass_VeloDisp_cyl2d(self,mesh):
             gr = mesh.grid
             nrc = gr.nrc

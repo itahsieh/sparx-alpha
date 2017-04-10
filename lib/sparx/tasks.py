@@ -2509,11 +2509,12 @@ class Task_ColDens(Task):
 		self.expl = "Generates synthetic column density images"
 
 		# Keys
-		self.keys = [
-			Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[1, '0.1kms^-1']", 
+                self.keys = [
+                        Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[1, '0.1kms^-1']", 
                                 "Number of spectral channels and width of each channel (in velocity units)"),
                         Key("unit", Type.Option(['MKS', 'CGS']), "CGS", "Image brightness unit"),
-		]+telsim_keys
+                        Key("tracer", Type.Bool, "False", "Molecular tracer")
+                ]+telsim_keys
 
 		# C function to call
 		self.cfunc = _sparx.task_telsim
@@ -2578,8 +2579,7 @@ class Task_LineFitting(Task):
 		molecule=INP_DICT["molecule"]
 		StopNR=INP_DICT["StopNR"]
 		
-		def ProduceXmol(iteration,BestX,FurnaceTemperature):
-			global kmax
+		def ProduceXmol(BestX,FurnaceTemperature):
 			import random
 			from math import tan,pi,exp
 			
@@ -2589,7 +2589,7 @@ class Task_LineFitting(Task):
 			
 			Xmol = BestX * factor
 			if ( Xmol > 1.0):
-				Xmol=ProduceXmol(iteration,BestX,FurnaceTemperature)
+				Xmol=ProduceXmol(BestX,FurnaceTemperature)
 			return Xmol
 		
 		
@@ -2637,7 +2637,7 @@ class Task_LineFitting(Task):
 				else:
 					# the Furnace temperature represen the range of the sampling abundance, and it's related to the noise to signal ratio
 					FurnaceTemperature = NoiseRatio 
-					Xmol=ProduceXmol(iteration,BestX,FurnaceTemperature)
+					Xmol=ProduceXmol(BestX,FurnaceTemperature)
 					
 				# call the physical simulation routine
 				FSAE=ModelToSpectrumProcess(Xmol)

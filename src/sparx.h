@@ -163,63 +163,78 @@ void SpArg_Parse(int argc, char *argv[], SpParm *Sp_parm);
 
 /* sparx-physics routines */
 typedef struct SpPhys {
-	int non_empty_leaf, has_tracer;
-	PyObject *velfield;
-	const Molec *mol;
-	size_t nray; /* For use in amc only */
-	size_t ncont; /* For use in telsim only */
-	double
-		n_H2, /* Molecular gas density (m^-3) */
-		T_k, /* Kinetic temperature (K) */
-		T_d, /* Dust temperature (K) */
-		X_mol, /* Molecular fractional abundance */
-		X_pH2,
-		X_oH2,
-		X_e,
-		X_H,
-		X_He,
-		V_t, /* RMS turbulent velocity */
-		width, /* Local velocity width (=sqrt(2)*sigma) (m/s) */
-		*pops[Sp_NTHREAD], /* Fractional density of each level */
-		
-		//*popsold, /* old level population */
-		//*J_bar, /* mean intensity */
-		
-		*cmat, /* nlev x nlev matrix of collisional rates */
-		*tau, /* nrad array of average tau */
-		ds, /* Path length averaged over all directions */
-                alpha, /* polarizaed efficiency */
-                dust_to_gas; /* dust-to-gas ratio */
-	struct {
-		double freq, lambda;
-		double j, k; /* Sum of all continuum emission and absorption (e.g. dust, fre-free... etc. */
-	} *cont;
-	GeVec3_d
-		v_cen, /* Velocity at voxel center (km/s) */
-		b_cen; /* B-field at voxel center (km/s) */
-	const Zone *zp; /* Zone containing this set of parameters */
-	/* Strings describing continuum opacities: meant to be accessed by SpIO_LoadKappa(),
-	   must be either 'powerlaw,%10.3e,%10.3e,%10.3e' or 'table,<filename>' */
-	char kapp_d[ZoneH5_KAPPLEN]; /* Dust opacity */ 
-
-
-	double diff;
-
+    int non_empty_leaf, has_tracer;
+    PyObject *velfield;
+    const Molec *mol;
+    size_t nray; /* For use in amc only */
+    size_t ncont; /* For use in telsim only */
+    double
+    n_H2, /* Molecular gas density (m^-3) */
+    T_k, /* Kinetic temperature (K) */
+    T_d, /* Dust temperature (K) */
+    X_mol, /* Molecular fractional abundance */
+    X_pH2,
+    X_oH2,
+    X_e,
+    X_H,
+    X_He,
+    V_t, /* RMS turbulent velocity */
+    width, /* Local velocity width (=sqrt(2)*sigma) (m/s) */
+    *pops[Sp_NTHREAD], /* Fractional density of each level */
+    
+    //*popsold, /* old level population */
+    //*J_bar, /* mean intensity */
+    
+    *cmat, /* nlev x nlev matrix of collisional rates */
+    *tau, /* nrad array of average tau */
+    ds, /* Path length averaged over all directions */
+    alpha, /* polarizaed efficiency */
+    dust_to_gas; /* dust-to-gas ratio */
+    struct {
+        double freq, lambda;
+        double j, k; /* Sum of all continuum emission and absorption (e.g. dust, fre-free... etc. */
+    } *cont;
+    GeVec3_d
+    v_cen, /* Velocity at voxel center (km/s) */
+    b_cen; /* B-field at voxel center (km/s) */
+    const Zone *zp; /* Zone containing this set of parameters */
+    /* Strings describing continuum opacities: meant to be accessed by SpIO_LoadKappa(),
+     must *be either 'powerlaw,%10.3e,%10.3e,%10.3e' or 'table,<filename>' */
+    char kapp_d[ZoneH5_KAPPLEN]; /* Dust opacity */ 
+    
+    
+    double diff;
+    
 } SpPhys;
 
-typedef struct SpPhysParm {
-	PyObject *velfield;
-	Molec *mol;
-	double T_cmb, T_in;
-        double z;      /* splitting coefficient */
-        int geom, pops, polariz, dust;
 
+typedef struct SourceData{
+    double 
+    temperature,
+    theta,
+    phi,
+    radius,
+    distance,
+    beta,
+    intensity,
+    dim_factor;
+    GeVec3_d pt_sph, pt_cart;
+} SourceData;
+
+typedef struct SpPhysParm {
+    PyObject *velfield;
+    Molec *mol;
+    double T_cmb, T_in;
+    double z;      /* splitting coefficient */
+    int geom, pops, polariz, dust;
+    int Outer_Source;
+    SourceData *source;
+    double AngleOfViewPerInitRay;
 } SpPhysParm;
 
 typedef struct SpModel {
-	SpPhysParm parms;
-	Zone *grid;
-
+    SpPhysParm parms;
+    Zone *grid;
 } SpModel;
 
 void *SpPhys_Alloc(const Zone *zp, const void *parms_p);
@@ -345,12 +360,14 @@ ZoneH5_Record_Grid      SpIO_GridToH5Record(const Zone *zone);
 ZoneH5_Record_Molec     SpIO_MolecToH5Record(const Zone *zone);
 ZoneH5_Record_Dust      SpIO_DustToH5Record(const Zone *zone);
 ZoneH5_Record_Polariz   SpIO_PolarizToH5Record(const Zone *zone);
+ZoneH5_Record_Source    SpIO_SourceToH5Record(const SourceData *source);
 
 void SpIO_ZoneFromH5Record(Zone *zone, ZoneH5_Record_Zone record);
 void SpIO_GridFromH5Record(Zone *zone, ZoneH5_Record_Grid record);
 void SpIO_MolecFromH5Record(Zone *zone, ZoneH5_Record_Molec record);
 void SpIO_DustFromH5Record(Zone *zone, ZoneH5_Record_Dust record);
 void SpIO_PolarizFromH5Record(Zone *zone, ZoneH5_Record_Polariz record);
+void SpIO_SourceFromH5Record(SourceData *source, ZoneH5_Record_Source record);
 
 int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms);
 int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *parms, int *read_pops);

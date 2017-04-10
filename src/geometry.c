@@ -148,10 +148,10 @@ double GeVec3_Mag2(const GeVec3_d *a, const GeVec3_d *b)
 GeVec3_d GeVec3_Add(const GeVec3_d *a, const GeVec3_d *b)
 /* Calculate the result of <c> = <a> + <b> */
 {
-	GeVec3_d c = GeVec3_INIT(0,0,0);
-	for(size_t i = 0; i < 3; i++)
-		c.x[i] = a->x[i] + b->x[i];
-	return c;
+    GeVec3_d c = GeVec3_INIT(0,0,0);
+    for(size_t i = 0; i < 3; i++)
+        c.x[i] = a->x[i] + b->x[i];
+    return c;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -159,10 +159,10 @@ GeVec3_d GeVec3_Add(const GeVec3_d *a, const GeVec3_d *b)
 GeVec3_d GeVec3_Sub(const GeVec3_d *a, const GeVec3_d *b)
 /* Calculate the result of <c> = <b> - <a> */
 {
-	GeVec3_d c;
-	for(size_t i = 0; i < 3; i++)
-		c.x[i] = b->x[i] - a->x[i];
-	return c;
+    GeVec3_d c;
+    for(size_t i = 0; i < 3; i++)
+        c.x[i] = b->x[i] - a->x[i];
+    return c;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -170,19 +170,18 @@ GeVec3_d GeVec3_Sub(const GeVec3_d *a, const GeVec3_d *b)
 GeVec3_d GeVec3_Normalize(const GeVec3_d *a)
 /* Normalize <a> */
 {
-	GeVec3_d b;
-	double mag = GeVec3_Mag(a);
-        if( mag == 0.0 ){
-                GeVec3_X(b, 0) = 1.0;
-                GeVec3_X(b, 1) = 0.0;
-                GeVec3_X(b, 2) = 0.0;
-        }
-        else{
-                for(size_t i = 0; i < 3; i++) {
-                        GeVec3_X(b, i) = GeVec3_X(*a, i) / mag;
-                }
-        }
-	return b;
+    GeVec3_d b;
+    double mag = GeVec3_Mag(a);
+    if( mag == 0.0 ){
+        GeVec3_X(b, 0) = 1.0;
+        GeVec3_X(b, 1) = 0.0;
+        GeVec3_X(b, 2) = 0.0;
+    }
+    else{
+        for(size_t i = 0; i < 3; i++) 
+            GeVec3_X(b, i) = GeVec3_X(*a, i) / mag;
+    }
+    return b;
 }
 
 /*----------------------------------------------------------------------------*/

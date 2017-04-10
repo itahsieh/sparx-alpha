@@ -11,6 +11,7 @@ static size_t record_size_grid = sizeof(ZoneH5_Record_Grid);
 static size_t record_size_molec = sizeof(ZoneH5_Record_Molec);
 static size_t record_size_dust = sizeof(ZoneH5_Record_Dust);
 static size_t record_size_polariz = sizeof(ZoneH5_Record_Polariz);
+static size_t record_size_source = sizeof(ZoneH5_Record_Source);
 
 /* CHK when format change */
 
@@ -19,6 +20,7 @@ static size_t record_size_polariz = sizeof(ZoneH5_Record_Polariz);
 #define NFIELDS_MOLEC ((hsize_t)1)
 #define NFIELDS_DUST ((hsize_t)3)
 #define NFIELDS_POLARIZ ((hsize_t)2)
+#define NFIELDS_SOURCE ((hsize_t)5)
 
 
 /* CHK when format change */
@@ -61,6 +63,13 @@ static size_t field_offsets_polariz[NFIELDS_POLARIZ] = {
         HOFFSET(ZoneH5_Record_Polariz, b_cen),
         HOFFSET(ZoneH5_Record_Polariz, alpha)
 };
+static size_t field_offsets_source[NFIELDS_SOURCE] = {
+    HOFFSET(ZoneH5_Record_Source, temperature),
+    HOFFSET(ZoneH5_Record_Source, theta),
+    HOFFSET(ZoneH5_Record_Source, phi),
+    HOFFSET(ZoneH5_Record_Source, radius),
+    HOFFSET(ZoneH5_Record_Source, distance)
+};
 
 /* Dummy record for calculating sizes */
 static ZoneH5_Record_Zone       dummy_record_zone;
@@ -68,6 +77,7 @@ static ZoneH5_Record_Grid       dummy_record_grid;
 static ZoneH5_Record_Molec      dummy_record_molec;
 static ZoneH5_Record_Dust       dummy_record_dust;
 static ZoneH5_Record_Polariz    dummy_record_polariz;
+static ZoneH5_Record_Source     dummy_record_source;
 
 /* Sizes of each field */
 static size_t field_sizes_zone[NFIELDS_ZONE] = {
@@ -109,6 +119,13 @@ static size_t field_sizes_polariz[NFIELDS_POLARIZ] = {
         sizeof(dummy_record_polariz.b_cen),
         sizeof(dummy_record_polariz.alpha)
 };
+static size_t field_sizes_source[NFIELDS_SOURCE] = {
+    sizeof(dummy_record_source.temperature),
+    sizeof(dummy_record_source.theta),
+    sizeof(dummy_record_source.phi),
+    sizeof(dummy_record_source.radius),
+    sizeof(dummy_record_source.distance)
+};
 
 
 /* Field names */
@@ -149,6 +166,13 @@ static const char *field_names_dust[NFIELDS_DUST] = {
 static const char *field_names_polariz[NFIELDS_POLARIZ] = {
         "b_cen",
         "alpha"
+};
+static const char *field_names_source[NFIELDS_SOURCE] = {
+    "temperature",
+    "theta",
+    "phi",
+    "radius",
+    "distance"
 };
 
 /*----------------------------------------------------------------------------*/
@@ -288,7 +312,7 @@ int ZoneH5_FwriteTable_Molec(hid_t h5f_id, const ZoneH5_Record_Molec *records, s
         );
 
         if(hstatus < 0)
-                return Err_SETSTRING("Error reading HDF5 GRID table");
+                return Err_SETSTRING("Error reading HDF5 MOLEC table");
         else
                 return 0;
 }
@@ -332,7 +356,7 @@ int ZoneH5_FwriteTable_Dust(hid_t h5f_id, const ZoneH5_Record_Dust *records, siz
         H5Tclose(kapp_type);
 
         if(hstatus < 0)
-                return Err_SETSTRING("Error reading HDF5 GRID table");
+                return Err_SETSTRING("Error reading HDF5 DUST table");
         else
                 return 0;
 }
@@ -341,42 +365,81 @@ int ZoneH5_FwriteTable_Dust(hid_t h5f_id, const ZoneH5_Record_Dust *records, siz
 
 int ZoneH5_FwriteTable_Polariz(hid_t h5f_id, const ZoneH5_Record_Polariz *records, size_t nrecord)
 {
-        herr_t hstatus;
+    herr_t hstatus;
+    
+    hid_t field_types[NFIELDS_POLARIZ];
+    hid_t vec3d_type;
+    hsize_t chunk_size = 10, vec3_size = 3;
+    int *fill_data = NULL, compress = 0;
+    
+    /* Create array data type */
+    vec3d_type = H5Tarray_create(H5T_NATIVE_DOUBLE, 1, &vec3_size);
+    
+    field_types[0] = vec3d_type;
+    field_types[1] = H5T_NATIVE_DOUBLE;
+    
+    /* Make the table */
+    hstatus = H5TBmake_table(
+        "Polariz table",
+        h5f_id,
+        "POLARIZ",
+        NFIELDS_POLARIZ,
+        (hsize_t)nrecord,
+        record_size_polariz,
+        field_names_polariz,
+        field_offsets_polariz,
+        field_types,
+        chunk_size,
+        fill_data,
+        compress,
+        records
+    );
+    
+    H5Tclose(vec3d_type);
+    
+    if(hstatus < 0)
+        return Err_SETSTRING("Error reading HDF5 POLARIZ table");
+    else
+        return 0;
+}
+/*----------------------------------------------------------------------------*/
 
-        hid_t field_types[NFIELDS_POLARIZ];
-        hid_t vec3d_type;
-        hsize_t chunk_size = 10, vec3_size = 3;
-        int *fill_data = NULL, compress = 0;
-
-        /* Create array data type */
-        vec3d_type = H5Tarray_create(H5T_NATIVE_DOUBLE, 1, &vec3_size);
-
-        field_types[0] = vec3d_type;
-        field_types[1] = H5T_NATIVE_DOUBLE;
-
-        /* Make the table */
-        hstatus = H5TBmake_table(
-                "Polariz table",
-                h5f_id,
-                "POLARIZ",
-                NFIELDS_POLARIZ,
-                (hsize_t)nrecord,
-                record_size_polariz,
-                field_names_polariz,
-                field_offsets_polariz,
-                field_types,
-                chunk_size,
-                fill_data,
-                compress,
-                records
-        );
-
-        H5Tclose(vec3d_type);
-
-        if(hstatus < 0)
-                return Err_SETSTRING("Error reading HDF5 GRID table");
-        else
-                return 0;
+int ZoneH5_FwriteTable_Source(hid_t h5f_id, const ZoneH5_Record_Source *records, size_t nrecord)
+{
+    herr_t hstatus;
+    
+    hid_t field_types[NFIELDS_SOURCE];
+    hsize_t chunk_size = 10, vec3_size = 3;
+    int *fill_data = NULL, compress = 0;
+    
+    /* Create array data type */
+    field_types[0] = H5T_NATIVE_DOUBLE;
+    field_types[1] = H5T_NATIVE_DOUBLE;
+    field_types[2] = H5T_NATIVE_DOUBLE;
+    field_types[3] = H5T_NATIVE_DOUBLE;
+    field_types[4] = H5T_NATIVE_DOUBLE;
+    
+    /* Make the table */
+    hstatus = H5TBmake_table(
+        "Source table",
+        h5f_id,
+        "SOURCE",
+        NFIELDS_SOURCE,
+        (hsize_t)nrecord,
+        record_size_source,
+        field_names_source,
+        field_offsets_source,
+        field_types,
+        chunk_size,
+        fill_data,
+        compress,
+        records
+    );
+    
+    if(hstatus < 0)
+        return Err_SETSTRING("Error reading HDF5 SOURCE table");
+    else
+        return 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -482,4 +545,24 @@ int ZoneH5_FreadTable_Polariz(hid_t h5f_id, ZoneH5_Record_Polariz *records)
                 return Err_SETSTRING("Error reading HDF5 POLARIZ table");
         else
                 return 0;
+}
+/*----------------------------------------------------------------------------*/
+int ZoneH5_FreadTable_Source(hid_t h5f_id, ZoneH5_Record_Source *records)
+{
+    herr_t hstatus;
+    
+    /* read the table */
+    hstatus = H5TBread_table(
+        h5f_id, 
+        "SOURCE", 
+        record_size_source, 
+        field_offsets_source, 
+        field_sizes_source, 
+        records
+    );
+    
+    if(hstatus < 0)
+        return Err_SETSTRING("Error reading HDF5 SOURCE table");
+    else
+        return 0;
 }
