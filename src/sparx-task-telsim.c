@@ -671,24 +671,17 @@ static int InitModel(void)
 	   errors from creeping in when flux values are very small */
 	if(task_id != TASK_COLDENS){
 		glb.I_norm = Phys_PlanckFunc(glb.freq, 10.0);
-
 		Deb_ASSERT(glb.I_norm > 0); /* Just in case */
 
 		/* Calculate CMB intensity */
                 if(parms->T_cmb > 0) {
-                    glb.I_cmb = Phys_PlanckFunc(glb.freq, parms->T_cmb);
-			Deb_ASSERT(glb.I_cmb > 0); /* Just in case */
-
-			/* Normalize CMB */
-			glb.I_cmb /= glb.I_norm;
+                    glb.I_cmb = Phys_PlanckFunc(glb.freq, parms->T_cmb) / glb.I_norm;
+                    Deb_ASSERT(glb.I_cmb > 0); /* Just in case */
 		}
 		/* Calculate inner boundary intensity */
                 if(parms->T_in > 0) {
-                    glb.I_in = Phys_PlanckFunc(glb.freq, parms->T_in);
+                    glb.I_in = Phys_PlanckFunc(glb.freq, parms->T_in) / glb.I_norm;
                         Deb_ASSERT(glb.I_in > 0); /* Just in case */
-
-                        /* Normalize CMB */
-                        glb.I_in /= glb.I_norm;
                 }
                 /* Calculate Source intensity and the dim factor */
                 int nSource = parms->Outer_Source;
@@ -698,13 +691,12 @@ static int InitModel(void)
                         
                         source->beta = source->radius / source->distance;
                         
-                        source->intensity = Phys_PlanckFunc(glb.freq, source->temperature);
-                        source->intensity /= glb.I_norm;
+                        source->intensity = Mem_CALLOC( 1, source->intensity);
+                        source->intensity[0] = Phys_PlanckFunc( glb.freq, source->temperature) / glb.I_norm;
                         
-                        source->pt_sph.x[0] = source->distance;
-                        source->pt_sph.x[1] = source->theta;
-                        source->pt_sph.x[2] = source->phi;
-                        
+                        GeVec3_X(source->pt_sph,0) = source->distance;
+                        GeVec3_X(source->pt_sph,1) = source->theta;
+                        GeVec3_X(source->pt_sph,2) = source->phi;
                         source->pt_cart = GeVec3_Sph2Cart(&source->pt_sph);
                     }
                 }
@@ -1613,14 +1605,14 @@ static void IntensityBC( size_t side, double *I_nu, double *tau_nu, GeRay *ray){
             // alpha < beta (angle of view of the radius of the source)
             // cos alpha > cos beta
             if ( alpha < candidate->beta ){
-//                 printf("%e %e\n",alpha,candidate->beta);
+            // printf("%e %e\n",alpha,candidate->beta);
                 if ( !target || (target && candidate->distance < target->distance) )
                     target = candidate;
             }
         }
         if (target){
-//             printf("OK %e\n",target->intensity);
-            ADD_BC(target->intensity)
+            // printf("OK %e\n",target->intensity[0]);
+            ADD_BC(target->intensity[0])
         }
         else{
             /* Add CMB to all channels -- this is done even if the ray misses the source */

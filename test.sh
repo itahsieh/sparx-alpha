@@ -163,8 +163,9 @@ case $CASE in
 
 #  parallelization and queuing system 
   "Q-PARA")
-        source ../benchmark/2002_p2a_benchmark/test    $SAVE_LOG 
-        ;;        
+        qsub ../parallel_job/test
+        while [ 1 ]; do clear;qstat -u $USER;tail -n 20 history.log;sleep 5;done
+        ;;
 
 # defualt : exit        
   *)

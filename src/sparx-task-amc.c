@@ -24,7 +24,7 @@ static struct glb {
     gsl_qrng *qrng[Sp_NTHREAD];
     unsigned long seed;
     double tolerance, minpop, snr, max_diff, overlap_vel, sor;
-    double  *I_norm, *I_cmb, *I_in, **I_source;
+    double  *I_norm, *I_cmb, *I_in;
     int stage, fully_random, lte, overlap, trace, popsold, qmc, ali, dat;
     
     pthread_mutex_t exc_mutex;
@@ -245,7 +245,36 @@ static int InitModel(void)
         }
     }
     
-    if ()
+    
+    /* initialize  outer source */
+    int nSource = parms->Outer_Source;
+    if (nSource){
+        /* The solid angle per initial numeber of ray */
+        parms->SolidAnglePerInitRay = 4.0 * M_PI / (double)glb.nray;
+        parms->BetaPerInitRay = acos( 1.0 - parms->SolidAnglePerInitRay /(2.0 * M_PI));
+        
+        for (int source_id = 0; source_id < nSource; source_id++){
+            SourceData * source = &parms->source[source_id];
+            GeVec3_X(source->pt_sph,0) = source->distance;
+            GeVec3_X(source->pt_sph,1) = source->theta;
+            GeVec3_X(source->pt_sph,2) = source->phi;
+            source->pt_cart = GeVec3_Sph2Cart(&source->pt_sph);
+            
+            /* set the intensity of the source */
+            INIT_BC( source->intensity, source->temperature) 
+
+            /* half angle of view of the source (beta) */
+            source->beta = source->radius / source->distance;
+            /* solid angle of the source */
+            double SolidAngle = 2.0 * M_PI * (1.0 - cos(source->beta));
+            /* linear factor of the solid anlgle between the source and per initial number of ray */
+            double alpha = SolidAngle / parms->SolidAnglePerInitRay;
+            source->EffectiveIntensity = Mem_CALLOC( NRAD, source->EffectiveIntensity);
+            for(size_t i = 0; i < NRAD; i++) {
+                source->EffectiveIntensity[i] = alpha * source->intensity[i] + (1.0-alpha) * glb.I_cmb[i];
+            }
+        }
+    }
     
     #undef INIT_BC	
     
@@ -1309,23 +1338,41 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
     
     /* Ray has been reached inner boundary, to give inner B.C. T_in */
     int geom = zone->voxel.geom;
-    if ( geom == GEOM_SPH1D || geom == GEOM_SPH3D ){
-        if ( plane == 0 ){
-            for(size_t i = 0; i < NRAD; i++) 
-                intensity[i] += glb.I_in[i] * exp(-tau[i]);
-        }
-        else if ( plane == 1){
-            for(size_t i = 0; i < NRAD; i++) 
-                intensity[i] += glb.I_cmb[i] * exp(-tau[i]);
-        }
-        else
-            /* It shouldn't happen, just in case */
-            Deb_ASSERT(0);
+    if ( (geom == GEOM_SPH1D || geom == GEOM_SPH3D) && plane == 0 ){
+        for(size_t i = 0; i < NRAD; i++) 
+            intensity[i] += glb.I_in[i] * exp(-tau[i]);
+    }
+    else if ( (geom == GEOM_SPH1D || geom == GEOM_SPH3D) && plane > 1){
+        /* It shouldn't happen, just in case */
+        Deb_ASSERT(0);
     }
     /* Ray escaped cloud, add CMB to all lines */
     else{
+        SpPhysParm * parms = &glb.model.parms;
+        SourceData *target = NULL; 
+        for ( int source_id = 0; source_id < parms->Outer_Source; source_id++){
+            SourceData *candidate = &parms->source[source_id];
+            
+            GeVec3_d source_vec = GeVec3_Sub( &ray->e, &candidate->pt_cart);
+            GeVec3_d source_d = GeVec3_Normalize( &source_vec) ;
+            double cos_alpha = GeVec3_DotProd( &ray->d, &source_d);
+            double alpha = acos(cos_alpha);
+            // the ray is inside the view of angle of the source
+            // alpha < beta (angle of view of the radius of the source)
+            if ( alpha < parms->BetaPerInitRay ){
+                if ( !target || (target && candidate->distance < target->distance) )
+                    target = candidate;
+            }
+        }
+        
+        double *intensity_bc;
+        if (target)
+            intensity_bc = target->EffectiveIntensity;
+        else
+            intensity_bc = glb.I_cmb;
+        
         for(size_t i = 0; i < NRAD; i++) 
-            intensity[i] += glb.I_cmb[i] * exp(-tau[i]);
+            intensity[i] += intensity_bc[i] * exp(-tau[i]);
     }
     
     

@@ -216,8 +216,8 @@ typedef struct SourceData{
     radius,
     distance,
     beta,
-    intensity,
-    dim_factor;
+    *intensity,
+    *EffectiveIntensity;
     GeVec3_d pt_sph, pt_cart;
 } SourceData;
 
@@ -229,7 +229,7 @@ typedef struct SpPhysParm {
     int geom, pops, polariz, dust;
     int Outer_Source;
     SourceData *source;
-    double AngleOfViewPerInitRay;
+    double SolidAnglePerInitRay, BetaPerInitRay;
 } SpPhysParm;
 
 typedef struct SpModel {

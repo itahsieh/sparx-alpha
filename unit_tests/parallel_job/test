@@ -5,15 +5,15 @@
 #PBS -o SPARX.out
 #PBS -e SPARX.err
 ###### Number of nodes and cores ######
-#PBS -l nodes=4:ppn=8
+#PBS -l nodes=8:ppn=16
 ###### Queue name ######
-#PBS -q small
+#PBS -q medium
 ###### Specific the shell types ######
 #PBS -S /bin/bash
 
 ###### Enter this job's working directory ######
 
-PBS_O_WORKDIR=/lustre/home/ydhsieh/alma_2016_disk_polariz
+PBS_O_WORKDIR=/tiara/home/ithsieh/sparx-alpha/unit_tests/tmp
 mkdir -p $PBS_O_WORKDIR
 cd $PBS_O_WORKDIR
 
@@ -23,20 +23,25 @@ source ~/.load_sparx_module
 
 rm -rf pops* history.log 
 
-# for LAM
-awk '!x[$0]++' $PBS_NODEFILE > LAMHOST
-$LAM_HOME/bin/lamboot LAMHOST
-$LAM_HOME/bin/mpiexec C sparx --parallel run task_amc source=$model out=pops_$case molec=$molecule trace='True' lte='True' tolerance=5e-3 snr=20 minpop=1e-6 nrays=1000 maxiter=20 raniter=1 fixiter=1 | tee history.log
-$LAM_HOME/bin/lamhalt
-rm -rf LAMHOST
-
-# OPENMPI
-###### Run your jobs with parameters ######
 if [ -n "$PBS_NODEFILE" ]; then
   if [ -f $PBS_NODEFILE ]; then
-    awk '!x[$0]++' $PBS_NODEFILE > OPENMPI_HOST
-    NPROCS=`wc -l < OPENMPI_HOST`
+    awk '!x[$0]++' $PBS_NODEFILE > MPIHOST
+    NPROCS=`wc -l < MPIHOST`
   fi
 fi
-rm -f OPENMPI_HOST
-$OPENMPI_HOME/bin/mpirun -v -machinefile $PBS_NODEFILE -np $NPROCS ./ 
+
+CLUSTERNAME=${HOSTNAME:0:2}
+sparx_version=`which sparx-$CLUSTERNAME`
+
+$OPENMPI_HOME/bin/mpirun -v -machinefile MPIHOST -np $NPROCS \
+$sparx_version --parallel run task_amc \
+source=model \
+out=pops \
+trace='True' \
+lte='True' \
+raniter=1 \
+fixiter=1 | tee history.log
+
+rm -rf MPIHOST
+
+

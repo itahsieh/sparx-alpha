@@ -14,7 +14,7 @@
 ###### Specific the shell types ######
 #PBS -S /bin/bash
 
-PBS_O_WORKDIR=/tiara/ara/home/ydhsieh/sparx/unit_tests/tmp
+PBS_O_WORKDIR=/tiara/home/ithsieh/sparx/unit_tests/tmp
 mkdir -p $PBS_O_WORKDIR
 
 ###### Enter this job's working directory ######
