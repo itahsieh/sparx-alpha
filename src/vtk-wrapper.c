@@ -311,7 +311,7 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
                 // radius
                 radius[0] = root->children[0]->voxel.min.x[0];
                 for(size_t i = 1; i < *n1 + 1; i++)
-                        radius[i] = root->children[ (i-1)*root->naxes.x[1]*root->naxes.x[2] ]->voxel.max.x[0];
+                        radius[i] = root->children[ (i-1) * root->naxes.x[1] * root->naxes.x[2] ]->voxel.max.x[0];
                 // theta
                 if (root->naxes.x[1] == 1){
                         double delta_theta = M_PI / (double) *n2;

@@ -310,9 +310,11 @@ int SpTask_Telsim(void)
 			glb.StokesU->restfreq = glb.freq;
 			glb.sigma2->restfreq = glb.freq;
 		}
-		if(glb.tau_imgf)
-			glb.tau_img = MirImg_Alloc(glb.x, glb.y, glb.v);
-		/* Calculate image */
+		if(glb.tau_imgf){
+                    glb.tau_img = MirImg_Alloc(glb.x, glb.y, glb.v);
+                    glb.tau_img->restfreq = glb.freq;
+                }
+                /* Calculate image */
 		sts = CalcImage();
 	}
 
@@ -2337,7 +2339,7 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                     // the ordinates of the ray position
                     GeVec3_d RayGeomPos = GeGeomPos(SampVp->geom, &ray.e);
                     
-                    #if 0
+                    #if 1
 
                     // debugging
                     //printf("dx \t= %E, dy = %E\n",dx,dy);
@@ -2403,7 +2405,7 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                     zp = Zone_GetNext(zp, &side, &ray);
                 }
             }
-            //if(!reached_sampling_zone) printf("SampZone : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]);
+            if(!reached_sampling_zone) printf("SampZone : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]);
             Deb_ASSERT(reached_sampling_zone);
             ContributionOfCell( zp, &ray, SampCartPos, contrib, contrib_dust, tau_nu, &tau_dust, tid);
         }

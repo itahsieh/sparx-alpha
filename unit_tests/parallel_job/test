@@ -5,9 +5,9 @@
 #PBS -o SPARX.out
 #PBS -e SPARX.err
 ###### Number of nodes and cores ######
-#PBS -l nodes=8:ppn=16
+#PBS -l nodes=20:ppn=16
 ###### Queue name ######
-#PBS -q medium
+#PBS -q large
 ###### Specific the shell types ######
 #PBS -S /bin/bash
 
@@ -27,18 +27,20 @@ if [ -n "$PBS_NODEFILE" ]; then
   if [ -f $PBS_NODEFILE ]; then
     awk '!x[$0]++' $PBS_NODEFILE > MPIHOST
     NPROCS=`wc -l < MPIHOST`
+    sed -e 's/$/ slots=1/' -i MPIHOST
   fi
 fi
 
-CLUSTERNAME=${HOSTNAME:0:2}
-sparx_version=`which sparx-$CLUSTERNAME`
+
 
 $OPENMPI_HOME/bin/mpirun -v -machinefile MPIHOST -np $NPROCS \
-$sparx_version --parallel run task_amc \
+sparx-xl --parallel run task_amc \
 source=model \
+pops=storage_pops \
 out=pops \
 trace='True' \
 lte='True' \
+nrays=100 \
 raniter=1 \
 fixiter=1 | tee history.log
 

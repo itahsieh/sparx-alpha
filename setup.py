@@ -252,13 +252,15 @@ depends_sparx = ['src/sparx.h']
 from distutils.core import setup, Extension
 from distutils import ccompiler, unixccompiler
 
+#os.environ["CXX"] = "icc"
+#os.environ["CC"] = "icc"
+
 # Things to include if MPI is available
 if HAVE_MPI:
 	macros += [('HAVE_MPI', None)]
 	libs += mpi_libs
 	#libs += ['lammpio', 'mpi', 'lam']
 	#libs += ['mpich', 'pgc', 'pgftnrtl', 'pgftnrtl', 'nspgc', 'pgc', 'rt']
-	#import os
 	#os.environ['CC'] = "mpicc"
 
 # Definition for the _sparx extension module
@@ -278,8 +280,7 @@ ext_sparx = Extension( SPARX_VERSION + '._sparx'  ,
 	library_dirs = lib_dirs,
 	libraries = libs
 )
-#os.environ["CXX"] = "icc"
-#os.environ["CC"] = "icc"
+
 
 # The main setup call
 setup(

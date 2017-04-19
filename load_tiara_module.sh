@@ -3,7 +3,7 @@
 . /etc/profile.d/modules.sh
 module purge
 
-module add icc
+module add icc/15.0
 module add cfitsio
 module add openmpi
 module add fftw/3.3.4_openmpi_1.10.2_ic15.0
