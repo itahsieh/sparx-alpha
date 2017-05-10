@@ -298,11 +298,11 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model)
 				status = 1;
 			}
 		}
-	}
+        }
 	/* Load grid */	
 	if(!status)
 		status = SpIO_H5ReadGrid(sfp->h5f_id, popsfp->h5f_id, &model->grid, &model->parms);
-	/* Cleanup */	
+        /* Cleanup */	
 	free(mol_name);
 	free(velfield);
 
@@ -633,14 +633,14 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 
 	/* Read data for this zone */
 	status = ZoneH5_FreadTable(h5f_id, "ZONE", &this_zone);
-
+        
 	if(!status) {
 		SpIO_ZoneFromH5Record((*zone), this_zone);
 
 		/* Grow grid */
 		SpZone_GROW(*zone, (*zone)->naxes, parms);
 	}
-
+	
 	/* Read pops if present */
 	if(!status && parms) {
 		//printf("%d\n",*parms->mol);
@@ -650,7 +650,7 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 			status = SpIO_H5ReadPops(popsh5f_id, *zone);
 		}
 	}
-
+	
 	/* Read tau if present */
 	if(!status && parms) {
 		
