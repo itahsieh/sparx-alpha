@@ -1552,8 +1552,8 @@ static void InitRay(double *dx, double *dy, GeRay *ray)
          *   theta = PI/2 + dy
          *   phi = -dx
          */
-        double phi = -(*dx);
-        double theta = 0.5 * M_PI + (*dy);
+        double phi = M_PI - (*dx);
+        double theta = 0.5 * M_PI - (*dy);
 
         /* Convert to Cartesian coordinates */
         GeRay_D(*ray, 0) = sin(theta) * cos(phi);
@@ -1565,9 +1565,9 @@ static void InitRay(double *dx, double *dy, GeRay *ray)
          * are pointed towards the model, rays should be rotated in the negative
          * direction, and in the opposite order of what we would've done to
          * rotate the model. */
-        *ray = GeRay_Rotate(ray, 2, -glb.rotate[2]);
-        *ray = GeRay_Rotate(ray, 1, -glb.rotate[1]);
         *ray = GeRay_Rotate(ray, 0, -glb.rotate[0]);
+        *ray = GeRay_Rotate(ray, 1, -glb.rotate[1]);
+        *ray = GeRay_Rotate(ray, 2, -glb.rotate[2]);
 
         /* Coordinate-dependent offset */
         switch(root->voxel.geom) {
@@ -1608,16 +1608,16 @@ static void InitLOSCoord( double *dx, double *dy, GeRay *ray, GeVec3_d *z, GeVec
         GeVec3_X(*n,0) = -cos(theta)*cos(phi);
         GeVec3_X(*n,1) = -cos(theta)*sin(phi);
         GeVec3_X(*n,2) =  sin(theta);
-        *n = GeVec3_Rotate_z(n, -glb.rotate[2]);
-        *n = GeVec3_Rotate_y(n, -glb.rotate[1]);
         *n = GeVec3_Rotate_x(n, -glb.rotate[0]);
+        *n = GeVec3_Rotate_y(n, -glb.rotate[1]);
+        *n = GeVec3_Rotate_z(n, -glb.rotate[2]);
         
         GeVec3_X(*e,0) = sin(phi);
         GeVec3_X(*e,1) = -cos(phi);
         GeVec3_X(*e,2) = 0.0;
-        *e = GeVec3_Rotate_z(e, -glb.rotate[2]);
-        *e = GeVec3_Rotate_y(e, -glb.rotate[1]);
         *e = GeVec3_Rotate_x(e, -glb.rotate[0]);
+        *e = GeVec3_Rotate_y(e, -glb.rotate[1]);
+        *e = GeVec3_Rotate_z(e, -glb.rotate[2]);
         
         return;
 }
