@@ -2289,7 +2289,9 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
         double t;
 
 
+#if 0
         GeVec3_d SampCartPosRotate = *SampCartPos;
+        
         SampCartPosRotate = GeVec3_Rotate_x( &SampCartPosRotate, glb.rotate[0]);
         SampCartPosRotate = GeVec3_Rotate_y( &SampCartPosRotate, glb.rotate[1]);
         SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.rotate[2]);
@@ -2297,7 +2299,22 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
         double dx = atan( SampCartPosRotate.x[1] / ( glb.dist - SampCartPosRotate.x[0] ) );
         double dy = atan( SampCartPosRotate.x[2] / ( glb.dist - SampCartPosRotate.x[0] ) );
         InitRay( &dx, &dy, &ray);
+#else
+        Mem_BZERO(&ray);
+        GeRay_E(ray, 0) = glb.dist;
+        GeRay_E(ray, 1) = 0.0;
+        GeRay_E(ray, 2) = 0.0;
         
+        ray = GeRay_Rotate(&ray, 0, -glb.rotate[0]);
+        ray = GeRay_Rotate(&ray, 1, -glb.rotate[1]);
+        ray = GeRay_Rotate(&ray, 2, -glb.rotate[2]);
+        
+        GeRay_D(ray, 0) = SampCartPos->x[0] - GeRay_E(ray, 0);
+        GeRay_D(ray, 1) = SampCartPos->x[1] - GeRay_E(ray, 1);
+        GeRay_D(ray, 2) = SampCartPos->x[2] - GeRay_E(ray, 2);
+        ray.d = GeVec3_Normalize(&ray.d);
+
+#endif
         /* Shoot ray at model and see what happens! */
         if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
             /* Reset tau for all channels */
@@ -2310,25 +2327,71 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
 
             /* Locate starting leaf zone according to intersection */
             Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
-#if 0
-            printf("dx \t= %E, dy = %E\n",dx,dy);
-            printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
-            printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
-            printf("SP index : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]);
             
-            printf("SampPos \t= %E %E %E\n", 
-            SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
-            printf("VoxelMin \t= %E %E %E\n", 
-            SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
-            printf("VoxelMax \t= %E %E %E\n", 
-            SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
-#endif
+            #if 0
+            if (
+                (SampZone->index.x[0] == 48) && (SampZone->index.x[1] == 13) && (SampZone->index.x[2] == 17) ||
+                (SampZone->index.x[0] == 47) && (SampZone->index.x[1] == 11) && (SampZone->index.x[2] == 73)
+            )
+            {
+//                 printf("geom: %s\n",GEOM_TYPES[root->voxel.geom]);
+                //printf("SampPos x y z : %E %E %E\n",SampCartPosRotate.x[0], SampCartPosRotate.x[1], SampCartPosRotate.x[2]);
+                //printf("dist : %E\n", glb.dist);
+                //printf("dx \t= %E, dy = %E\n",dx,dy);
+                
+                
+                printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
+                printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
+                
+//                 GeVec3_d tmp;
+//                 tmp.x[0] = SampCartPosRotate.x[0] - glb.dist;
+//                 tmp.x[1] = SampCartPosRotate.x[1];
+//                 tmp.x[2] = SampCartPosRotate.x[2];
+//                 tmp = GeVec3_Normalize(&tmp);
+//                 printf("true direction \t= %E %E %E\n", tmp.x[0], tmp.x[1], tmp.x[2]);
+                
+                printf("SP index : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]);
+                
+                printf("SampPos \t= %E %E %E\n", 
+                SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
+                printf("VoxelMin \t= %E %E %E\n", 
+                SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
+                printf("VoxelMax \t= %E %E %E\n", 
+                SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
+            }
+            #endif
+            
             int reached_sampling_zone = 0;
             
             /* Keep going until there's no next zone to traverse to */
             while(zp) {
-                //printf("zp index : %zu %zu %zu\n",zp->index.x[0],zp->index.x[1],zp->index.x[2]);
                 
+                GeVec3_d RayGeomPos;
+                
+                #if 0
+                if ((SampZone->index.x[0] == 47) && (SampZone->index.x[1] == 12) && (SampZone->index.x[2] == 73)){
+                    printf("zp index : %zu %zu %zu\n",zp->index.x[0],zp->index.x[1],zp->index.x[2]);
+                
+                    // debugging
+                    //printf("dx \t= %E, dy = %E\n",dx,dy);
+                    printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
+                    //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
+                    printf("SampPos \t= %E %E %E\n", 
+                    SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
+                    
+                    printf("VoxelMin \t= %E %E %E\n", 
+                    zp->voxel.min.x[0], zp->voxel.min.x[1], zp->voxel.min.x[2]);
+                    
+                    RayGeomPos = GeGeomPos(SampVp->geom, &ray.e);
+                    printf("RayGeomPos \t= %E %E %E\n", 
+                    RayGeomPos.x[0], RayGeomPos.x[1], RayGeomPos.x[2]);
+                    printf("VoxelMax \t= %E %E %E\n", 
+                    zp->voxel.max.x[0], zp->voxel.max.x[1], zp->voxel.max.x[2]);
+                
+                    if ( !ReachCell(&RayGeomPos, &zp->voxel, side) )
+                        Deb_ASSERT(0);
+                }
+                #endif
                 
                 // see if the ray reach the target zone
                 int reach_the_target_zone = ReachZone( zp, SampZone);
@@ -2336,25 +2399,11 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                 
                 // the ray reaches the taget zone
                 if( reach_the_target_zone ){
-                    // the ordinates of the ray position
-                    GeVec3_d RayGeomPos = GeGeomPos(SampVp->geom, &ray.e);
                     
-                    #if 1
-
-                    // debugging
-                    //printf("dx \t= %E, dy = %E\n",dx,dy);
-                    printf("ray.e \t= %E %E %E\n", ray.e.x[0], ray.e.x[1], ray.e.x[2]);
-                    //printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
-                    printf("SampPos \t= %E %E %E\n", 
-                    SampCartPos->x[0], SampCartPos->x[1], SampCartPos->x[2]);
-                    printf("VoxelMin \t= %E %E %E\n", 
-                    SampVp->min.x[0], SampVp->min.x[1], SampVp->min.x[2]);
-                    printf("RayGeomPos \t= %E %E %E\n", 
-                    RayGeomPos.x[0], RayGeomPos.x[1], RayGeomPos.x[2]);
-                    printf("VoxelMax \t= %E %E %E\n", 
-                    SampVp->max.x[0], SampVp->max.x[1], SampVp->max.x[2]);
-
-                    #endif
+                    // the ordinates of the ray position
+                    RayGeomPos = GeGeomPos(SampVp->geom, &ray.e);
+                    
+ 
 
                     // see if the photon reach the sampling cell
                     int reached_cell = ReachCell(&RayGeomPos, SampVp, side);
@@ -2405,12 +2454,16 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                     zp = Zone_GetNext(zp, &side, &ray);
                 }
             }
-            if(!reached_sampling_zone) printf("SampZone : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]);
-            Deb_ASSERT(reached_sampling_zone);
+            if(!reached_sampling_zone){
+                printf("didnot reach the sampling zone\n");
+                printf("SampZone : %zu %zu %zu\n",SampZone->index.x[0],SampZone->index.x[1],SampZone->index.x[2]); 
+                Deb_ASSERT(0);
+            }
+            
             ContributionOfCell( zp, &ray, SampCartPos, contrib, contrib_dust, tau_nu, &tau_dust, tid);
         }
         else{
-                Deb_ASSERT(0);
+            Deb_ASSERT(0);
         }
 #if 0
         printf("contribution\n");

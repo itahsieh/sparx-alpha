@@ -13,7 +13,7 @@ if ENABLE_MULTITREADING:
         NumberOfThread = 2 * multiprocessing.cpu_count()
 else:
         NumberOfThread = 1
-print 'Number Of Thread=',NumberOfThread
+print 'Number Of Thread =',NumberOfThread
 
 # Test for MPI by checking whether mpicc can be called
 from subprocess import call, Popen, PIPE

@@ -293,7 +293,7 @@ Zone *Zone_GetLeaf_sph1d(Zone *zone, size_t side)
 }
 
 /*----------------------------------------------------------------------------*/
-#define RTHRESHOLD 1e-6
+#define RTHRESHOLD 1e-12
 Zone *Zone_GetLeaf_sph3d(Zone *zone, size_t side, const GeVec3_d *pt, const GeRay *ray)
 /* Locate leaf zone on side containing pt */
 {
