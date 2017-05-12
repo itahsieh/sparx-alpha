@@ -35,10 +35,10 @@ void SpPhys_Free(void *ptr)
 {
 	SpPhys *pp = ptr;
 
-	for(size_t i = 0; i < Sp_NTHREAD; i++) {
-		if(pp->pops[i])
-			free(pp->pops[i]);
-	}
+        if(pp->pops_preserve)
+            free(pp->pops_preserve);
+        if(pp->pops_update)
+            free(pp->pops_update);
 
 	if(pp->cmat)
 		free(pp->cmat);
@@ -62,10 +62,8 @@ void SpPhys_InitMol(SpPhys *pp, const Molec *mol)
 	Deb_ASSERT(pp->mol == NULL);
         pp->mol = mol;
 
-	for(size_t i = 0; i < Sp_NTHREAD; i++) {
-		Deb_ASSERT(pp->pops[i] == NULL);
-		pp->pops[i] = Mem_CALLOC(mol->nlev, pp->pops[i]);
-	}
+        Deb_ASSERT(pp->pops_preserve == NULL);
+        pp->pops_preserve = Mem_CALLOC(mol->nlev, pp->pops_preserve);
 
 	/* Allocate tau for book keeping */
 	pp->tau = Mem_CALLOC(mol->nrad, pp->tau);
@@ -495,11 +493,11 @@ void SpPhys_Fprintf(SpPhys *pp, FILE *fp)
 		pp->n_H2, pp->T_k, pp->X_mol, pp->width, strlen(pp->kapp_d) > 0 ? pp->kapp_d : "None");
 
 	if(pp->mol) {
-		Deb_ASSERT(pp->pops[0] != 0);
+		Deb_ASSERT(pp->pops_preserve != 0);
 		fprintf(fp, " %5s|%20s\n", "Level", "Fractional density");
 		fprintf(fp, " %5s|%20s\n", "-----", "--------------------");
 		for(size_t i = 0; i < pp->mol->nlev; i++) {
-			fprintf(fp, " %5lu|%20g\n", (unsigned long)i, pp->pops[0][i]);
+                    fprintf(fp, " %5lu|%20g\n", (unsigned long)i, pp->pops_preserve[i]);
 		}
 	}
 
@@ -518,8 +516,8 @@ size_t SpPhys_Fwrite(SpPhys *pp, FILE *fp)
 	nbytes += Mem_FWRITE(&pp->width, 1, fp);
 
 	if(pp->mol) {
-		Deb_ASSERT(pp->pops[0] != 0);
-		nbytes += Mem_FWRITE(pp->pops[0], pp->mol->nlev, fp);
+            Deb_ASSERT(pp->pops_preserve != 0);
+            nbytes += Mem_FWRITE(pp->pops_preserve, pp->mol->nlev, fp);
 	}
 
 	return nbytes;
@@ -537,8 +535,8 @@ size_t SpPhys_Fread(SpPhys *pp, FILE *fp)
 	nbytes += Mem_FREAD(&pp->width, 1, fp);
 
 	if(pp->mol) {
-		Deb_ASSERT(pp->pops[0] != 0);
-		nbytes += Mem_FREAD(pp->pops[0], pp->mol->nlev, fp);
+            Deb_ASSERT(pp->pops_preserve != 0);
+            nbytes += Mem_FREAD(pp->pops_preserve, pp->mol->nlev, fp);
 	}
 
 	return nbytes;
@@ -664,7 +662,7 @@ double SpPhys_BoltzPops(const Molec *mol, size_t lev, double T_k)
 
 /*----------------------------------------------------------------------------*/
 
-void SpPhys_GetMoljk(size_t tid, const SpPhys *pp, size_t tr, double vfac, double *j_nu, double *k_nu)
+void SpPhys_GetMoljk(const SpPhys *pp, size_t tr, double vfac, double *j_nu, double *k_nu)
 /* Calculate mlecular emission and absorption coefficients (cf. Rybicki &
  * Lightman 1985).
  *
@@ -681,8 +679,8 @@ void SpPhys_GetMoljk(size_t tid, const SpPhys *pp, size_t tr, double vfac, doubl
 	const MolTrRad *trans = pp->mol->rad[tr];
 	double
 		nu = trans->freq,
-		n_u = pp->pops[tid][trans->up],
-		n_l = pp->pops[tid][trans->lo],
+                n_u = pp->pops_preserve[trans->up],
+                n_l = pp->pops_preserve[trans->lo],
 		factor;
 		/* Factor is angle-averaged photon energy multiplied by
 		 * the line profile function:

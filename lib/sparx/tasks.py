@@ -1317,10 +1317,9 @@ class Task_N1333(Task):
 			# Set physical parameters
 			if(grid.cen_i[pos] < 23.9/2.06e5):			
 				grid.n_H2[pos] = 5e15 # m^-3
-				grid.kapp_d[pos] = Type.KappLLaw("['0.16mm','0.23cm^2g^-1',-2]")
 			else:
 				grid.n_H2[pos] = 6.3e12*(grid.cen_i[pos]/0.005)**-1.8 # m^-3
-				grid.kapp_d[pos] = Type.KappLLaw("['0.16mm','0.23cm^2g^-1',-2]")
+                        grid.kapp_d[pos] = Type.KappLLaw("['0.16mm','0.23cm^2g^-1',-2]")
 			grid.T_k[pos] = 71.*(grid.cen_i[pos]/0.00032467532)**-1 +60.7*(grid.cen_i[pos]/0.00032467532)**-0.4 # K
 			if(grid.T_k[pos]>100.):
 				grid.X_mol[pos] = abd1 # Fraction

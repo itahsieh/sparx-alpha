@@ -722,7 +722,18 @@ static int InitModel(void)
                                         zp->voxel.cen.x[1] * zp->voxel.cen.x[1] + 
                                         zp->voxel.cen.x[2] * zp->voxel.cen.x[2] );
  				//double radius = zp->voxel.cen.x[0];
- 				fprintf(fp,"%g %g %g %g %g %g %g %g %g %g %g\n",radius,pp->pops[0][0],pp->pops[0][1],pp->pops[0][2],pp->pops[0][3],pp->pops[0][4],pp->pops[0][5],pp->pops[0][6],pp->pops[0][7],pp->pops[0][8],pp->pops[0][9]);
+ 				fprintf(fp,"%g %g %g %g %g %g %g %g %g %g %g\n",
+ 				radius,
+                                pp->pops_preserve[0],
+                                pp->pops_preserve[1],
+                                pp->pops_preserve[2],
+                                pp->pops_preserve[3],
+                                pp->pops_preserve[4],
+                                pp->pops_preserve[5],
+                                pp->pops_preserve[6],
+                                pp->pops_preserve[7],
+                                pp->pops_preserve[8],
+                                pp->pops_preserve[9]);
                                 */
 			}
 			else{
@@ -771,12 +782,11 @@ static void *InitModelThread(void *tid_p)
                     if(glb.lte){
                         // initialize level population for LTE condition
                         pp->mol = glb.model.parms.mol;
-                        for(k = 0; k < Sp_NTHREAD; k++) {
-                            pp->pops[k] = Mem_CALLOC(pp->mol->nlev, pp->pops[k]);
-                        }
+                        pp->pops_preserve = Mem_CALLOC(pp->mol->nlev, pp->pops_preserve);
+
                         // LTE : Boltzmann distribution
                         for(j = 0; j < pp->mol->nlev; j++) 
-                            pp->pops[0][j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
+                            pp->pops_preserve[j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
                         
                         /* Allocate continuum emission/absorption */
                         for(size_t i = 0; i < nrad; i++) {
@@ -784,12 +794,8 @@ static void *InitModelThread(void *tid_p)
                         }
                         SpPhys_InitContWindows(pp, freq, nrad);
                     }
-                    // copy pops for multithreading cache
-                    for(k = 1; k < Sp_NTHREAD; k++) 
-                        for(j = 0; j < pp->mol->nlev; j++) 
-                            pp->pops[k][j] = pp->pops[0][j];
                         
-                        pp->width = SpPhys_CalcLineWidth(pp);
+                    pp->width = SpPhys_CalcLineWidth(pp);
                 }
                 
                 /* Add dust emission/absorption if T_d > 0 */
@@ -1134,7 +1140,7 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
                                                  * of the local line width -- very time consuming! */
 						double vfac = SpPhys_GetVfac(&ray, t, dv, zp, 0);
 						/* Calculate molecular line emission and absorption coefficients */
-						SpPhys_GetMoljk(tid, pp, glb.line, vfac, &j_nu, &k_nu);
+						SpPhys_GetMoljk(pp, glb.line, vfac, &j_nu, &k_nu);
 						
 					}
 					
@@ -1240,13 +1246,13 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
                                     double tempj_nu, tempk_nu;
                                     if(i==j){
                                         /* Calculate molecular line emission and absorption coefficients */
-                                        SpPhys_GetMoljk(tid, pp, j, vfac, &tempj_nu, &tempk_nu);
+                                        SpPhys_GetMoljk(pp, j, vfac, &tempj_nu, &tempk_nu);
                                     }
                                     else{
                                         /* Calculate velocity line profile factor */
                                         double vfac2 = pp->has_tracer ? SpPhys_GetVfac(&ray, t, dv-RELVEL(i,j), zp, 0) : 0.0;
                                         /* Calculate molecular line emission and absorption coefficients */
-                                        SpPhys_GetMoljk(tid, pp, j, vfac2, &tempj_nu, &tempk_nu);
+                                        SpPhys_GetMoljk(pp, j, vfac2, &tempj_nu, &tempk_nu);
                                     }
                                     j_nu += tempj_nu;
                                     k_nu += tempk_nu;
@@ -1354,7 +1360,7 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                                                 double vfac2 = SpPhys_GetVfac(&ray, t, dv-deltav, zp, 0);
                                                 vfac = vfac-vfac2;
                                                 double tempj_nu, tempk_nu;
-                                                SpPhys_GetMoljk(tid, pp, glb.line, vfac, &tempj_nu, &tempk_nu);
+                                                SpPhys_GetMoljk(pp, glb.line, vfac, &tempj_nu, &tempk_nu);
                                                 j_nu = 0.5 * tempj_nu;
                                                 k_nu += tempk_nu;
                                         }
@@ -1863,8 +1869,8 @@ static void Vtk_nested_hyosun(void)
 					MolTrRad *trans = pp->mol->rad[glb.line];
 					size_t up = trans->up;
 					size_t lo = trans->lo;
-					double n_u = pp->pops[0][up];
-					double n_l = pp->pops[0][lo];
+					double n_u = pp->pops_preserve[up];
+					double n_l = pp->pops_preserve[lo];
 					double E_u = pp->mol->lev[up]->E;
 					double E_l = pp->mol->lev[lo]->E;
 					double g_u = pp->mol->lev[up]->g;
@@ -1917,8 +1923,8 @@ static void Vtk_nested_hyosun(void)
 					MolTrRad *trans = pp->mol->rad[glb.line];
 					size_t up = trans->up;
 					size_t lo = trans->lo;
-					double n_u = pp->pops[0][up];
-					double n_l = pp->pops[0][lo];
+					double n_u = pp->pops_preserve[up];
+					double n_l = pp->pops_preserve[lo];
 					double E_u = pp->mol->lev[up]->E;
 					double E_l = pp->mol->lev[lo]->E;
 					double g_u = pp->mol->lev[up]->g;
@@ -2715,7 +2721,7 @@ static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double
                                 * of the local line width -- very time consuming! */
                                 double vfac = SpPhys_GetVfac(ray, t, dv, zp, 0);
                                 /* Calculate molecular line emission and absorption coefficients */
-                                SpPhys_GetMoljk(tid, pp, glb.line, vfac, &j_nu, &k_nu);
+                                SpPhys_GetMoljk(pp, glb.line, vfac, &j_nu, &k_nu);
                                 
                         }
                         
@@ -2772,7 +2778,7 @@ static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *Samp
                                 * of the local line width -- very time consuming! */
                                 double vfac = SpPhys_GetVfac(ray, t, dv, zp, 0);
                                 /* Calculate molecular line emission and absorption coefficients */
-                                SpPhys_GetMoljk(tid, pp, glb.line, vfac, &j_nu, &k_nu);
+                                SpPhys_GetMoljk(pp, glb.line, vfac, &j_nu, &k_nu);
                         }
                         
                         /* Add continuum emission/absorption */

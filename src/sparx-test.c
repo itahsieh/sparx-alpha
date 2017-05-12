@@ -339,7 +339,7 @@ static int SpTest_Model(void)
 			pp = zp->data;
 			pp->T_k = 40.0;
 			for(i = 0; i < model.parms.mol->nlev; i++) {
-				pp->pops[0][i] = SpPhys_BoltzPops(model.parms.mol, i, pp->T_k);
+				pp->pops_preserve[i] = SpPhys_BoltzPops(model.parms.mol, i, pp->T_k);
 			}
 		}
 	}
@@ -540,7 +540,7 @@ static int SpTest_Zone(void)
 				pp->width = 192.0;
 
 				for(i = 0; i < prm.mol->nlev; i++) {
-					pp->pops[0][i] = SpPhys_BoltzPops(prm.mol, i, pp->T_k);
+					pp->pops_preserve[i] = SpPhys_BoltzPops(prm.mol, i, pp->T_k);
 				}
 
 				if(0) {

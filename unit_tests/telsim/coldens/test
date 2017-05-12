@@ -6,6 +6,8 @@ printf "${LIGHTCYAN}START THE MAPPING OF COLUMN DENSITY ${NC}\n"
 
 sparx run task_coldens \
 source=model \
-out=coldens 
+out=coldens \
+dist='10pc' \
+rotate="['0deg','20deg','0deg']" \
 # subres="[['-10asec','-10asec','10asec','10asec',4]]"
 

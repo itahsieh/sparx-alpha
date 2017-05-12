@@ -171,7 +171,7 @@ static void *GenModelThread(void *arg)
 
 		if(glb.model.parms.mol) {
 			for(i = 0; i < glb.model.parms.mol->nlev; i++) {
-				pp->pops[0][i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
+				pp->pops_preserve[i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
 			}
 		}
 

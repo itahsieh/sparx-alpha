@@ -407,17 +407,18 @@ static void *InitModelThread(void *tid_p)
                 
                 /* Set initial pops to either optically thin or LTE */
                 if (glb.popsold == 0){   // only if not using old pops (added by I-Ta 2012.10.26)
-                    for(size_t j = 0; j < pp->mol->nlev; j++) {
-                        for(size_t k = 0; k < Sp_NTHREAD; k++) {
-                            if(glb.lte) {
-                                pp->pops[k][j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
-                            }
-                            else {
-                                pp->pops[k][j] = (j == 0) ? 1.0 : 0.0;
-                            }
-                        }
+                    if(glb.lte) {
+                        for(size_t j = 0; j < pp->mol->nlev; j++) 
+                            pp->pops_preserve[j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
+                    }
+                    else {
+                        for(size_t j = 0; j < pp->mol->nlev; j++) 
+                            pp->pops_preserve[j] = (j == 0) ? 1.0 : 0.0;
                     }
                 }
+                
+                SpPhysParm *parms = &glb.model.parms;
+                pp->pops_update = Mem_CALLOC( parms->mol->nlev, pp->pops_update);
             }
             
             /* Add dust emission/absorption if T_d > 0 */
@@ -672,8 +673,15 @@ static int CalcExc(void)
             SpPhys *pp = zp->data;
             if(pp->non_empty_leaf){
                 fprintf(fp,"%11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",\
-                pp->pops[0][0],pp->pops[0][1],pp->pops[0][2],pp->pops[0][3],pp->pops[0][4],pp->pops[0][5],\
-                pp->pops[0][6],pp->pops[0][7],pp->pops[0][8]);
+                pp->pops_preserve[0],
+                pp->pops_preserve[1],
+                pp->pops_preserve[2],
+                pp->pops_preserve[3],
+                pp->pops_preserve[4],
+                pp->pops_preserve[5],
+                pp->pops_preserve[6],
+                pp->pops_preserve[7],
+                pp->pops_preserve[8]);
         }
         else{fprintf(fp,"0 0 0 0 0 0 0 0 0\n");}
         }
@@ -794,7 +802,7 @@ if(glb.dat){
             }
             fprintf(fp,"%11.4e ", tempR);
             for (size_t j = 0; j < pp->mol->nlev; j++ )
-                fprintf(fp,"%11.4e ", pp->pops[0][j]);
+                fprintf(fp,"%11.4e ", pp->pops_preserve[j]);
             fprintf(fp,"\n");
         }
         fclose(fp);
@@ -814,7 +822,6 @@ static void *CalcExcThread(void *tid_p)
 {
     size_t tid = *((size_t *)tid_p);
     double *hist = Mem_CALLOC(NHIST * NLEV, hist);
-    double *popsold = Mem_CALLOC(NLEV, popsold);
     
     #define TIMER 0
     
@@ -836,11 +843,6 @@ static void *CalcExcThread(void *tid_p)
         /* Zone related pointers */
         Zone *zp = glb.zones[izone];
         SpPhys *pp = zp->data;
-        
-        // restore
-        for(size_t i = 0; i < NLEV; i++) {
-            popsold[i]=pp->pops[tid][i];
-        }
         
         /* Buffers for calculating excitation */
         double *ds0 = Mem_CALLOC(pp->nray, ds0);
@@ -891,7 +893,7 @@ static void *CalcExcThread(void *tid_p)
             
             if(glb.stage == STAGE_RAN){
                 for(size_t i = 0; i < NLEV; i++) {
-                    HIST(ihist, i) = pp->pops[tid][i];
+                    HIST(ihist, i) = pp->pops_update[i];
                 }
             }
         }
@@ -911,8 +913,9 @@ static void *CalcExcThread(void *tid_p)
             // Stage 1, calculate difference by outer loop: iterative noise
             diff = 0.0;
             for(size_t i = 0; i < NLEV; i++) {
-                if(pp->pops[tid][i]>glb.minpop){
-                    double temp = fabs( pp->pops[tid][i] - popsold[i] ) / pp->pops[tid][i];
+                if( pp->pops_update[i] > glb.minpop ){
+                    double temp = 
+                        fabs( pp->pops_update[i] - pp->pops_preserve[i] ) / pp->pops_update[i];
                     diff = ( diff>temp? diff:temp );
                 }
             } 
@@ -980,7 +983,6 @@ static void *CalcExcThread(void *tid_p)
     #undef TIMER	
     
     free(hist);
-    free(popsold);
     pthread_exit(NULL);
 }
 
@@ -1037,9 +1039,8 @@ static void SyncPops(size_t izone)
     SpPhys *pp = zp->data;
     
     /* First copy pops from all other threads to thread 0 */
-    if(zone_tid != 0) {
-        Mem_MEMCPY(pp->pops[0], pp->pops[zone_tid], NLEV);
-    }
+
+    Mem_MEMCPY(pp->pops_preserve, pp->pops_update, NLEV);
     
     #ifdef HAVE_MPI
     /* Then sync results from all processes if using MPI */
@@ -1051,7 +1052,7 @@ static void SyncPops(size_t izone)
         if(Sp_MPIRANK != 0) {
             /* This is a slave process; send to master */
             if(zone_rank == Sp_MPIRANK) {
-                MPI_Send(pp->pops[0], (int)NLEV, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
+                MPI_Send(pp->pops_preserve, (int)NLEV, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
                 MPI_Send(pp->tau, (int)NRAD, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
                 MPI_Send(&pp->ds, 1, MPI_DOUBLE, 0, Sp_MPITAG, MPI_COMM_WORLD);
                 
@@ -1063,7 +1064,7 @@ static void SyncPops(size_t izone)
         else {
             /* This is the master process; receive from a slave */
             if(zone_rank != 0) {
-                MPI_Recv(pp->pops[0], (int)NLEV, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
+                MPI_Recv(pp->pops_preserve, (int)NLEV, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
                 MPI_Recv(pp->tau, (int)NRAD, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
                 MPI_Recv(&pp->ds, 1, MPI_DOUBLE, (int)zone_rank, Sp_MPITAG, MPI_COMM_WORLD, &mpi_status);
                 
@@ -1074,7 +1075,7 @@ static void SyncPops(size_t izone)
         }
         
         /* Sync all processes with master */
-        MPI_Bcast(pp->pops[0], (int)NLEV, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(pp->pops_preserve, (int)NLEV, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(pp->tau, (int)NRAD, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         
         //MPI_Bcast(pp->J_bar, (int)NRAD, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -1083,10 +1084,6 @@ static void SyncPops(size_t izone)
     }
     #endif
     
-    /* Copy thread 0 pops to all other threads */
-    for(size_t i = 1; i < Sp_NTHREAD; i++) {
-        Mem_MEMCPY(pp->pops[i], pp->pops[0], NLEV);
-    }
     
     return;
 }
@@ -1259,13 +1256,13 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
                                 double tempj_nu, tempk_nu;
                                 if(i==j){
                                     /* Calculate molecular line emission and absorption coefficients */
-                                    SpPhys_GetMoljk(tid, pp, j, vfac, &tempj_nu, &tempk_nu);
+                                    SpPhys_GetMoljk(pp, j, vfac, &tempj_nu, &tempk_nu);
                                 }
                                 else{
                                     /* Calculate velocity line profile factor */
                                     double vfac2 = pp->has_tracer ? SpPhys_GetVfac(ray, t, vel-RELVEL(i,j), zp, 0) : 0.0;
                                     /* Calculate molecular line emission and absorption coefficients */
-                                    SpPhys_GetMoljk(tid, pp, j, vfac2, &tempj_nu, &tempk_nu);
+                                    SpPhys_GetMoljk(pp, j, vfac2, &tempj_nu, &tempk_nu);
                                 }
                                 j_nu += tempj_nu;
                                 k_nu += tempk_nu;
@@ -1274,7 +1271,7 @@ static void RadiativeXfer(size_t tid, Zone *zone, GeRay *ray, double vel, double
                     }
                     else{
                         /* Calculate molecular line emission and absorption coefficients */
-                        SpPhys_GetMoljk(tid, pp, i, vfac, &j_nu, &k_nu);
+                        SpPhys_GetMoljk(pp, i, vfac, &j_nu, &k_nu);
                     }
                 }
                 else {
@@ -1409,7 +1406,7 @@ static void CalcJbar(size_t tid, SpPhys *pp, const double *ds0, const double *vf
         for(size_t j = 0; j < NRAD; j++) {
             /* Calculate local emission and absorption */
             double j_nu, k_nu;
-            SpPhys_GetMoljk(tid, pp, j, vfac0[i], &j_nu, &k_nu);
+            SpPhys_GetMoljk(pp, j, vfac0[i], &j_nu, &k_nu);
             
             /* Add continuum emission/absorption */
             j_nu += pp->cont[j].j;
@@ -1539,7 +1536,7 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
             
             /* Invert matrix with QR decomposition and solve for
              * level populations */
-            Num_QRDecompSolve(rmat, NLEV + 1, NLEV, rhs, pp->pops[tid]);
+            Num_QRDecompSolve(rmat, NLEV + 1, NLEV, rhs, pp->pops_update);
             
             #elif LU_DECOMPOSE
             /* Add collisional terms to rates matrix */
@@ -1561,7 +1558,7 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
             
             /* Invert matrix with QR decomposition and solve for
              * level populations */
-            Num_LUDecompSolve(rmat, NLEV, rhs, pp->pops[tid]);
+            Num_LUDecompSolve(rmat, NLEV, rhs, pp->pops_update);
             
             #else
             Deb_ASSERT(0);
@@ -1573,11 +1570,11 @@ static void CalcDetailedBalance(size_t tid, SpPhys *pp, const double *ds0,
             
             for(size_t i = 0; i < NLEV; i++) {
                 /* Zero out negative/uncertain pops */
-                if(pp->pops[tid][i] < 0)
-                    pp->pops[tid][i] = 0.0;
+                if(pp->pops_update[i] < 0)
+                    pp->pops_update[i] = 0.0;
                 
                 /* restore the history of iteration */
-                HIST(ihist, i) = pp->pops[tid][i];
+                HIST(ihist, i) = pp->pops_update[i];
             }
         }
         /* Calculate relative difference */
@@ -1630,12 +1627,8 @@ static double CalcDiff(const double *hist, size_t *max_diff_lev,size_t izone,siz
             mean += HIST(j, i);
         }
         mean /= (double)NHIST;
-        
-        /* ============= */
-        /* added by I-Ta */
-        pp->pops[tid][i]=mean;
-        /* ============= */
-        
+        pp->pops_update[i] = mean;
+
         /* Calculate relative difference from mean if
          * mean >= minpop */
         if(mean >= glb.minpop) {

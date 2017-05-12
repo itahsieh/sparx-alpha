@@ -47,5 +47,5 @@ class model:
                 # Dust Temperature (Kelvin)
                 self.T_d = self.T_k
                 # dust kappa
-                self.kapp_d = 'powerlaw, 1.874e+12, 2.300e-02,-2.000e+00'
+                self.kapp_d = 'powerlaw, 1.874e+12, 2.300e-02, +2.000e+00'
 

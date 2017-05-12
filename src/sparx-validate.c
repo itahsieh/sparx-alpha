@@ -636,7 +636,7 @@ static int SpVali_PlaneParallel(void)
 			pp->v_cen.x[2] = 0;
 
 			for(i = 0; i < pp->mol->nlev; i++) {
-				pp->pops[0][i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
+				pp->pops_preserve[i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
 			}
 		}
 	}
@@ -699,7 +699,7 @@ static int SpVali_ModelGen(void)
 			pp->v_cen = GeVec3_Rotate_z(&pp->v_cen, PI / 2.0);
 
 			for(i = 0; i < pp->mol->nlev; i++) {
-				pp->pops[0][i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
+				pp->pops_preserve[i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
 			}
 		}
 	}
@@ -788,7 +788,7 @@ static int SpVali_KepRotate(void)
 			}
 
 			for(i = 0; i < pp->mol->nlev; i++) {
-				pp->pops[0][i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
+				pp->pops_preserve[i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
 			}
 		}
 	}
@@ -857,7 +857,7 @@ static int SpVali_PlaneParallelVelo(void)
 		pp->v_cen.x[2] = 0;
 
 		for(i = 0; i < pp->mol->nlev; i++) {
-			pp->pops[0][i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
+			pp->pops_preserve[i] = SpPhys_BoltzPops(pp->mol, i, pp->T_k);
 		}
 	}
 

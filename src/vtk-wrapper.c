@@ -529,8 +529,8 @@ void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, 
                           MolTrRad *trans = pp->mol->rad[line];
                           size_t up = trans->up;
                           size_t lo = trans->lo;
-                          double n_u = pp->pops[0][up];
-                          double n_l = pp->pops[0][lo];
+                          double n_u = pp->pops_preserve[up];
+                          double n_l = pp->pops_preserve[lo];
                           double E_u = pp->mol->lev[up]->E;
                           double E_l = pp->mol->lev[lo]->E;
                           double g_u = pp->mol->lev[up]->g;

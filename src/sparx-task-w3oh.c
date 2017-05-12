@@ -356,7 +356,7 @@ static void GenZone_sph1d(Zone *zp)
 	/* Init molecular level populations if requested */
 	if(glb.model.parms.mol) {
 		for(i = 0; i < pp->mol->nlev; i++) {
-			pp->pops[0][i] = SpPhys_BoltzPops(glb.model.parms.mol, i, pp->T_k);
+			pp->pops_preserve[i] = SpPhys_BoltzPops(glb.model.parms.mol, i, pp->T_k);
 		}
 	}
 

@@ -929,24 +929,24 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
             COPY_TYPE_FROM_RECORD(ZoneH5_Record_Polariz, ZoneH5_FreadTable_Polariz, SpIO_PolarizFromH5Record);
         #undef COPY_TYPE_FROM_RECORD
 
-	/* Recursively read subgrids */
-	for(size_t i = 0; i < (*zone)->nchildren; i++) {
-		if(!status) {
-			if((*zone)->children[i]->nchildren > 0){
-				char *grid_idx = Mem_Sprintf("grid%lu", (unsigned long)i);
-                                
-				hid_t group_id = H5Gopen(h5f_id, grid_idx, H5P_DEFAULT);
-				hid_t popsgroup_id = H5Gopen(popsh5f_id, grid_idx, H5P_DEFAULT);
-				
-                                status = SpIO_H5ReadGrid(
-                                        group_id, 
-                                        popsgroup_id, 
-                                        &(*zone)->children[i], 
-                                        parms, 
-                                        read_pops);
-			}
-		}
-	}
+        /* Recursively read subgrids */
+        for(size_t i = 0; i < (*zone)->nchildren; i++) {
+            if(!status) {
+                if((*zone)->children[i]->nchildren > 0){
+                    char *grid_idx = Mem_Sprintf("grid%lu", (unsigned long)i);
+                    
+                    hid_t group_id = H5Gopen(h5f_id, grid_idx, H5P_DEFAULT);
+                    hid_t popsgroup_id = H5Gopen(popsh5f_id, grid_idx, H5P_DEFAULT);
+                    
+                    status = SpIO_H5ReadGrid(
+                        group_id, 
+                        popsgroup_id, 
+                        &(*zone)->children[i], 
+                        parms, 
+                        read_pops);
+                }
+            }
+        }
 
 	return status;
 }
@@ -959,7 +959,7 @@ int SpIO_H5WritePops(hid_t h5f_id, const Zone *zone)
 
 	/* Just in case the programmer did something stupid */
 	Deb_ASSERT(pp->mol != NULL);
-	Deb_ASSERT(pp->pops[0] != NULL);
+        Deb_ASSERT(pp->pops_preserve != NULL);
 
 	herr_t hstatus = 0;
 	int status = 0;
@@ -990,7 +990,7 @@ int SpIO_H5WritePops(hid_t h5f_id, const Zone *zone)
 	for(i = 0; i < zone->nchildren; i++) {
 		pp = zone->children[i]->data;
 		for(j = 0; j < nlev; j++) {
-			POPS(i, j) = pp->pops[0][j];
+                    POPS(i, j) = pp->pops_preserve[j];
 		}
 	}
 
@@ -1035,7 +1035,7 @@ int SpIO_H5ReadPops(hid_t h5f_id, Zone *zone)
 
 	/* Just in case the programmer did something stupid */
 	Deb_ASSERT(pp->mol != NULL);
-	Deb_ASSERT(pp->pops[0] != NULL);
+        Deb_ASSERT(pp->pops_preserve != NULL);
 
 	int status = 0;
 	size_t
@@ -1064,7 +1064,7 @@ int SpIO_H5ReadPops(hid_t h5f_id, Zone *zone)
 		pp = zone->children[i]->data;
 
 		for(j = 0; j < nlev; j++) {
-			pp->pops[0][j] = POPS(i, j);
+                    pp->pops_preserve[j] = POPS(i, j);
 		}
 	}
 

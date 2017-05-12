@@ -154,7 +154,7 @@ static int GenModel(void)
 
 				if(glb.pops) {
 					for(j = 0; j < NLEV; j++) {
-						pp->pops[0][j] = lp[i][j]; /* fraction */
+						pp->pops_preserve[j] = lp[i][j]; /* fraction */
 					}
 				}
 			}
@@ -221,7 +221,7 @@ static int GenModel(void)
 						if(glb.pops) {
 							for(j = 0; j < NLEV; j++) {
 								logdum = Num_InterpPoly(lograd, logrb, loglp[j], (size_t)NZONE, (size_t)3);
-								pp->pops[0][j] = pow(10.0, logdum); /* fraction */
+								pp->pops_preserve[j] = pow(10.0, logdum); /* fraction */
 							}
 						}
 					}

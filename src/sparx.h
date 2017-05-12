@@ -180,7 +180,9 @@ typedef struct SpPhys {
     X_He,
     V_t, /* RMS turbulent velocity */
     width, /* Local velocity width (=sqrt(2)*sigma) (m/s) */
-    *pops[Sp_NTHREAD], /* Fractional density of each level */
+    /* Fractional density of each level */
+    *pops_preserve,
+    *pops_update,
     
     //*popsold, /* old level population */
     //*J_bar, /* mean intensity */
@@ -265,7 +267,7 @@ double SpPhys_GetCollDens(const SpPhys *pp, int species);
 void SpPhys_ProcLamda(Molec *mol);
 double SpPhys_Zfunc(const Molec *mol, double T_k);
 double SpPhys_BoltzPops(const Molec *mol, size_t lev, double T_k);
-void SpPhys_GetMoljk(size_t tid, const SpPhys *pp, size_t tr, double vfac, double *j_nu, double *k_nu);
+void SpPhys_GetMoljk(const SpPhys *pp, size_t tr, double vfac, double *j_nu, double *k_nu);
 GeVec3_d SpPhys_GetVgas(const GeVec3_d *pos, const Zone *zone);
 GeVec3_d SpPhys_GetBgas(const GeVec3_d *pos, const Zone *zone);
 GeVec3_d SpPhys_GetVfunc(const GeRay *ray, double dt, const Zone *zone);
