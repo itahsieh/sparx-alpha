@@ -17,7 +17,7 @@ print 'Number Of Thread =',NumberOfThread
 
 # Test for MPI by checking whether mpicc can be called
 from subprocess import call, Popen, PIPE
-HAVE_MPI = (call("mpicc src/mpi-test.c -o/tmp/a.out", shell=True, stdout=PIPE, stderr=PIPE) == 0)
+HAVE_MPI = (call("mpicc src/mpi-test.c -o unit_tests/tmp/a.out", shell=True, stdout=PIPE, stderr=PIPE) == 0)
 # Get svn revision and update VERSION
 import time
 p = Popen("svnversion", shell=True, stdout=PIPE)
