@@ -7,7 +7,8 @@ class error:
         ModelType = phys.model.ModelType
         GridType = mesh.grid.GridType
         
-        if ModelType == 'Function' and GridType =='SPH1D':
+        #if ModelType == 'Function' and GridType =='SPH1D':
+        if False:
             self.calc_exact_mass(mesh,phys)
             print 'Analytical Mass : %e Msun' %self.exact_mass
             MassError = 100. * ( phys.mass - self.exact_mass ) / self.exact_mass

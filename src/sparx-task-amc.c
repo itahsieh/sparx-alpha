@@ -349,15 +349,16 @@ static int InitModel(void)
         /* OR
          * I		0	1	2	3	4	5	6	7
          * (I/NN)%NPROC	0	0	0	0	1	1	1	1
-         * (I/NPROC)%NTHRD	0	0	1	1	0	0	1	1
+         * (I/NPROC)%NTHRD
+                        0	0	1	1	0	0	1	1
          */
         //glb.zone_rank[i] = (i / nn) % Sp_MPISIZE;
         //glb.zone_tid[i] = (i / Sp_MPISIZE) % Sp_NTHREAD;
         
         //debug
         /* OR
-         * I			0	1	2	3	4	5	6	7
-         * i%NPROC		0	1	0	1	0	1	0	1
+        * I		0	1	2	3	4	5	6	7
+         * i%NPROC	0	1	0	1	0	1	0	1
          * I%NTHRD	0	1	0	1	0	1	0	1
          */
         //glb.zone_rank[i] = i % Sp_MPISIZE;
@@ -623,7 +624,7 @@ static int CalcExc(void)
                     }
                     else{
                         glb.zone_tid[izone] = ithread % Sp_NTHREAD;
-                        glb.zone_rank[izone] = (ithread/Sp_NTHREAD) % Sp_MPISIZE;
+                        glb.zone_rank[izone] = ( ithread / Sp_NTHREAD ) % Sp_MPISIZE;
                     }
                 }
             }

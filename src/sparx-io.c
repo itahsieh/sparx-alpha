@@ -921,12 +921,22 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
         }
         COPY_TYPE_FROM_RECORD(ZoneH5_Record_Grid, ZoneH5_FreadTable_Grid, SpIO_GridFromH5Record);
         
-        if(parms->mol)
-            COPY_TYPE_FROM_RECORD(ZoneH5_Record_Molec, ZoneH5_FreadTable_Molec, SpIO_MolecFromH5Record);
-        if(parms->dust)
-            COPY_TYPE_FROM_RECORD(ZoneH5_Record_Dust, ZoneH5_FreadTable_Dust, SpIO_DustFromH5Record);
-        if(parms->polariz)
-            COPY_TYPE_FROM_RECORD(ZoneH5_Record_Polariz, ZoneH5_FreadTable_Polariz, SpIO_PolarizFromH5Record);
+        int read_leaf = 0;
+        for(size_t i = 0; i < (*zone)->nchildren; i++){
+            if ( (*zone)->children[i]->nchildren == 0 ){
+                read_leaf = 1;
+                break;
+            }
+        }
+        
+        if (read_leaf){
+            if(parms->mol)
+                COPY_TYPE_FROM_RECORD(ZoneH5_Record_Molec, ZoneH5_FreadTable_Molec, SpIO_MolecFromH5Record);
+            if(parms->dust)
+                COPY_TYPE_FROM_RECORD(ZoneH5_Record_Dust, ZoneH5_FreadTable_Dust, SpIO_DustFromH5Record);
+            if(parms->polariz)
+                COPY_TYPE_FROM_RECORD(ZoneH5_Record_Polariz, ZoneH5_FreadTable_Polariz, SpIO_PolarizFromH5Record);
+        }
         #undef COPY_TYPE_FROM_RECORD
 
         /* Recursively read subgrids */
