@@ -387,7 +387,6 @@ Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name)
 					mp->rad[i]->lo = (size_t)(atoi(list[2]) - 1);
 					mp->rad[i]->A_ul = atof(list[3]);
 					mp->rad[i]->freq = atof(list[4]);
-                                        
 				}
 				MemStr_FreeList(list, n);
 			}

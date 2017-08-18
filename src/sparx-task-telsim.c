@@ -262,22 +262,9 @@ int SpTask_Telsim(void)
 	/* unit */
         if(!sts && !(sts = SpPy_GetInput_PyObj("unit", &o))) {
                 glb.unit = Dat_IList_NameLookup(UNITS, Sp_PYSTR(o));
+                SpPy_XDECREF(o);
                 Deb_ASSERT(glb.unit != NULL);
-                if(glb.task->idx != TASK_COLDENS){
-                        switch (glb.unit->idx){
-                                case UNIT_K:
-                                        glb.ucon = Phys_RayleighJeans(glb.freq, 1.0);
-                                        break;
-                                case UNIT_JYPX:
-                                        glb.ucon = (PHYS_UNIT_MKS_JY / (glb.x.delt * glb.y.delt));
-                                        break;
-                                default:
-                                        Deb_ASSERT(0);
-                        }
-                        /* Sanity check */
-                        Deb_ASSERT((glb.ucon > 0) && (!Num_ISNAN(glb.ucon)) && (glb.ucon < HUGE_VAL));
-                        SpPy_XDECREF(o);
-                }
+
         }
 
 /*    1-3 read the source model */
@@ -649,7 +636,21 @@ static int InitModel(void)
                 glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
                 Deb_ASSERT(glb.line < parms->mol->nrad);
         }
-
+        /* set the reference of the intensity: glb.ucon */
+        if(glb.task->idx != TASK_COLDENS){
+            switch (glb.unit->idx){
+                case UNIT_K:
+                    glb.ucon = Phys_RayleighJeans(glb.freq, 1.0);
+                    break;
+                case UNIT_JYPX:
+                    glb.ucon = (PHYS_UNIT_MKS_JY / (glb.x.delt * glb.y.delt));
+                    break;
+                default:
+                    Deb_ASSERT(0);
+            }
+            /* Sanity check */
+            Deb_ASSERT((glb.ucon > 0) && (!Num_ISNAN(glb.ucon)) && (glb.ucon < HUGE_VAL));
+        }
 	/* initialization : construct overlapping table */
         if(glb.overlap){
             parms->mol->OL = Mem_CALLOC(NRAD*NRAD,parms->mol->OL);

@@ -29,6 +29,7 @@ source ~/.load_sparx_module
 if [ -n "$PBS_NODEFILE" ]; then
   if [ -f $PBS_NODEFILE ]; then
     awk '!x[$0]++' $PBS_NODEFILE > MPIHOST
+    sed -e 's/$/ slots=1/' -i MPIHOST
     NPROCS=`wc -l < MPIHOST`
   fi
 fi

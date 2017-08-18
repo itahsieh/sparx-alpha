@@ -11,5 +11,6 @@ lte='True' \
 line=1 \
 tau=tau \
 chan="[64, '0.1kms^-1']" \
-dist='100pc'
+dist='100pc' #\
+# unit='K'
 #subres="[['-10asec','-10asec','10asec','10asec',4]]"
