@@ -19,14 +19,16 @@ module add icc/15.0
 module add gsl/2.1_ic15.0
 module add fftw/3.3.4_openmpi_1.10.2_ic15.0
 
-
+# redirect sparx to cluster version
 HOSTNAME=`hostname`
 CLUSTERNAME=${HOSTNAME:0:2}
 SPARXVERSION='sparx-'$CLUSTERNAME
 SPARX_VERSION='sparx_'$CLUSTERNAME
 PRESPARX='presparx-'$CLUSTERNAME
+
+alias sparx=$SPARXVERSION
+alias presparx=$PRESPARX
+
 # SPARX PATH
 PATH=$PATH:$HOME/opt/sparx/bin
 export PYTHONPATH=$PYTHONPATH:$HOME/opt/sparx/lib/python2.7/site-packages
-alias sparx=$SPARXVERSION
-alias presparx=$PRESPARX

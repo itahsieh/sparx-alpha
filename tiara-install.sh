@@ -1,4 +1,6 @@
 #! /bin/bash
+# distinatin of the binary path
+destination=$HOME/opt/sparx
 
 
 # the color label
@@ -13,6 +15,9 @@ NC='\033[0m' # No Color
 LOAD_MODULE_FILE=~/.load_sparx_module
 if [ ! -e $LOAD_MODULE_FILE ];then
   cp load_tiara_module.sh $LOAD_MODULE_FILE
+  echo '# SPARX PATH' | tee -a $LOAD_MODULE_FILE
+  echo 'PATH=$PATH:'$destination'/bin' | tee -a $LOAD_MODULE_FILE
+  echo 'export PYTHONPATH=$PYTHONPATH:'$destination'/lib/python2.7/site-packages' | tee -a $LOAD_MODULE_FILE
   printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
 fi
 
@@ -30,7 +35,6 @@ fi
 
 
 # INSTALLATION
-destination=$HOME/opt/sparx
 rm -rf build/*
 python setup.py install \
 --prefix=$destination \

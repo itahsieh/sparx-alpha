@@ -262,8 +262,8 @@ int SpTask_Telsim(void)
 	/* unit */
         if(!sts && !(sts = SpPy_GetInput_PyObj("unit", &o))) {
                 glb.unit = Dat_IList_NameLookup(UNITS, Sp_PYSTR(o));
-                SpPy_XDECREF(o);
                 Deb_ASSERT(glb.unit != NULL);
+                SpPy_XDECREF(o);
 
         }
 
