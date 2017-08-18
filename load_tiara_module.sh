@@ -16,7 +16,7 @@ module add miriad
 module add hdf5/1.8.16_openmpi_1.10.2_ic15.0
 module add openmpi/1.10.2_ic15.0
 module add icc/15.0
-module add module add gsl/2.1_ic15.0
+module add gsl/2.1_ic15.0
 module add fftw/3.3.4_openmpi_1.10.2_ic15.0
 
 
