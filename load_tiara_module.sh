@@ -29,6 +29,3 @@ PRESPARX='presparx-'$CLUSTERNAME
 alias sparx=$SPARXVERSION
 alias presparx=$PRESPARX
 
-# SPARX PATH
-PATH=$PATH:$HOME/opt/sparx/bin
-export PYTHONPATH=$PYTHONPATH:$HOME/opt/sparx/lib/python2.7/site-packages
