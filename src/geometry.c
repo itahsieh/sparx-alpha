@@ -1182,18 +1182,21 @@ Side 1: outer sphere
 	/* Find intersections with outer sphere */
 	GeRay_IntersectSphere(ray, r_out, &t1, &t2);
         
-        //Deb_PRINT("ray origin :   %g %g %g\n", ray->e.x[0], ray->e.x[1], ray->e.x[2]);
-        //Deb_PRINT("ray direction: %g %g %g\n", ray->d.x[0], ray->d.x[1], ray->d.x[2]);
-	//Deb_PRINT("r_out = %g\n", r_out);
-        //Deb_PRINT("voxel min : %g %g %g\n", voxel->min.x[0], voxel->min.x[1], voxel->min.x[2]);
-        //Deb_PRINT("voxel max : %g %g %g\n", voxel->max.x[0], voxel->max.x[1], voxel->max.x[2]);
-        //Deb_PRINT("outer: t1=%g, t2=%g\n", t1, t2);
-
+        
+        
 	t_out = Num_MAX(t1,t2);
 
 	if(t_out <= 0.0)
 		t_out = HUGE_VAL;
 
+        if (t_out == HUGE_VAL){
+            Deb_PRINT("ray origin :   %g %g %g\n", ray->e.x[0], ray->e.x[1], ray->e.x[2]);
+            Deb_PRINT("ray direction: %g %g %g\n", ray->d.x[0], ray->d.x[1], ray->d.x[2]);
+            Deb_PRINT("r_out = %g\n", r_out);
+            Deb_PRINT("voxel min : %g %g %g\n", voxel->min.x[0], voxel->min.x[1], voxel->min.x[2]);
+            Deb_PRINT("voxel max : %g %g %g\n", voxel->max.x[0], voxel->max.x[1], voxel->max.x[2]);
+            Deb_PRINT("outer: t1=%g, t2=%g\n", t1, t2);
+        }
 	/* Find intersection with inner sphere if r_in > 0 */
 	if(r_in > 0.0) {
 		GeRay_IntersectSphere(ray, r_in, &t1, &t2);
@@ -1205,7 +1208,7 @@ Side 1: outer sphere
 		if(t_in <= 0.0)
 			t_in = HUGE_VAL;
 	}
-
+	
 	Deb_ASSERT((t_in < HUGE_VAL) || (t_out < HUGE_VAL));
 
 	/* Find final intersection */

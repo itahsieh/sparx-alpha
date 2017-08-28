@@ -93,8 +93,8 @@ class mesh:
                 R_c[i-1] = R_p[i-1] + 0.5 * dr
                 dr *= stretch_ratio_r
         elif ( spacing == 'user_defined' ):
-            for i in range(0,nr-1):
-                R_p[i] = 0.5 * (gr.grid[i] + gr.grid[i+1])
+            for i in range(1,nr):
+                R_p[i] = 0.5 * (gr.grid[i-1] + gr.grid[i])
             R_p[nr] = Rout
             for i in range(0,nr):    
                 R_c[i] = gr.grid[i]

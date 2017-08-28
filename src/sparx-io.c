@@ -304,6 +304,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 free(format);
         }
 #endif 
+
         /* Read molecule name */
         if(!status){
             char *mol_name = NULL;
@@ -502,6 +503,7 @@ Molec *SpIO_FreadMolec(const char *molname)
 		
 	}
 	else {
+                
 		mol = Mol_ReadLamda(fp, path, molname);
 
 		if(!mol)

@@ -272,7 +272,7 @@ Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name)
 		else
 			mp = Mol_Alloc(n);
 	}
-
+	
 	/* Assign name */
 	if(!status)
 		mp->name = Mem_STRDUP(name);
@@ -294,7 +294,7 @@ Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name)
 		if(mp->weight <= 0.0)
 			status = Err_SETSTRING("In file `%s': Molecular weight must be > 0", fname);
 	}
-
+	
 	/* Get quantum numbers from last column of line 7 */
 	if(!status && !(sptr = get_nline(fp, 7)))
 		status = Err_SETSTRING("In file `%s': Quantum numbers not found", fname);
@@ -350,7 +350,7 @@ Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name)
 				status = Err_SETSTRING("In file `%s': Error reading level quantum state at row %d", fname, i + 1);
 		}
 	}
-
+	
 	/* Get number of radiative transitions from line 9 + nlev */
 	if(!status) {
 		if(!(sptr = get_nline(fp, 9 + mp->nlev)))
@@ -364,7 +364,7 @@ Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name)
 				Mol_AllocRad(mp, n);
 		}
 	}
-
+	
 	/* load line info from nline lines after line 10 + nlev */
 	if(!status) {
 		if(!(sptr = get_nline(fp, 10 + mp->nlev)))
@@ -380,19 +380,25 @@ Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name)
 					if(n != 6)
 						status = Err_SETSTRING("In file `%s': Anticipated %d columns in radiative transitions table, but got %d", fname, 6, n);
 				}
-
+				
 				if(!status) {
 					mp->rad[i]->id = i;
 					mp->rad[i]->up = (size_t)(atoi(list[1]) - 1);
 					mp->rad[i]->lo = (size_t)(atoi(list[2]) - 1);
 					mp->rad[i]->A_ul = atof(list[3]);
 					mp->rad[i]->freq = atof(list[4]);
-				}
+                                        mp->rad[i]->E_u = atof(list[5]);
+                                }
+//                                 printf( "%d\n", atoi(list[1]) - 1);
+//                                 printf( "%d\n", atoi(list[2]) - 1);
+//                                 printf( "%g\n", atof(list[3]));
+//                                 printf( "%g\n", atof(list[4]));
 				MemStr_FreeList(list, n);
-			}
+                                
+                        }
 		}
 	}
-
+// 	printf("status=%d\n",status);
 	/* Get number of collisonal partners from 12 + nlev + nrad */
 	if(!status) {
 		if(!(sptr = get_nline(fp, 12 + mp->nlev + mp->nrad)))
@@ -404,7 +410,7 @@ Molec *Mol_ReadLamda(FILE *fp, const char *fname, const char *name)
 				status = Err_SETSTRING("In file `%s': Number of collisional partners must be > 0", fname);
 		}
 	}
-
+// 	printf("status=%d\n",status);
 	/* Loop through collisional partners */
 	for(i = 0; i < ncol; i++) {
 		/* Get species & reference from 2 lines below */

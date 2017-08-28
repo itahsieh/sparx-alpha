@@ -22,6 +22,7 @@ typedef struct {
   size_t id;
   size_t up, lo;
   double freq, A_ul, B_ul, B_lu;
+  double E_u;
 } MolTrRad;
 
 typedef struct {

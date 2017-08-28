@@ -131,8 +131,11 @@ int SpTask_Amc(void)
     
     if(!sts) sts = SpPy_GetInput_model("source","pops", &glb.model, &glb.popsold, TASK_AMC);
     
+    
     /* Open output file handle -- only the master process can write files! */
     if(Sp_MPIRANK == 0 && !sts) sts = SpPy_GetInput_spfile("out", &glb.outf, Sp_NEW);
+    
+
 
     /* Init model */
     if(!sts)
@@ -213,11 +216,11 @@ static int InitModel(void)
     Zone *root = glb.model.grid, *zp;
     SpPhysParm *parms = &glb.model.parms;
     
-    /* Set normalization intensity to 20K -- normalization prevents rounding
+    /* Set normalization intensity to ### the final trnasition's upper energy ###-- normalization prevents rounding
      *	   errors from creeping in when flux values are very small */
     glb.I_norm = Mem_CALLOC(NRAD, glb.I_norm);
     for(size_t i = 0; i < NRAD; i++) {
-        glb.I_norm[i] = Phys_PlanckFunc(FREQ(i), 20.0);
+        glb.I_norm[i] = Phys_PlanckFunc(FREQ(i), parms->mol->rad[NRAD-1]->E_u);
         Deb_ASSERT(glb.I_norm[i] > 0); /* Just in case */
     }
     /* Initialize boundary condition -- DO NOT FORGET TO NORMALIZE! */
@@ -228,7 +231,6 @@ static int InitModel(void)
             (INTENSITY)[i] = \
             Phys_PlanckFunc(FREQ(i), (TEPERATURE) ) \
             / glb.I_norm[i]; \
-            Deb_ASSERT( (INTENSITY)[i] > 0.); /* Just in case */ \
         } \
     }
     

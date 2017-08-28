@@ -17,13 +17,17 @@ class profile:
             self.OuterSource = md.OuterSource
         
         
-        GridType = mesh.grid.GridType
-        if GridType == 'SPH1D':
-            phys = md.model(1.)
-        elif GridType == 'SPH2D' or GridType == 'CYL2D':
-            phys = md.model(1.,1.)
-        elif GridType == 'SPH3D' or GridType == 'CYL3D' or GridType == 'REC3D':
-            phys = md.model(1.,1.,1.)
+        
+        if md.ModelType == 'Function':
+            GridType = mesh.grid.GridType
+            if GridType == 'SPH1D':
+                phys = md.model(1.)
+            elif GridType == 'SPH2D' or GridType == 'CYL2D':
+                phys = md.model(1.,1.)
+            elif GridType == 'SPH3D' or GridType == 'CYL3D' or GridType == 'REC3D':
+                phys = md.model(1.,1.,1.)
+        elif md.ModelType == 'user_defined':
+                phys = md
         
         if hasattr(phys, 'B_cen'):
             self.B_field = 1
@@ -237,9 +241,6 @@ class profile:
 
 
     def _MappingUserDefined(self, mesh):
-            
-
-            
             gr = mesh.grid
             GridType = gr.GridType
             if GridType == 'SPH1D':
@@ -308,9 +309,10 @@ class profile:
                                     abs(self.V_gas[i+1,0] - self.V_gas[i,0])
                                                     )
                     # Velocity Dispersion to Vt
-                    VeloDispersion2Vt = VeloDispersion / self.Vt[i]
-                    # update Maximum VD2Vt
-                    if VeloDispersion2Vt > self.MVD2Vt :
+                    if self.Vt[i] != 0.0:
+                        VeloDispersion2Vt = VeloDispersion / self.Vt[i]
+                        # update Maximum VD2Vt
+                        if VeloDispersion2Vt > self.MVD2Vt :
                             self.MVD2Vt = VeloDispersion2Vt
                             self.MVD2Vt_index = i
 
