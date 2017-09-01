@@ -5,7 +5,7 @@ GridType = 'SPH1D'
 spacing = 'user_defined'
 
 # resolution of the radius
-nr = 51
+nr = 50
 
 # inner radius (pc)
 Rin = 0.0

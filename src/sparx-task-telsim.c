@@ -759,7 +759,7 @@ static int InitModel(void)
 static void *InitModelThread(void *tid_p)
 {
     size_t tid = *((size_t *)tid_p);
-    size_t zone_id,j,k;
+    size_t zone_id;
     Zone *root = glb.model.grid, *zp;
     SpPhys *pp;
     int task_id = glb.task->idx; 
@@ -786,7 +786,7 @@ static void *InitModelThread(void *tid_p)
                         pp->pops_preserve = Mem_CALLOC(pp->mol->nlev, pp->pops_preserve);
 
                         // LTE : Boltzmann distribution
-                        for(j = 0; j < pp->mol->nlev; j++) 
+                        for(size_t j = 0; j < pp->mol->nlev; j++) 
                             pp->pops_preserve[j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
                         
                         /* Allocate continuum emission/absorption */

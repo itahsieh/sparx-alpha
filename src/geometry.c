@@ -1181,9 +1181,7 @@ Side 1: outer sphere
 
 	/* Find intersections with outer sphere */
 	GeRay_IntersectSphere(ray, r_out, &t1, &t2);
-        
-        
-        
+
 	t_out = Num_MAX(t1,t2);
 
 	if(t_out <= 0.0)
@@ -1196,6 +1194,7 @@ Side 1: outer sphere
             Deb_PRINT("voxel min : %g %g %g\n", voxel->min.x[0], voxel->min.x[1], voxel->min.x[2]);
             Deb_PRINT("voxel max : %g %g %g\n", voxel->max.x[0], voxel->max.x[1], voxel->max.x[2]);
             Deb_PRINT("outer: t1=%g, t2=%g\n", t1, t2);
+            Deb_ASSERT(0);
         }
 	/* Find intersection with inner sphere if r_in > 0 */
 	if(r_in > 0.0) {
@@ -1209,7 +1208,7 @@ Side 1: outer sphere
 			t_in = HUGE_VAL;
 	}
 	
-	Deb_ASSERT((t_in < HUGE_VAL) || (t_out < HUGE_VAL));
+	
 
 	/* Find final intersection */
 	if(t_in < t_out) {
