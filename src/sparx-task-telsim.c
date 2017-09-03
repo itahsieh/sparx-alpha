@@ -353,11 +353,15 @@ int SpTask_Telsim(void)
                   case TASK_CONT:
                           scale_factor = glb.I_norm/glb.ucon;
                           stokes = 1;
+                          
                           #if Sp_MIRSUPPORT
                           MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                          #endif
                           
                           if (glb.model.parms.polariz){
+                              
+                              #if Sp_MIRSUPPORT
                               char SQFName[64],SUFName[64];
                               
                               sprintf( SQFName, "stokesQ_%s", glb.imgf->name);
@@ -370,83 +374,83 @@ int SpTask_Telsim(void)
                               MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, scale_factor);
                               Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxUf->name);
                               #endif
-                              {
-                                char filename[32];
-                                sprintf(filename,"stokesIQU_%s.vtk",glb.imgf->name);
-                                FILE *fp=fopen(filename,"w");
-                                fprintf(fp,"# vtk DataFile Version 3.0\n");
-                                fprintf(fp,"Stokes parameters\n");
-                                fprintf(fp,"ASCII\n");
-                                fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-                                fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
-                                fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,0);
-                                fprintf(fp,"SPACING %11.4e %11.4e %d\n",glb.x.delt,glb.y.delt,1);
-                                fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n);
-                                fprintf(fp,"SCALARS Stokes_I float 1\n");
-                                fprintf(fp,"LOOKUP_TABLE default\n");
-                                for(size_t iy = 0; iy < glb.y.n; iy++) 
-                                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                                                fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.image, 0, ix, iy));
-                                fprintf(fp,"\n");
-                                fprintf(fp,"SCALARS Stokes_Q float 1\n");
-                                fprintf(fp,"LOOKUP_TABLE default\n");
-                                for(size_t iy = 0; iy < glb.y.n; iy++) 
-                                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                                                fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
-                                fprintf(fp,"\n");
-                                fprintf(fp,"SCALARS Stokes_U float 1\n");
-                                fprintf(fp,"LOOKUP_TABLE default\n");
-                                for(size_t iy = 0; iy < glb.y.n; iy++) 
-                                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                                                fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
-                                fclose(fp);
-                                
-                                
-                                sprintf(filename,"stokesI_%s.dat",glb.imgf->name);
-                                fp=fopen(filename,"w"); 
-                                for(size_t iy = 0; iy < glb.y.n; iy++) {
-                                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                                                fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.image, 0, ix, iy));
-                                        fprintf(fp,"\n");
-                                }
-                                fclose(fp);
-                                sprintf(filename,"stokesQ_%s.dat",glb.imgf->name);
-                                fp=fopen(filename,"w"); 
-                                for(size_t iy = 0; iy < glb.y.n; iy++) {
-                                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                                                fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
-                                        fprintf(fp,"\n");
-                                }
-                                fclose(fp);
-                                sprintf(filename,"stokesU_%s.dat",glb.imgf->name);
-                                fp=fopen(filename,"w"); 
-                                for(size_t iy = 0; iy < glb.y.n; iy++) {
-                                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                                                fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
-                                        fprintf(fp,"\n");
-                                }
-                                fclose(fp);
-                                
-                                sprintf(filename,"vector_%s.dat",glb.imgf->name);
-                                fp=fopen(filename,"w");         
-                                for(size_t iy = 0; iy < glb.y.n; iy++) {
-                                        for(size_t ix = 0; ix < glb.x.n; ix++) {
-                                                double StxI = MirImg_PIXEL(*glb.image, 0, ix, iy);
-                                                double StxQ = MirImg_PIXEL(*glb.StokesQ, 0, ix, iy);
-                                                double StxU = MirImg_PIXEL(*glb.StokesU, 0, ix, iy);
+
+                              char filename[32];
+                              sprintf(filename,"stokesIQU_%s.vtk",glb.imgf->name);
+                              FILE *fp=fopen(filename,"w");
+                              fprintf(fp,"# vtk DataFile Version 3.0\n");
+                              fprintf(fp,"Stokes parameters\n");
+                              fprintf(fp,"ASCII\n");
+                              fprintf(fp,"DATASET STRUCTURED_POINTS\n");
+                              fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
+                              fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,0);
+                              fprintf(fp,"SPACING %11.4e %11.4e %d\n",glb.x.delt,glb.y.delt,1);
+                              fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n);
+                              fprintf(fp,"SCALARS Stokes_I float 1\n");
+                              fprintf(fp,"LOOKUP_TABLE default\n");
+                              for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                      for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                              fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.image, 0, ix, iy));
+                              fprintf(fp,"\n");
+                              fprintf(fp,"SCALARS Stokes_Q float 1\n");
+                              fprintf(fp,"LOOKUP_TABLE default\n");
+                              for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                      for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                              fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
+                              fprintf(fp,"\n");
+                              fprintf(fp,"SCALARS Stokes_U float 1\n");
+                              fprintf(fp,"LOOKUP_TABLE default\n");
+                              for(size_t iy = 0; iy < glb.y.n; iy++) 
+                                      for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                              fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
+                              fclose(fp);
                               
-                                                double pd = sqrt( StxQ*StxQ + StxU*StxU ) / StxI;
-                                                
-                                                double xi=atan2(StxU,StxQ); xi = 0.5 * xi;
-                                                double vecx=-pd*sin(xi);
-                                                double vecy=pd*cos(xi);
-                                                
-                                                fprintf(fp,"%5zu %5zu %11.4e %11.4e %11.4e %11.4e\n",ix,iy,vecx,vecy,pd,xi);
-                                        }
-                                        fprintf(fp,"\n");
-                                }
-                                fclose(fp);
+                              
+                              sprintf(filename,"stokesI_%s.dat",glb.imgf->name);
+                              fp=fopen(filename,"w"); 
+                              for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                      for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                              fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.image, 0, ix, iy));
+                                      fprintf(fp,"\n");
                               }
+                              fclose(fp);
+                              sprintf(filename,"stokesQ_%s.dat",glb.imgf->name);
+                              fp=fopen(filename,"w"); 
+                              for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                      for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                              fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
+                                      fprintf(fp,"\n");
+                              }
+                              fclose(fp);
+                              sprintf(filename,"stokesU_%s.dat",glb.imgf->name);
+                              fp=fopen(filename,"w"); 
+                              for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                      for(size_t ix = 0; ix < glb.x.n; ix++) 
+                                              fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
+                                      fprintf(fp,"\n");
+                              }
+                              fclose(fp);
+                              
+                              sprintf(filename,"vector_%s.dat",glb.imgf->name);
+                              fp=fopen(filename,"w");         
+                              for(size_t iy = 0; iy < glb.y.n; iy++) {
+                                      for(size_t ix = 0; ix < glb.x.n; ix++) {
+                                              double StxI = MirImg_PIXEL(*glb.image, 0, ix, iy);
+                                              double StxQ = MirImg_PIXEL(*glb.StokesQ, 0, ix, iy);
+                                              double StxU = MirImg_PIXEL(*glb.StokesU, 0, ix, iy);
+                              
+                                              double pd = sqrt( StxQ*StxQ + StxU*StxU ) / StxI;
+                                              
+                                              double xi=atan2(StxU,StxQ); xi = 0.5 * xi;
+                                              double vecx=-pd*sin(xi);
+                                              double vecy=pd*cos(xi);
+                                              
+                                              fprintf(fp,"%5zu %5zu %11.4e %11.4e %11.4e %11.4e\n",ix,iy,vecx,vecy,pd,xi);
+                                      }
+                                      fprintf(fp,"\n");
+                              }
+                              fclose(fp);
+
                           }
                           
                           break;
