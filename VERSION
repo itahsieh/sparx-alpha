@@ -47,7 +47,8 @@ alpha-3.0.4     Sep 2017        tag Sep 2017
 
 ## STATUS : ON-GOING
 alpha-3.0.5                     contribution analysis detatched from telsim
-alpha-3.0.6                     MPI utilization for contribution computing
+alpha-3.0.6                     reduce sph1d contribution visualization to 2-dim
+alpha-3.0.7                     MPI utilization for contribution computing
 
 ## STATUS : PENDING
 alpha-3.x                       velocity interpolation

@@ -16,8 +16,7 @@
 #define Sp_SPARXVERSION SPARXVERSION
 #define Sp_SPARX_VERSION SPARX_VERSION
 
-/* Miriad support */
-#define Sp_MIRSUPPORT MIRSUPPORT
+
 
 /* Maximum number threads for multi-threading */
 #ifdef NTHREAD
@@ -74,7 +73,7 @@
 #include "physics.h"
 #include "molec.h"
 #include "kappa.h"
-#include "vtk-wrapper.h"
+#include "task.h"
 
 
 /* Globally useful constants */
@@ -390,6 +389,7 @@ int SpTask_Example(void);
 int SpTask_Powerlaw(void);
 //int SpTask_PyGrid(void);
 int SpTask_Telsim(void);
+int SpTask_Visual(void);
 int SpTask_Uniform(void);
 int SpTask_UVSamp(void);
 int SpTask_Template(void);

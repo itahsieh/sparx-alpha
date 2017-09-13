@@ -9,16 +9,22 @@ typedef enum {
         TASK_ZEEMAN,
         TASK_CONT,
         TASK_COLDENS,
+        TASK_LINECTB,
+        TASK_CONTCTB,
+        TASK_VTK,
         N_TASK_TYPE
 } TASK_TYPE;
 
 
 static DatINode TASKS[] = {
-        {"amc",TASK_AMC},
-        {"line", TASK_LINE},
-        {"zeeman", TASK_ZEEMAN},
-        {"cont", TASK_CONT},
+        {"amc",     TASK_AMC},
+        {"line",    TASK_LINE},
+        {"zeeman",  TASK_ZEEMAN},
+        {"cont",    TASK_CONT},
         {"coldens", TASK_COLDENS},
+        {"linectb", TASK_LINECTB},
+        {"contctb", TASK_CONTCTB},
+        {"vtk",     TASK_VTK},
         {0, 0}
 };
 

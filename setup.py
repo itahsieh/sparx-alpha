@@ -3,7 +3,7 @@
 # Python Distutils setup script for SPARX
 
 # VERSION_NUMBER of SPARX
-VERSION_NUMBER = '3.0.3'
+VERSION_NUMBER = '3.0.5'
 # MIRIAD support option
 MIRSUPPORT = 0
 # number of Thread using in per job
@@ -270,6 +270,7 @@ ext_sparx = Extension( SPARX_VERSION + '._sparx'  ,
 		'src/sparx-pyext-_sparx.c',
 		'src/sparx-task-amc.c',
 		'src/sparx-task-telsim.c',
+		'src/sparx-task-visual.c',
 		#'src/sparx-task-pygrid.c',
 		'src/sparx-task-template.c',
 	],
