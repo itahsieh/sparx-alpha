@@ -1,0 +1,13 @@
+#!/bin/bash
+
+rm -rf map/ tau/ map.fits tau.fits vis.vtk
+
+printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
+
+sparx run task_linectb \
+source=model \
+out=linectb \
+lte='True' \
+line=1 \
+tau=tau \
+chan="[32,'0.1kms^-1']" 

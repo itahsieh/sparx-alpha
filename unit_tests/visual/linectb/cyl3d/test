@@ -1,0 +1,23 @@
+#!/bin/bash
+
+
+rm -rf map/ tau/ map.fits tau.fits 
+#rm -rf contribution_*.vtk
+#rm -rf vfield.vtk
+rm -rf vis.vtk
+
+printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
+
+sparx run task_lineobs \
+source=../storage/cyl2d_model/model_env_disk \
+vis='True' \
+lte='True' \
+molec='hco+' \
+out=map \
+line=1 \
+npix="[400,400]" \
+dist='1kpc' \
+cell="['0.05asec','0.05asec']" \
+chan="[64,'0.4kms^-1']" \
+rotate="['0deg', '0deg', '0deg']" \
+subres="[['-10asec','-10asec','10asec','10asec',1]]"
