@@ -13,7 +13,7 @@ static struct glb {
 	double lamb, freq;
         MirImg_Axis v;
         VtkData visual;
-        char * vtkfile;
+        VtkFile *vtkfile,*taufile;
 } glb;
 
 enum {
@@ -95,7 +95,7 @@ int SpTask_Visual(void)
         /* out (mandatory) */
         if(!sts){
                 sts = SpPy_GetInput_PyObj("out", &o);
-                glb.vtkfile = Sp_PYSTR(o);
+                glb.vtkfile->FileName = Sp_PYSTR(o);
         }
         
         /* dist */
@@ -109,26 +109,7 @@ int SpTask_Visual(void)
                 glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
                 SpPy_XDECREF(o);
         }
-        /* subres */
-        if(!sts && !(sts = SpPy_GetInput_PyObj("subres", &o))) {
-                if(o != Py_None) {
-                        /* Get number of boxes */
-                        glb.nsubres = (size_t)PyList_Size(o);
-                        glb.subres = Mem_CALLOC(glb.nsubres, glb.subres);
-                        for(size_t i = 0; i < glb.nsubres; i++) {
-                                PyObject *o_sub;
-                                o_sub = PyList_GetItem(o, (Py_ssize_t)i);
-                                glb.subres[i].blc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)0));
-                                glb.subres[i].blc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)1));
-                                glb.subres[i].trc_x = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)2));
-                                glb.subres[i].trc_y = Sp_PYDBL(PyList_GetItem(o_sub, (Py_ssize_t)3));
-                                glb.subres[i].nsub = Sp_PYSIZE(PyList_GetItem(o_sub, (Py_ssize_t)4));
-                        }
-                }
-                SpPy_XDECREF(o);
-        }
-        /* vis : vtk output switch */
-        if(!sts) sts = SpPy_GetInput_bool("vis", &glb.vis);
+
 
 /*    1-2 get the task-based parameters */
 	/* obs */
@@ -142,10 +123,11 @@ int SpTask_Visual(void)
                 
                 switch (glb.task->idx){
                   // for task-contobs 
-                  case TASK_CONT:
+                  case TASK_CONTCTB:
                           /* tau (optional) */
                           if(!sts && SpPy_CheckOptionalInput("tau")) {
-                                  sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
+                              sts = SpPy_GetInput_PyObj("tau", &o);
+                              glb.taufile->FileName = Sp_PYSTR(o);
                           }
                           PyObject *o_wavelen;
                           o_wavelen = PyObject_GetAttrString(o, "wavelen");
@@ -155,8 +137,8 @@ int SpTask_Visual(void)
                           break;
                   
                   // for task-lineobs
-                  case TASK_LINE:
-                  case TASK_ZEEMAN:
+                  case TASK_LINECTB:
+                  case TASK_ZEEMANCTB:
                         { // get line transition
                           PyObject *o_line;
                           o_line = PyObject_GetAttrString(o, "line");

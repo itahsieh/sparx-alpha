@@ -40,6 +40,11 @@ typedef struct VtkData{
                 **tau_dev;
 } VtkData;
 
+typedef struct VtkFile{
+    char * FileName;
+    FILE *fp
+} VtkFile;
+
 void Vtk_Mem_CALL(GEOM_TYPE geom, VtkData * visual, size_t nvelo);
 void Vtk_Mem_FREE(GEOM_TYPE geom, VtkData * visual);
 
