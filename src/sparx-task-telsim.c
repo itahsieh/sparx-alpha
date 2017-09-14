@@ -7,11 +7,10 @@
 /* Global parameter struct */
 static struct glb {
 	DatINode *task;
-        int     overlap,
-                lte,
-                excit,
-                vis,
-                tracer;
+        
+        int overlap,lte;
+        int tracer;
+        
 	DatINode *unit;
 	double ucon, overlap_vel;
 	MirImg_Axis x, y, v;
@@ -42,13 +41,6 @@ static DatINode UNITS[] = {
         {"CGS", UNIT_CGS},
 	{0, 0}
 };
-
-#define MEAN_INT(ix, iy)\
-	mean_int[(size_t)(iy) + glb.y.n * (size_t)(ix) ]
-#define MEAN_VEL(ix, iy)\
-	mean_vel[(size_t)(iy) + glb.y.n * (size_t)(ix) ]
-#define MEAN_DEV(ix, iy)\
-	mean_dev[(size_t)(iy) + glb.y.n * (size_t)(ix) ]
 
 #define RELVEL(i,j)\
 	glb.model.parms.mol->OL[NRAD*(i)+(j)]->RelativeVel
@@ -167,8 +159,7 @@ int SpTask_Telsim(void)
                 }
                 SpPy_XDECREF(o);
         }
-        /* vis : vtk output switch */
-        if(!sts) sts = SpPy_GetInput_bool("vis", &glb.vis);
+
 
 /*    1-2 get the task-based parameters */
 	/* obs */

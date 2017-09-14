@@ -12,7 +12,7 @@ typedef enum {
         TASK_ZEEMANCTB,
         TASK_LINECTB,
         TASK_CONTCTB,
-        TASK_VTK,
+        TASK_MODEL2VTK,
         N_TASK_TYPE
 } TASK_TYPE;
 
@@ -26,7 +26,7 @@ static DatINode TASKS[] = {
         {"zeemanctb", TASK_ZEEMANCTB},
         {"linectb", TASK_LINECTB},
         {"contctb", TASK_CONTCTB},
-        {"vtk",     TASK_VTK},
+        {"model2vtk",     TASK_MODEL2VTK},
         {0, 0}
 };
 

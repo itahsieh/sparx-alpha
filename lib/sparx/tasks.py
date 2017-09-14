@@ -288,14 +288,14 @@ install_task(Task_AMC("task_amc"))
 # Keys all tasks share:
 
 
-# postprocessing keys are for all post tasks, including telsim, contribution, and vtk
+# postprocessing keys are for all post tasks, including telsim, contribution, and model2vtk
 postprocess_keys = [
     Key("source", Type.OldFile, None, 
         "Input source model (HDF5 file), must contain dust information"
         )
 ]
 
-# observer keys are for all post tasks except vtk
+# observer keys are for all post tasks except model2vtk
 observer_keys = [
     Key("dist", Type.Length, "1kpc", 
         "Distance to source"
@@ -364,9 +364,6 @@ line_keys = [
             ),
     Key("tau", Type.NewFile, Type.Optional, 
             "Name of output tau cube (Miriad image dataset)"
-            ),
-    Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
-            "Image brightness unit"
             )
 ]
 
@@ -380,9 +377,6 @@ cont_keys = [
         ),
     Key("tau", Type.NewFile, Type.Optional, 
         "Name of output tau cube (Miriad image dataset)"
-        ),
-    Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
-        "Image brightness unit"
         )
 ]
 
@@ -637,7 +631,7 @@ install_task(Task_ContCtb("task_contctb"))
 ##
 ## task_vtk
 ##
-class Task_VTK(Task):
+class Task_Model2VTK(Task):
 	##
 	## Task configuration
 	##
@@ -669,7 +663,7 @@ class Task_VTK(Task):
 		INP_DICT["obs"] = obs
 		return
 
-install_task(Task_VTK("task_vtk"))
+install_task(Task_Model2VTK("task_model2vtk"))
 
 
 ############################################
