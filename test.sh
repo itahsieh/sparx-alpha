@@ -113,9 +113,8 @@ case $CASE in
         #source ../telsim/zeeman/test   $SAVE_LOG
         #source ../telsim/overlap/test  $SAVE_LOG
         #source ../telsim/lte/test      $SAVE_LOG
-        
-# imaging / postprocessing
         ;;
+# imaging / postprocessing
   "LINE")
         source ../telsim/line/test       $SAVE_LOG
         ;;
@@ -139,7 +138,10 @@ case $CASE in
         ;;
   "SOURCE")
         source ../telsim/OuterSource/test     $SAVE_LOGG
-        
+        ;;
+# visualization
+  "LINECTB")
+        source ../visual/linectb/sph1d/test       $SAVE_LOG
         ;;
         
 # Algorithm testing

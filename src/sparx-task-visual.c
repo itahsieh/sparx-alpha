@@ -138,7 +138,6 @@ int SpTask_Visual(void)
                               glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
                               SpPy_XDECREF(o);
                           }
-                          
                 }
                 
                 switch (glb.task->idx){
@@ -195,49 +194,40 @@ int SpTask_Visual(void)
 	}
 	
 	
-
+        TASK_TYPE task = glb.task->idx;
 /*    1-3 read the source model */
         /* source */
         if(!sts) {
-                int task_id = glb.task->idx; 
                 int popsold = 0;
                 /* only read populations data when non-LTE LINE/ZEEMAN mapping tasks*/ 
-                if( task_id == TASK_LINE || task_id == TASK_ZEEMAN ){
+                if( task == TASK_LINE || task == TASK_ZEEMAN ){
                         if (!glb.lte)
                                 popsold = 1;
                 }
-                sts = SpPy_GetInput_model("source","source", &glb.model, &popsold, task_id);
+                sts = SpPy_GetInput_model("source","source", &glb.model, &popsold, task);
         }
         
         
 /* 2. Initialize model */
         /* initialize sparx model */
 	if(!sts) sts = InitModel();
-        
-        
-        
-        
-        
 
-/* 3. Computing the analyzed properties */
+        Zone * root = glb.model.grid;
         GEOM_TYPE geom = root->voxel.geom;
+        VtkData *vtkdata = &glb.vtkdata;
+/* 3. Computing the analyzed properties */
+        if(!sts){
+            // the dimension and grid
+            Vtk_InitializeGrid(glb.v.n, root, vtkdata, geom);
 
-        // declare the memory
-        VtkData * vtkdata = &glb.vtkdata;
-
-        // the dimension and grid
-        size_t n1, n2, n3;
-        Vtk_InitializeGrid(&n1, &n2, &n3, nvelo, root, vtkdata, geom);
-
-
-        if( task == TASK_LINECTB)
-            sts = CalcContrib(geom);
-
+            if( task == TASK_LINECTB)
+                sts = CalcContrib(geom);
+        }
 
 /* 4. I/O : OUTPUT */
 	if(!sts){
-                // VTK visualization
-                Vtk_Output(n1, n2, n3, vtkdata, root, glb.line, nvelo, task);
+            // VTK visualization
+            Vtk_Output(vtkdata, root, glb.line, glb.v.n, task);
                 
         }
 

@@ -51,8 +51,8 @@ void Vtk_Mem_FREE(GEOM_TYPE geom, VtkData * visual);
 GeVec3_d Vtk_Index2GeomPos(size_t i, size_t j, size_t k, GEOM_TYPE geom, VtkData * visual);
 GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos);
 
-void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom);
+void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom);
 
-void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task);
+void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task);
 
 #endif

@@ -252,16 +252,17 @@ GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos)
 
 /*----------------------------------------------------------------------------*/
 
-void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom)
+void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom)
 {
+        size_t n1, n2, n3;
         switch (geom){
             case GEOM_SPH1D:
                 visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
                     
                 // Dimension of the visualized resolution
-                *n1 = visual->sph3d->nr = root->nchildren;
-                *n2 = visual->sph3d->nt = 45;
-                *n3 = visual->sph3d->np = 90;
+                n1 = visual->sph3d->nr = root->nchildren;
+                n2 = visual->sph3d->nt = 45;
+                n3 = visual->sph3d->np = 90;
                 
                 // initialize memory
                 Vtk_Mem_CALL(geom, visual, nvelo);
@@ -274,17 +275,17 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
                 // construct the expanding SPH3D mesh
                 // radius
                 radius[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < *n1 + 1; i++)
+                for(size_t i = 1; i < n1 + 1; i++)
                         radius[i] = root->children[i-1]->voxel.max.x[0];
                 // theta
-                double delta_theta = M_PI / (double) *n2;
+                double delta_theta = M_PI / (double) n2;
                 theta[0] = 0.;
-                for ( size_t j = 1; j < *n2 + 1; j++)
+                for ( size_t j = 1; j < n2 + 1; j++)
                         theta[j] = theta[j-1] + delta_theta;
                 //phi
-                double delta_phi = 2.0 * M_PI / (double) *n3;
+                double delta_phi = 2.0 * M_PI / (double) n3;
                 phi[0] = 0.;
-                for (size_t k = 1; k < *n3 + 1; k ++)
+                for (size_t k = 1; k < n3 + 1; k ++)
                         phi[k] = phi[k-1] + delta_phi;
 
                 }
@@ -293,10 +294,10 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
                 visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
                 
                 // Dimension of the visualized resolution
-                *n1 = visual->sph3d->nr = root->naxes.x[0];
-                *n2 = visual->sph3d->nt = (root->naxes.x[1] == 1) ? 
+                n1 = visual->sph3d->nr = root->naxes.x[0];
+                n2 = visual->sph3d->nt = (root->naxes.x[1] == 1) ? 
                         45 : root->naxes.x[1];
-                *n3 = visual->sph3d->np = (root->naxes.x[2] == 1) ? 
+                n3 = visual->sph3d->np = (root->naxes.x[2] == 1) ? 
                         90 : root->naxes.x[2];
                         
                 // initialize memory
@@ -310,30 +311,30 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
                 // construct the expanding SPH3D mesh
                 // radius
                 radius[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < *n1 + 1; i++)
+                for(size_t i = 1; i < n1 + 1; i++)
                         radius[i] = root->children[ (i-1) * root->naxes.x[1] * root->naxes.x[2] ]->voxel.max.x[0];
                 // theta
                 if (root->naxes.x[1] == 1){
-                        double delta_theta = M_PI / (double) *n2;
+                        double delta_theta = M_PI / (double) n2;
                         theta[0] = 0.;
-                        for ( size_t j = 1; j < *n2 + 1; j++)
+                        for ( size_t j = 1; j < n2 + 1; j++)
                                 theta[j] = theta[j-1] + delta_theta;
                 }
                 else{
                         theta[0] = root->children[0]->voxel.min.x[1];
-                        for ( size_t j = 1; j < *n2 + 1; j++)
+                        for ( size_t j = 1; j < n2 + 1; j++)
                                 theta[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[1];
                 }
                 //phi
                 if (root->naxes.x[2] == 1){
-                        double delta_phi = 2. * M_PI / (double) *n3;
+                        double delta_phi = 2. * M_PI / (double) n3;
                         phi[0] = 0.;
-                        for (size_t k = 1; k < *n3 + 1; k ++)
+                        for (size_t k = 1; k < n3 + 1; k ++)
                                 phi[k] = phi[k-1] + delta_phi;
                 }
                 else{
                         phi[0] = root->children[0]->voxel.min.x[2];
-                        for (size_t k = 1; k < *n3 + 1; k ++)
+                        for (size_t k = 1; k < n3 + 1; k ++)
                                 phi[k] = root->children[k-1]->voxel.max.x[2];
                 }
 
@@ -343,9 +344,9 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
                 visual->rec3d = Mem_CALLOC( 1, visual->rec3d);
                 
                 // Dimension of the visualized resolution
-                *n1 = visual->rec3d->nx = root->naxes.x[0];
-                *n2 = visual->rec3d->ny = root->naxes.x[1];
-                *n3 = visual->rec3d->nz = root->naxes.x[2];
+                n1 = visual->rec3d->nx = root->naxes.x[0];
+                n2 = visual->rec3d->ny = root->naxes.x[1];
+                n3 = visual->rec3d->nz = root->naxes.x[2];
                 
                 // initialize memory
                 Vtk_Mem_CALL(geom, visual, nvelo);
@@ -358,15 +359,15 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
                 // construct the expanding CYL3D mesh
                 // for x
                 x[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < *n1 + 1; i++)
+                for(size_t i = 1; i < n1 + 1; i++)
                         x[i] = root->children[ (i-1)*root->naxes.x[1]*root->naxes.x[2] ]->voxel.max.x[0];
                 // for y
                 y[0] = root->children[0]->voxel.min.x[0];
-                for(size_t j = 1; j < *n2 + 1; j++)
+                for(size_t j = 1; j < n2 + 1; j++)
                         y[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[0];
                 // for z
                 z[0] = root->children[0]->voxel.min.x[2];
-                for (size_t k = 1; k < *n3 + 1; k ++)
+                for (size_t k = 1; k < n3 + 1; k ++)
                         z[k] = root->children[k-1]->voxel.max.x[2];
                 
                 }
@@ -374,10 +375,10 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
             case GEOM_CYL3D:
                 visual->cyl3d = Mem_CALLOC( 1, visual->cyl3d);
                 // Dimension of the visualized resolution
-                *n1 = visual->cyl3d->nr = root->naxes.x[0];
-                *n2 = visual->cyl3d->np = (root->naxes.x[1] == 1) ? 
+                n1 = visual->cyl3d->nr = root->naxes.x[0];
+                n2 = visual->cyl3d->np = (root->naxes.x[1] == 1) ? 
                         72 : root->naxes.x[1];
-                *n3 = visual->cyl3d->nz = root->naxes.x[2];
+                n3 = visual->cyl3d->nz = root->naxes.x[2];
 
                 // initialize memory
                 Vtk_Mem_CALL(geom, visual, nvelo);
@@ -390,23 +391,23 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
                 // construct the expanding CYL3D mesh
                 // for Rc
                 Rc[0] = root->children[0]->voxel.min.x[0];
-                for(size_t i = 1; i < *n1 + 1; i++)
+                for(size_t i = 1; i < n1 + 1; i++)
                         Rc[i] = root->children[ (i-1) * root->naxes.x[1] * root->naxes.x[2] ]->voxel.max.x[0];
                 // for phi
                 if (root->naxes.x[1] == 1){
-                        double delta_phi = 2.0 * M_PI / (double) *n2;
+                        double delta_phi = 2.0 * M_PI / (double) n2;
                         phi[0] = 0.;
-                        for ( size_t j = 1; j < *n2 + 1; j++)
+                        for ( size_t j = 1; j < n2 + 1; j++)
                                 phi[j] = phi[j-1] + delta_phi;
                 }
                 else{
                         phi[0] = root->children[0]->voxel.min.x[1];
-                        for ( size_t j = 1; j < *n2 + 1; j++)
+                        for ( size_t j = 1; j < n2 + 1; j++)
                                 phi[j] = root->children[ (j-1)*root->naxes.x[2] ]->voxel.max.x[1];
                 }
                 // for Z
                 Z[0] = root->children[0]->voxel.min.x[2];
-                for (size_t k = 1; k < *n3 + 1; k ++)
+                for (size_t k = 1; k < n3 + 1; k ++)
                         Z[k] = root->children[k-1]->voxel.max.x[2];
                 
                 }
@@ -419,8 +420,15 @@ void Vtk_InitializeGrid(size_t *n1, size_t *n2, size_t *n3, size_t nvelo, Zone *
 
 /*----------------------------------------------------------------------------*/
 
-void Vtk_Output(size_t n1, size_t n2, size_t n3, VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task)
+void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task)
 {
+        // Dimension of the visualized resolution
+        size_t n1, n2, n3;
+                
+        n1 = visual->sph3d->nr;
+        n2 = visual->sph3d->nt;
+        n3 = visual->sph3d->np;
+    
         GEOM_TYPE geom = root->voxel.geom;
         size_t nelement = n1 * n2 * n3;
         size_t npoint = (n3+1) * (n2+1) * (n1+1);
