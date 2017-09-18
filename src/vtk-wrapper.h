@@ -41,7 +41,7 @@ typedef struct VtkData{
 } VtkData;
 
 typedef struct VtkFile{
-    char * FileName;
+    char *FileName;
     FILE *fp
 } VtkFile;
 
@@ -54,5 +54,7 @@ GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos);
 void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom);
 
 void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task);
+
+void FreeVtkFile(VtkFile * vtkfile);
 
 #endif

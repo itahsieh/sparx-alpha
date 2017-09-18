@@ -18,6 +18,7 @@ static PyObject *get_mpi_info(PyObject *self, PyObject *args);
 static PyObject *task_template(PyObject *self, PyObject *args);
 static PyObject *task_amc(PyObject *self, PyObject *args);
 static PyObject *task_telsim(PyObject *self, PyObject *args);
+static PyObject *task_visual(PyObject *self, PyObject *args);
 static PyObject *task_pygrid(PyObject *self, PyObject *args);
 static PyObject *test_fft(PyObject *self, PyObject *args);
 #if Sp_MIRSUPPORT
@@ -42,6 +43,7 @@ static PyMethodDef _SPARXMethods[] = {
 	{"get_mpi_info", get_mpi_info, METH_VARARGS, "Get MPI rank and size."},
 	{"task_amc", task_amc, METH_VARARGS, "Accelerated Monte Carlo solver for non-LTE molecular excitation."},
 	{"task_telsim", task_telsim, METH_VARARGS, "Observation synthesizer."},
+        {"task_visual", task_visual, METH_VARARGS, "Visualization postprocessing"},
 	{"task_pygrid", task_pygrid, METH_VARARGS, "Python interface for generate SPARX models."},
 	{"task_template", task_template, METH_VARARGS, "Template for C tasks."},
 	{"test_fft", test_fft, METH_VARARGS, "Test Fast Fourier Transform."},
@@ -231,6 +233,19 @@ static PyObject *task_telsim(PyObject *self, PyObject *args)
 	USEUP_SELF_ARGS();
 
 	status = SpTask_Telsim();
+
+	if(!status) Py_RETURN_NONE;
+	else return NULL;
+}
+/*----------------------------------------------------------------------------*/
+
+static PyObject *task_visual(PyObject *self, PyObject *args)
+{
+	int status = 0;
+
+	USEUP_SELF_ARGS();
+
+	status = SpTask_Visual();
 
 	if(!status) Py_RETURN_NONE;
 	else return NULL;

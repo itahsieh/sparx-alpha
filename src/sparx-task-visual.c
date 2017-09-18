@@ -86,16 +86,20 @@ int SpTask_Visual(void)
 // 1. GET PARAMETERS FROM PYTHON
         PyObject *o;
 /*    1-1 those are the general parameters */
-
-        
-
         /* out (mandatory) */
         if(!sts){
                 sts = SpPy_GetInput_PyObj("out", &o);
-                glb.vtkfile->FileName = Sp_PYSTR(o);
+                
+                char * out_name = Sp_PYSTR(o);
+                printf("OK %s\n", out_name);exit(0);
+                glb.vtkfile->FileName = malloc( strlen(out_name) + 1 );
+                
+                strcpy(glb.vtkfile->FileName, out_name);
+                SpPy_XDECREF(o);
+                
+                FreeVtkFile(glb.vtkfile);
+                printf("OK\n");exit(0);
         }
-        
-
 
 
 /*    1-2 get the task-based parameters */
@@ -212,10 +216,11 @@ int SpTask_Visual(void)
         /* initialize sparx model */
 	if(!sts) sts = InitModel();
 
+/* 3. Computing the analyzed properties */
         Zone * root = glb.model.grid;
         GEOM_TYPE geom = root->voxel.geom;
         VtkData *vtkdata = &glb.vtkdata;
-/* 3. Computing the analyzed properties */
+        
         if(!sts){
             // the dimension and grid
             Vtk_InitializeGrid(glb.v.n, root, vtkdata, geom);
@@ -370,12 +375,12 @@ static int InitModel(void)
             for(size_t i=0; i<NRAD; i++){
                 for(size_t j=0; j<NRAD; j++){
                     parms->mol->OL[NRAD*i+j] = Mem_CALLOC(1, parms->mol->OL[NRAD*i+j]);
-                    RELVEL(i,j) = ( 1e0-FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
+                    RELVEL(i,j) = ( 1e0 - FREQ(j)/FREQ(i) )*CONSTANTS_MKS_LIGHT_C;
                     if( fabs(RELVEL(i,j)) < glb.overlap_vel ){
-                        OVERLAP(i,j)=1;
+                        OVERLAP(i,j) = 1;
                     }
                     else{
-                        OVERLAP(i,j)=0;
+                        OVERLAP(i,j) = 0;
                     }
                 }
             }

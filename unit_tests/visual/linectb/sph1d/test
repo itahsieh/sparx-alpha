@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -rf map/ tau/ map.fits tau.fits vis.vtk
+rm -rf linectb.vtk tau.vtk 
 
 printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
 

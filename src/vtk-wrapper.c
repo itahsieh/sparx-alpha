@@ -604,3 +604,12 @@ void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_T
  
         return;
 }
+
+void FreeVtkFile(VtkFile * vtkfile){
+    free(vtkfile->FileName);
+    free(vtkfile->fp);
+}
+
+
+
+
