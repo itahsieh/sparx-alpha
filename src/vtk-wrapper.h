@@ -53,7 +53,7 @@ GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos);
 
 void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom);
 
-void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task);
+void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task);
 
 void FreeVtkFile(VtkFile * vtkfile);
 

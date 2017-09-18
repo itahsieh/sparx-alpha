@@ -13,7 +13,7 @@ static struct glb {
 	double lamb, freq;
         MirImg_Axis v;
         VtkData vtkdata;
-        VtkFile *vtkfile,*taufile;
+        VtkFile vtkfile, taufile;
         
         int overlap,lte;
         int tracer;
@@ -89,16 +89,8 @@ int SpTask_Visual(void)
         /* out (mandatory) */
         if(!sts){
                 sts = SpPy_GetInput_PyObj("out", &o);
-                
-                char * out_name = Sp_PYSTR(o);
-                printf("OK %s\n", out_name);exit(0);
-                glb.vtkfile->FileName = malloc( strlen(out_name) + 1 );
-                
-                strcpy(glb.vtkfile->FileName, out_name);
+                glb.vtkfile.FileName = Sp_PYSTR(o);
                 SpPy_XDECREF(o);
-                
-                FreeVtkFile(glb.vtkfile);
-                printf("OK\n");exit(0);
         }
 
 
@@ -107,10 +99,10 @@ int SpTask_Visual(void)
 	if(!sts && !(sts = SpPy_GetInput_PyObj("obs", &o))) {
                 
                 /* task */
-                PyObject *o_task;
-                o_task = PyObject_GetAttrString(o, "task");
+                PyObject *o_task = PyObject_GetAttrString(o, "task");
                 glb.task = Dat_IList_NameLookup(TASKS, Sp_PYSTR(o_task));
                 SpPy_XDECREF(o_task);
+                SpPy_XDECREF(o);
                 
                 
                 switch (glb.task->idx){
@@ -122,7 +114,8 @@ int SpTask_Visual(void)
                           /* tau (optional) */
                           if(!sts && SpPy_CheckOptionalInput("tau")) {
                               sts = SpPy_GetInput_PyObj("tau", &o);
-                              glb.taufile->FileName = Sp_PYSTR(o);
+                              glb.taufile.FileName = Sp_PYSTR(o);
+                              SpPy_XDECREF(o);
                           }
                           /* unit */
                           if(!sts && !(sts = SpPy_GetInput_PyObj("unit", &o))) {
@@ -142,42 +135,33 @@ int SpTask_Visual(void)
                               glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
                               SpPy_XDECREF(o);
                           }
+                          break;
                 }
                 
                 switch (glb.task->idx){
-                    // for task-contobs 
-                    case TASK_CONTCTB:
-                        {    
-                            PyObject *o_wavelen;
-                            o_wavelen = PyObject_GetAttrString(o, "wavelen");
-                            glb.lamb = Sp_PYDBL(o_wavelen);
-                            glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
-                            SpPy_XDECREF(o_wavelen);
-                        }
-                        break;
+
                     
                     // for task-lineobs
                     case TASK_LINECTB:
-                    case TASK_ZEEMANCTB:
+                    case TASK_ZEEMANCTB: 
                           { // get line transition
-                            PyObject *o_line;
-                            o_line = PyObject_GetAttrString(o, "line");
+                            
+                            sts = SpPy_GetInput_PyObj("obs", &o);
+                            PyObject *o_line = PyObject_GetAttrString(o, "line");
                             glb.line = Sp_PYSIZE(o_line);
                             SpPy_XDECREF(o_line);
                           }
                             if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
                     
-                          { // get overlap switch
-                            PyObject *o2;
-                            o2 = PyObject_GetAttrString(o, "overlap_int");
-                            glb.overlap = Sp_PYINT(o2);
-                            SpPy_XDECREF(o2);
-                          } 
+
                           { // get overlap velocity
-                            PyObject *o3;
-                            o3 = PyObject_GetAttrString(o, "overlap_vel");
+                            PyObject *o3 = PyObject_GetAttrString(o, "overlap_vel");
                             glb.overlap_vel = Sp_PYDBL(o3);
                             SpPy_XDECREF(o3);
+                            if (glb.overlap_vel == 0.0)
+                                glb.overlap = 0;
+                            else
+                                glb.overlap = 1;
                           }
                           
                           /* chan */
@@ -189,6 +173,16 @@ int SpTask_Visual(void)
                           }
                     
                             break;
+                            // for task-contobs 
+                    case TASK_CONTCTB:
+                    {    
+                        PyObject *o_wavelen;
+                        o_wavelen = PyObject_GetAttrString(o, "wavelen");
+                        glb.lamb = Sp_PYDBL(o_wavelen);
+                        glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
+                        SpPy_XDECREF(o_wavelen);
+                    }
+                        break;
                     case TASK_MODEL2VTK:
                             break;
                     default: 
@@ -196,7 +190,7 @@ int SpTask_Visual(void)
                             Deb_ASSERT(0);
                 }
 	}
-	
+
 	
         TASK_TYPE task = glb.task->idx;
 /*    1-3 read the source model */
@@ -219,20 +213,20 @@ int SpTask_Visual(void)
 /* 3. Computing the analyzed properties */
         Zone * root = glb.model.grid;
         GEOM_TYPE geom = root->voxel.geom;
-        VtkData *vtkdata = &glb.vtkdata;
         
         if(!sts){
             // the dimension and grid
-            Vtk_InitializeGrid(glb.v.n, root, vtkdata, geom);
-
+            Vtk_InitializeGrid(glb.v.n, root, &glb.vtkdata, geom);
+            
             if( task == TASK_LINECTB)
                 sts = CalcContrib(geom);
         }
+        
 
 /* 4. I/O : OUTPUT */
 	if(!sts){
             // VTK visualization
-            Vtk_Output(vtkdata, root, glb.line, glb.v.n, task);
+            Vtk_Output(&glb.vtkfile, &glb.vtkdata, root, glb.line, glb.v.n, task);
                 
         }
 
@@ -347,7 +341,7 @@ int SpTask_Visual(void)
 /* 5. Cleanup */
 	
         SpModel_Cleanup(glb.model);
-        Vtk_Mem_FREE(geom, vtkdata);
+        Vtk_Mem_FREE(geom, &glb.vtkdata);
 
 	return sts;
 }
@@ -363,7 +357,8 @@ static int InitModel(void)
         int task_id = glb.task->idx; 
         
         /* initialize line profile if LINE or ZEEMAN task */
-        if( task_id == TASK_LINE || task_id == TASK_ZEEMAN ){
+        if( task_id == TASK_LINECTB || task_id == TASK_ZEEMANCTB ){
+            
                 glb.freq = parms->mol->rad[glb.line]->freq;
                 glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
                 Deb_ASSERT(glb.line < parms->mol->nrad);
@@ -388,7 +383,7 @@ static int InitModel(void)
 
         /* Set normalization intensity to 20K -- normalization prevents rounding
 	   errors from creeping in when flux values are very small */
-	if(task_id != TASK_COLDENS){
+        if(task_id != TASK_MODEL2VTK){
 		glb.I_norm = Phys_PlanckFunc(glb.freq, 10.0);
 		Deb_ASSERT(glb.I_norm > 0); /* Just in case */
 

@@ -420,7 +420,7 @@ void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE ge
 
 /*----------------------------------------------------------------------------*/
 
-void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task)
+void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task)
 {
         // Dimension of the visualized resolution
         size_t n1, n2, n3;
@@ -439,12 +439,12 @@ void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_T
         //double ** tau           = visual->tau;
         //double ** tau_dev       = visual->tau_dev;
         
-        FILE *fp;
-        char filename[32];
+        FILE *fp = vtkfile->fp;
 
         // open VTK file
-        sprintf(filename,"vis.vtk");
-        fp=fopen(filename,"w");
+        char filename[64];
+        sprintf(filename, "%s.vtk", vtkfile->FileName);
+        fp = fopen( filename, "w");
         
         // write the header
         fprintf(fp,"# vtk DataFile Version 3.0\n");
@@ -521,7 +521,7 @@ void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_T
                 fprintf(fp,"%E %E %E\n", VCart.x[0], VCart.x[1], VCart.x[2]);
            }
            
-        if(task == TASK_LINE){
+        if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){
             // exitation temperature
             fprintf(fp,"SCALARS Tex float 1\n");
             fprintf(fp,"LOOKUP_TABLE default\n");
@@ -551,7 +551,7 @@ void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_T
               fprintf(fp,"\n");
             }
         }
-        if(task == TASK_LINE || task == TASK_CONT){
+        if(task == TASK_LINECTB || task == TASK_CONTCTB || task == TASK_ZEEMANCTB){
             // write the dust contribution of the cells
             fprintf(fp,"SCALARS DUST_CONTRIBUTION float 1\n");
             fprintf(fp,"LOOKUP_TABLE default\n");
@@ -564,11 +564,11 @@ void Vtk_Output(VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_T
         printf("wrote %s\n",filename);
         
         
-        if(task == TASK_LINE){
+        if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){
             // for seperate contribution channel as a file
             for( size_t l = 0; l < nvelo; l++){
                 // open VTK file
-                sprintf(filename,"contribution_%04zu.vtk", l);
+                sprintf( filename, "%s_%04zu.vtk",vtkfile->FileName, l);
                 fp=fopen(filename,"w");
                 
                 // write the header

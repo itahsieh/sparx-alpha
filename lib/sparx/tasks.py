@@ -608,7 +608,7 @@ class Task_ContCtb(Task):
 		self.expl = "Visualizing the distribution of intensity-contribution could help to analyze the region where the dust/free-free absorbs or emits radiation "
 
 		# Keys
-		self.keys = postprocess_keys + observer_keys + vtk_keys + radiation_keys + line_keys
+		self.keys = postprocess_keys + observer_keys + vtk_keys + radiation_keys
 
 		# C function to call
 		self.cfunc = _sparx.task_visual
