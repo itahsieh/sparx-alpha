@@ -1,0 +1,10 @@
+#!/bin/bash
+
+rm -rf linectb.vtk tau.vtk 
+
+printf "${LIGHTCYAN}START TASK OF CONTINUUM CONTRIBUTION ${NC}\n"
+
+sparx run task_contctb \
+source=model \
+out=contctb  \
+wavelen="900um"

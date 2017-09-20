@@ -390,6 +390,7 @@ int SpTask_Powerlaw(void);
 //int SpTask_PyGrid(void);
 int SpTask_Telsim(void);
 int SpTask_Visual(void);
+int SpTask_Pops2ASCII(void);
 int SpTask_Uniform(void);
 int SpTask_UVSamp(void);
 int SpTask_Template(void);

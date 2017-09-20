@@ -176,7 +176,8 @@ GeVec3_d GeVec3_Cyl2Cart( GeVec3_d *CylPt);
 GeVec3_d GeVec3_Rec2Cart( GeVec3_d *RecPt);
 
 
-
+GeVec3_d GeVec3_Geom2Sph( GEOM_TYPE geom, const GeVec3_d *);
+GeVec3_d GeVec3_Cyl2Sph( const GeVec3_d *);
 GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *);
 GeVec3_d GeVec3_Cart2Cyl( const GeVec3_d *);
 GeVec3_d GeGeomPos(GEOM_TYPE geom, const GeVec3_d * CartPos);

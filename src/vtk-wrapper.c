@@ -424,9 +424,10 @@ void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE ge
 
 /*----------------------------------------------------------------------------*/
 
-void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task)
+void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line, size_t nvelo, TASK_TYPE task)
 {
         // Dimension of the visualized resolution
+    Zone * root = model->grid;
     GEOM_TYPE geom = root->voxel.geom;
     
         size_t n1, n2, n3;
@@ -482,9 +483,9 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, si
         // write the artributes
         fprintf(fp,"CELL_DATA %zu\n", nelement );
         
-        
+
         #define WRITE_SCALAR_MODEL_DATA( SCALAR_NAME, MODEL_DATA ) \
-        fprintf(fp,"SCALARS H2_Number_Density float 1\n"); \
+        fprintf(fp,"SCALARS %s float 1\n", SCALAR_NAME); \
         fprintf(fp,"LOOKUP_TABLE default\n"); \
         for( size_t i = 0; i < n1; i++)  \
             for( size_t j = 0; j < n2; j++){  \
@@ -496,32 +497,35 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, si
                 fprintf(fp,"\n"); \
             } 
         
-        WRITE_SCALAR_MODEL_DATA( H2_Number_Density, pp->n_H2 ) 
-        WRITE_SCALAR_MODEL_DATA( Molecular_Number_Density, pp->n_H2 * pp->X_mol ) 
-        WRITE_SCALAR_MODEL_DATA( Temperature, pp->T_k ) 
+        WRITE_SCALAR_MODEL_DATA( "H2_Number_Density", pp->n_H2 ) 
+        WRITE_SCALAR_MODEL_DATA( "Molecular_Number_Density", pp->n_H2 * pp->X_mol ) 
+        WRITE_SCALAR_MODEL_DATA( "Temperature", pp->T_k ) 
 
         #undef WRITE_SCALAR_MODEL_DATA( SCALAR_NAME, MODEL_DATA )
         // write the velocity field
-        fprintf(fp,"VECTORS velocity float\n");
-        for( size_t i = 0; i < n1; i++)
-          for( size_t j = 0; j < n2; j++)
-            for( size_t k = 0; k < n3; k++){
-                GeVec3_d GeomPos_min = Vtk_Index2GeomPos(i, j, k, geom, visual);
-                GeVec3_d GeomPos_max = Vtk_Index2GeomPos(i+1, j+1, k+1, geom, visual);
-                
-                GeVec3_d GeomPos;
-                GeomPos.x[0] = 0.5 * ( GeomPos_min.x[0] + GeomPos_max.x[0] );
-                GeomPos.x[1] = 0.5 * ( GeomPos_min.x[1] + GeomPos_max.x[1] ); 
-                GeomPos.x[2] = 0.5 * ( GeomPos_min.x[2] + GeomPos_max.x[2] );
-                
-                GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
-                
-                size_t izone = ZoneIndex( geom, i, j, k, root);
-                Zone * zp = root->children[izone];
-                GeVec3_d VCart = SpPhys_GetVgas(&CartPos, zp);
-                fprintf(fp,"%E %E %E\n", VCart.x[0], VCart.x[1], VCart.x[2]);
-           }
-           
+        
+        #define WRITE_VECTOR_MODEL_DATA( VECTOR_NAME, VECTOR_FUNCTION) \
+        fprintf(fp,"VECTORS %s float\n", VECTOR_NAME); \
+        for( size_t i = 0; i < n1; i++) for( size_t j = 0; j < n2; j++) for( size_t k = 0; k < n3; k++){ \
+            GeVec3_d GeomPos_min = Vtk_Index2GeomPos(i, j, k, geom, visual); \
+            GeVec3_d GeomPos_max = Vtk_Index2GeomPos(i+1, j+1, k+1, geom, visual); \
+            GeVec3_d GeomPos; \
+            GeomPos.x[0] = 0.5 * ( GeomPos_min.x[0] + GeomPos_max.x[0] ); \
+            GeomPos.x[1] = 0.5 * ( GeomPos_min.x[1] + GeomPos_max.x[1] ); \
+            GeomPos.x[2] = 0.5 * ( GeomPos_min.x[2] + GeomPos_max.x[2] ); \
+            GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos); \
+            size_t izone = ZoneIndex( geom, i, j, k, root); \
+            Zone * zp = root->children[izone]; \
+            GeVec3_d VecCart = VECTOR_FUNCTION(&CartPos, zp); \
+            fprintf(fp,"%E %E %E\n", VecCart.x[0], VecCart.x[1], VecCart.x[2]); \
+        }
+        WRITE_VECTOR_MODEL_DATA("velocity", SpPhys_GetVgas)
+        if( model->parms.polariz ){
+            WRITE_VECTOR_MODEL_DATA("b-field", SpPhys_GetBgas)
+        }
+        #undef WRITE_VECTOR_MODEL_DATA
+
+        
         if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){
             // exitation temperature
             fprintf(fp,"SCALARS Tex float 1\n");
@@ -565,8 +569,12 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, si
             #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data)
         }
         
+
         fclose(fp);
         printf("wrote %s\n",filename);
+        
+        
+        
         
         
         if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){

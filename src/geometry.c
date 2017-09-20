@@ -530,6 +530,46 @@ GeVec3_d GeSubSampPos(int i, int j, int k, double Devide_2nSamp1D, GeVox * vp)
 
 /*----------------------------------------------------------------------------*/
 
+GeVec3_d GeVec3_Geom2Sph( GEOM_TYPE geom, const GeVec3_d *GeomPt)
+{
+    switch(geom){
+        case GEOM_SPH1D:
+        case GEOM_SPH3D:
+            return *GeomPt;
+        case GEOM_CYL3D:
+            return GeVec3_Cyl2Sph(GeomPt);
+        case GEOM_REC3D:
+            return GeVec3_Cart2Sph(GeomPt);
+        default:
+            /* Should not happen */
+            Deb_ASSERT(0);
+    }
+}
+/*----------------------------------------------------------------------------*/
+
+GeVec3_d GeVec3_Cyl2Sph( const GeVec3_d *Cylindrical)
+{
+    double rc   = Cylindrical->x[0];
+    double phi  = Cylindrical->x[1];
+    double z    = Cylindrical->x[2];
+    
+    double R = sqrt( rc * rc + z * z );
+    // R must be maximum!
+    R = Num_MAX( R, Num_MAX( rc, z) ); 
+    
+    GeVec3_d Spherical;
+    
+    // R-ordinate
+    Spherical.x[0] = R;
+    // theta-ordinate
+    Spherical.x[1] = ( R == 0. ) ? 0. : acos( z / R );
+    // phi-ordinate
+    Spherical.x[2] = phi;
+    
+    return Spherical;
+}
+/*----------------------------------------------------------------------------*/
+
 GeVec3_d GeVec3_Cart2Sph( const GeVec3_d *Cartesian)
 {
         double x = Cartesian->x[0];

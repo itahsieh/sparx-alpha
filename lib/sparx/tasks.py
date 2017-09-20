@@ -361,9 +361,6 @@ line_keys = [
             ),
     Key("lte", Type.Bool, "False", 
             "Init model to LTE pops of Molec"
-            ),
-    Key("tau", Type.NewFile, Type.Optional, 
-            "Name of output tau cube (Miriad image dataset)"
             )
 ]
 
@@ -374,9 +371,6 @@ cont_keys = [
         ),
     Key("wavelen", Type.Length, None, 
         "Wavelength of observation"
-        ),
-    Key("tau", Type.NewFile, Type.Optional, 
-        "Name of output tau cube (Miriad image dataset)"
         )
 ]
 
@@ -608,7 +602,7 @@ class Task_ContCtb(Task):
 		self.expl = "Visualizing the distribution of intensity-contribution could help to analyze the region where the dust/free-free absorbs or emits radiation "
 
 		# Keys
-		self.keys = postprocess_keys + observer_keys + vtk_keys + radiation_keys
+		self.keys = postprocess_keys + observer_keys + vtk_keys + radiation_keys + cont_keys
 
 		# C function to call
 		self.cfunc = _sparx.task_visual
@@ -622,6 +616,7 @@ class Task_ContCtb(Task):
 		class obs:
 			# Disable continuum and coldens mode -- line observations
 			task='contctb'
+			wavelen = INP_DICT['wavelen']
 
 		INP_DICT["obs"] = obs
 		return
@@ -629,7 +624,7 @@ class Task_ContCtb(Task):
 install_task(Task_ContCtb("task_contctb"))
 
 ##
-## task_vtk
+## task_model2vtk
 ##
 class Task_Model2VTK(Task):
 	##
@@ -658,12 +653,73 @@ class Task_Model2VTK(Task):
 		# eventually)
 		class obs:
 			# Disable continuum and coldens mode -- line observations
-			task='vtk'
+			task='model2vtk'
 
 		INP_DICT["obs"] = obs
 		return
 
 install_task(Task_Model2VTK("task_model2vtk"))
+
+
+##
+## task_pops2ascii
+##
+class Task_Pops2ASCII(Task):
+	##
+	## Task configuration
+	##
+	def configure(self):
+		# Name: defined when task is registered
+
+		# Description
+		self.desc = "write out level population to ASCII data file"
+
+		# Explanation
+		self.expl = "converting HDF5 population data to ASCII file"
+
+		# Keys
+		self.keys = postprocess_keys + [
+                    Key("out", Type.NewFile, None, 
+                        "Name of output file (.dat)"
+                        )
+                    ]
+
+		# C function to call
+		self.cfunc = _sparx.task_pops2ascii
+
+
+install_task(Task_Pops2ASCII("task_pops2ascii"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ############################################

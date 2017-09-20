@@ -1,0 +1,9 @@
+#!/bin/bash
+
+rm -rf linectb.vtk tau.vtk 
+
+printf "${LIGHTCYAN}START TASK MODEL CONVERTING TO VTK FILE ${NC}\n"
+
+sparx run task_model2vtk \
+source=model \
+out=visual 

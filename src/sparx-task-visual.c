@@ -103,8 +103,56 @@ int SpTask_Visual(void)
                 PyObject *o_task = PyObject_GetAttrString(o, "task");
                 glb.task = Dat_IList_NameLookup(TASKS, Sp_PYSTR(o_task));
                 SpPy_XDECREF(o_task);
-                SpPy_XDECREF(o);
+                
 
+                switch (glb.task->idx){
+                    // for task-lineobs
+                    case TASK_LINECTB:
+                    case TASK_ZEEMANCTB: 
+                    { // get line transition
+                        PyObject *o_line = PyObject_GetAttrString(o, "line");
+                        glb.line = Sp_PYSIZE(o_line);
+                        SpPy_XDECREF(o_line);
+                    }
+                    if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+                    
+                    
+                    { // get overlap velocity
+                        PyObject *o3 = PyObject_GetAttrString(o, "overlap_vel");
+                        glb.overlap_vel = Sp_PYDBL(o3);
+                        SpPy_XDECREF(o3);
+                        if (glb.overlap_vel == 0.0)
+                            glb.overlap = 0;
+                        else
+                            glb.overlap = 1;
+                    }
+                    
+                    /* chan */
+                    if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
+                        glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
+                        glb.v.crpix = MirWr_CRPIX(glb.v.n);
+                        glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
+                    }
+                    
+                    break;
+                    // for task-contobs 
+                    case TASK_CONTCTB:
+                    {    
+                        PyObject *o_wavelen;
+                        o_wavelen = PyObject_GetAttrString(o, "wavelen");
+                        glb.lamb = Sp_PYDBL(o_wavelen);
+                        glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
+                        SpPy_XDECREF(o_wavelen);
+                    }
+                    break;
+                    case TASK_MODEL2VTK:
+                        break;
+                    default: 
+                        /* Shouldn't reach here */
+                        Deb_ASSERT(0);
+                }
+                SpPy_XDECREF(o);
+                
                 switch (glb.task->idx){
                       // for all radiation-related contrib tasks, except model2vtk
                       case TASK_LINECTB:
@@ -131,55 +179,8 @@ int SpTask_Visual(void)
                           }
                           break;
                 }
-                
-                switch (glb.task->idx){
-                    // for task-lineobs
-                    case TASK_LINECTB:
-                    case TASK_ZEEMANCTB: 
-                          { // get line transition
-                            sts = SpPy_GetInput_PyObj("obs", &o);
-                            PyObject *o_line = PyObject_GetAttrString(o, "line");
-                            glb.line = Sp_PYSIZE(o_line);
-                            SpPy_XDECREF(o_line);
-                          }
-                            if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-                    
 
-                          { // get overlap velocity
-                            PyObject *o3 = PyObject_GetAttrString(o, "overlap_vel");
-                            glb.overlap_vel = Sp_PYDBL(o3);
-                            SpPy_XDECREF(o3);
-                            if (glb.overlap_vel == 0.0)
-                                glb.overlap = 0;
-                            else
-                                glb.overlap = 1;
-                          }
-                          
-                          /* chan */
-                          if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
-                              glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
-                              glb.v.crpix = MirWr_CRPIX(glb.v.n);
-                              glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
-                              SpPy_XDECREF(o);
-                          }
-                    
-                            break;
-                            // for task-contobs 
-                    case TASK_CONTCTB:
-                    {    
-                        PyObject *o_wavelen;
-                        o_wavelen = PyObject_GetAttrString(o, "wavelen");
-                        glb.lamb = Sp_PYDBL(o_wavelen);
-                        glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
-                        SpPy_XDECREF(o_wavelen);
-                    }
-                        break;
-                    case TASK_MODEL2VTK:
-                            break;
-                    default: 
-                            /* Shouldn't reach here */
-                            Deb_ASSERT(0);
-                }
+                
 	}
 
 	
@@ -217,7 +218,7 @@ int SpTask_Visual(void)
 /* 4. I/O : OUTPUT */
 	if(!sts){
             // VTK visualization
-            Vtk_Output(&glb.vtkfile, &glb.vtkdata, root, glb.line, glb.v.n, task);
+            Vtk_Output(&glb.vtkfile, &glb.vtkdata, &glb.model, glb.line, glb.v.n, task);
                 
         }
 
@@ -378,35 +379,8 @@ static int InitModel(void)
 		glb.I_norm = Phys_PlanckFunc(glb.freq, 10.0);
 		Deb_ASSERT(glb.I_norm > 0); /* Just in case */
 
-		/* Calculate CMB intensity */
-                if(parms->T_cmb > 0) {
-                    glb.I_cmb = Phys_PlanckFunc(glb.freq, parms->T_cmb) / glb.I_norm;
-                    Deb_ASSERT(glb.I_cmb > 0); /* Just in case */
-		}
-		/* Calculate inner boundary intensity */
-                if(parms->T_in > 0) {
-                    glb.I_in = Phys_PlanckFunc(glb.freq, parms->T_in) / glb.I_norm;
-                        Deb_ASSERT(glb.I_in > 0); /* Just in case */
-                }
-                /* Calculate Source intensity and the dim factor */
-                int nSource = parms->Outer_Source;
-                if(nSource){
-                    for (int source_id = 0; source_id < nSource; source_id++){
-                        SourceData *source = &parms->source[source_id];
-                        
-                        source->beta = source->radius / source->distance;
-                        
-                        source->intensity = Mem_CALLOC( 1, source->intensity);
-                        source->intensity[0] = Phys_PlanckFunc( glb.freq, source->temperature) / glb.I_norm;
-                        
-                        GeVec3_X(source->pt_sph,0) = source->distance;
-                        GeVec3_X(source->pt_sph,1) = source->theta;
-                        GeVec3_X(source->pt_sph,2) = source->phi;
-                        source->pt_cart = GeVec3_Sph2Cart(&source->pt_sph);
-                    }
-                }
 	}
-// 	FILE * fp = fopen("pops.dat","w");
+
 	for(zp = Zone_GetMinLeaf(root); zp; zp = Zone_AscendTree(zp)) {
                 SpPhys *pp;
 		/* Pointer to physical parameters */
@@ -419,25 +393,7 @@ static int InitModel(void)
 			if(pp->X_mol > 0) {
 				/* This zone contains tracer molecules */
 				pp->has_tracer = 1;
-                                /*
- 				double radius = sqrt(
-                                        zp->voxel.cen.x[0] * zp->voxel.cen.x[0] + 
-                                        zp->voxel.cen.x[1] * zp->voxel.cen.x[1] + 
-                                        zp->voxel.cen.x[2] * zp->voxel.cen.x[2] );
- 				//double radius = zp->voxel.cen.x[0];
- 				fprintf(fp,"%g %g %g %g %g %g %g %g %g %g %g\n",
- 				radius,
-                                pp->pops_preserve[0],
-                                pp->pops_preserve[1],
-                                pp->pops_preserve[2],
-                                pp->pops_preserve[3],
-                                pp->pops_preserve[4],
-                                pp->pops_preserve[5],
-                                pp->pops_preserve[6],
-                                pp->pops_preserve[7],
-                                pp->pops_preserve[8],
-                                pp->pops_preserve[9]);
-                                */
+          
 			}
 			else{
 				pp->has_tracer = 0;
@@ -448,7 +404,7 @@ static int InitModel(void)
 			pp->has_tracer = 0;
 		}
 	}
-// 	fclose(fp);
+
 
 	sts = SpUtil_Threads2(Sp_NTHREAD, InitModelThread);
 	//SpUtil_Threads(InitModelThread);
@@ -466,7 +422,7 @@ static void *InitModelThread(void *tid_p)
     SpPhys *pp;
     int task_id = glb.task->idx; 
     
-    if(task_id != TASK_COLDENS){
+    if(task_id != TASK_MODEL2VTK){
         for(zp = Zone_GetMinLeaf(root), zone_id = 0; zp; zp = Zone_AscendTree(zp), zone_id++) {
             if(zone_id % Sp_NTHREAD == tid) {
                 /* Check for thread termination */
@@ -475,7 +431,7 @@ static void *InitModelThread(void *tid_p)
                 /* Init zone parameters */
                 pp = zp->data;
                 
-                if(task_id == TASK_CONT) {
+                if(task_id == TASK_CONTCTB) {
                     SpPhys_InitContWindows(pp, &glb.freq, (size_t)1);
                 }
                 else {
@@ -503,11 +459,11 @@ static void *InitModelThread(void *tid_p)
                 
                 /* Add dust emission/absorption if T_d > 0 */
                 if(pp->T_d > 0) {
-                    SpPhys_AddContinuum_d(pp, task_id == TASK_CONT, pp->dust_to_gas);
+                    SpPhys_AddContinuum_d(pp, task_id == TASK_CONTCTB, pp->dust_to_gas);
                 }
                 /* Add free-free emission/absorption if T_ff > 0 */
                 if(pp->X_e > 0) {
-                    SpPhys_AddContinuum_ff(pp, task_id == TASK_CONT);
+                    SpPhys_AddContinuum_ff(pp, task_id == TASK_CONTCTB);
                 }
                 
             }
