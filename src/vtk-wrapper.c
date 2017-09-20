@@ -61,8 +61,10 @@ void Vtk_Mem_CALL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
                         Deb_ASSERT(0);
         }
         
-        double ** contrib       = Mem_CALLOC( nelement, contrib);
         double * contrib_dust   = Mem_CALLOC( nelement, contrib_dust);
+        double * tau_dust       = Mem_CALLOC( nelement, tau_dust);
+        
+        double ** contrib       = Mem_CALLOC( nelement, contrib);
         double ** tau           = Mem_CALLOC( nelement, tau);
         double ** tau_dev       = Mem_CALLOC( nelement, tau_dev);
         
@@ -72,6 +74,8 @@ void Vtk_Mem_CALL(GEOM_TYPE geom, VtkData * visual, size_t nvelo)
                 tau_dev[idx] = Mem_CALLOC(nvelo, tau_dev[idx]);
         }
         visual->contrib_dust = contrib_dust;
+        visual->tau_dust = tau_dust;
+        
         visual->contrib = contrib;
         visual->tau = tau;
         visual->tau_dev = tau_dev;
@@ -423,22 +427,49 @@ void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE ge
 void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, size_t nvelo, TASK_TYPE task)
 {
         // Dimension of the visualized resolution
-        size_t n1, n2, n3;
-                
-        n1 = visual->sph3d->nr;
-        n2 = visual->sph3d->nt;
-        n3 = visual->sph3d->np;
+    GEOM_TYPE geom = root->voxel.geom;
     
-        GEOM_TYPE geom = root->voxel.geom;
+        size_t n1, n2, n3;
+        switch (geom){            
+            case GEOM_SPH1D:
+            case GEOM_SPH3D:
+                n1 = visual->sph3d->nr;
+                n2 = visual->sph3d->nt;
+                n3 = visual->sph3d->np;
+                break;
+            case GEOM_CYL3D:
+                n1 = visual->cyl3d->nr;
+                n2 = visual->cyl3d->np;
+                n3 = visual->cyl3d->nz;
+                break;
+            case GEOM_REC3D:
+                n1 = visual->rec3d->nx;
+                n2 = visual->rec3d->ny;
+                n3 = visual->rec3d->nz;
+                break;
+            default:
+                Deb_ASSERT(0);
+        }
+        
         size_t nelement = n1 * n2 * n3;
         size_t npoint = (n3+1) * (n2+1) * (n1+1);
         
-        // the global pointer
-        double ** contrib       = visual->contrib;
-        double * contrib_dust   = visual->contrib_dust;
-        //double ** tau           = visual->tau;
-        //double ** tau_dev       = visual->tau_dev;
         
+        #define WRITE_HEADER_AND_GRID() \
+        fprintf(fp,"# vtk DataFile Version 3.0\n"); \
+        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION"); \
+        fprintf(fp,"ASCII\n"); \
+        fprintf(fp,"DATASET STRUCTURED_GRID\n"); \
+        fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1); \
+        fprintf(fp,"POINTS %zu float\n", npoint ); \
+        for( size_t i = 0; i < n1 + 1; i++) \
+            for( size_t j = 0; j < n2 + 1; j++) \
+                for( size_t k = 0; k < n3 + 1; k++){ \
+                    GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual); \
+                    GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos); \
+                    fprintf(fp,"%E %E %E\n", CartPos.x[0], CartPos.x[1], CartPos.x[2]); \
+                }
+
         FILE *fp = vtkfile->fp;
 
         // open VTK file
@@ -446,60 +477,30 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, si
         sprintf(filename, "%s.vtk", vtkfile->FileName);
         fp = fopen( filename, "w");
         
-        // write the header
-        fprintf(fp,"# vtk DataFile Version 3.0\n");
-        fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
-        fprintf(fp,"ASCII\n");
-        
-        // define the type of the gridding
-        fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
-        fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-        fprintf(fp,"POINTS %zu float\n", npoint );
-        for( size_t i = 0; i < n1 + 1; i++)
-          for( size_t j = 0; j < n2 + 1; j++)
-            for( size_t k = 0; k < n3 + 1; k++){
-                GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual);
-                GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
-                fprintf(fp,"%E %E %E\n", CartPos.x[0],  CartPos.x[1],  CartPos.x[2]);
-            }
+        WRITE_HEADER_AND_GRID()
         
         // write the artributes
         fprintf(fp,"CELL_DATA %zu\n", nelement );
-        // H2 number density
-        fprintf(fp,"SCALARS H2_Number_Density float 1\n");
-        fprintf(fp,"LOOKUP_TABLE default\n");
-        for( size_t i = 0; i < n1; i++) 
-         for( size_t j = 0; j < n2; j++){ 
-          for( size_t k = 0; k < n3; k++){
-                size_t izone = ZoneIndex( geom, i, j, k, root);
-                SpPhys *pp = root->children[izone]->data;
-                fprintf(fp,"%E ", pp->n_H2);
-           }
-           fprintf(fp,"\n");
-         }
-        // molecular number density
-        fprintf(fp,"SCALARS Molecular_Number_Density float 1\n");
-        fprintf(fp,"LOOKUP_TABLE default\n");
-        for( size_t i = 0; i < n1; i++)
-         for( size_t j = 0; j < n2; j++)
-          for( size_t k = 0; k < n3; k++){
-                size_t izone = ZoneIndex( geom, i, j, k, root);
-                SpPhys *pp = root->children[izone]->data;
-                fprintf(fp,"%E ", pp->n_H2 * pp->X_mol);
-        }fprintf(fp,"\n");
         
-        // kinetic temperature
-        fprintf(fp,"SCALARS Temperature float 1\n");
-        fprintf(fp,"LOOKUP_TABLE default\n");
-        for( size_t i = 0; i < n1; i++)
-         for( size_t j = 0; j < n2; j++){
-          for( size_t k = 0; k < n3; k++){
-                size_t izone = ZoneIndex( geom, i, j, k, root);
-                SpPhys *pp = root->children[izone]->data;
-                fprintf(fp,"%E ", pp->T_k);
-           }
-           fprintf(fp,"\n");
-         }
+        
+        #define WRITE_SCALAR_MODEL_DATA( SCALAR_NAME, MODEL_DATA ) \
+        fprintf(fp,"SCALARS H2_Number_Density float 1\n"); \
+        fprintf(fp,"LOOKUP_TABLE default\n"); \
+        for( size_t i = 0; i < n1; i++)  \
+            for( size_t j = 0; j < n2; j++){  \
+                for( size_t k = 0; k < n3; k++){ \
+                    size_t izone = ZoneIndex( geom, i, j, k, root); \
+                    SpPhys *pp = root->children[izone]->data; \
+                    fprintf(fp,"%E ", MODEL_DATA); \
+                } \
+                fprintf(fp,"\n"); \
+            } 
+        
+        WRITE_SCALAR_MODEL_DATA( H2_Number_Density, pp->n_H2 ) 
+        WRITE_SCALAR_MODEL_DATA( Molecular_Number_Density, pp->n_H2 * pp->X_mol ) 
+        WRITE_SCALAR_MODEL_DATA( Temperature, pp->T_k ) 
+
+        #undef WRITE_SCALAR_MODEL_DATA( SCALAR_NAME, MODEL_DATA )
         // write the velocity field
         fprintf(fp,"VECTORS velocity float\n");
         for( size_t i = 0; i < n1; i++)
@@ -552,12 +553,16 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, si
             }
         }
         if(task == TASK_LINECTB || task == TASK_CONTCTB || task == TASK_ZEEMANCTB){
-            // write the dust contribution of the cells
-            fprintf(fp,"SCALARS DUST_CONTRIBUTION float 1\n");
-            fprintf(fp,"LOOKUP_TABLE default\n");
-            for (size_t idx = 0; idx < nelement; idx++)
-                    fprintf(fp,"%E ", contrib_dust[idx]);
-            fprintf(fp,"\n");
+            #define WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data) \
+            fprintf(fp,"SCALARS %s float 1\n", SCALAR_NAME); \
+            fprintf(fp,"LOOKUP_TABLE default\n"); \
+            double * visual_data   = visual->visual_data; \
+            for (size_t idx = 0; idx < nelement; idx++) \
+                fprintf(fp,"%E ", visual_data[idx]); \
+            fprintf(fp,"\n"); 
+            WRITE_SCALAR_VISUAL_DATA( "DUST_CONTRIBUTION", contrib_dust )
+            WRITE_SCALAR_VISUAL_DATA( "DUST_TAU", tau_dust )
+            #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data)
         }
         
         fclose(fp);
@@ -571,36 +576,29 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, Zone * root, size_t line, si
                 sprintf( filename, "%s_%04zu.vtk",vtkfile->FileName, l);
                 fp=fopen(filename,"w");
                 
-                // write the header
-                fprintf(fp,"# vtk DataFile Version 3.0\n");
-                fprintf(fp,"%s\n", "POSTPROCESSING VISUALIZATION");
-                fprintf(fp,"ASCII\n");
-                
-                // define the type of the gridding
-                fprintf(fp,"DATASET STRUCTURED_GRID\n"); 
-                fprintf(fp,"DIMENSIONS %zu %zu %zu\n", n3+1, n2+1, n1+1);
-                fprintf(fp,"POINTS %zu float\n", npoint );
-                for( size_t i = 0; i < n1 + 1; i++)
-                  for( size_t j = 0; j < n2 + 1; j++)
-                    for( size_t k = 0; k < n3 + 1; k++){
-                        GeVec3_d GeomPos = Vtk_Index2GeomPos(i, j, k, geom, visual);
-                        GeVec3_d CartPos = Vtk_Geom2CartPos(geom, &GeomPos);
-                        fprintf(fp,"%E %E %E\n", CartPos.x[0], CartPos.x[1], CartPos.x[2]);
-                    }
-                
+                WRITE_HEADER_AND_GRID()
+
                 // write the artributes
                 fprintf(fp,"CELL_DATA %zu\n", nelement );
-                // write the contribution of the cells
-                fprintf(fp,"SCALARS CONTRIBUTION float 1\n");
-                fprintf(fp,"LOOKUP_TABLE default\n");
-                for (size_t idx = 0; idx < nelement; idx++)
-                        fprintf(fp,"%E ", contrib[idx][l]);
-                fprintf(fp,"\n");
                 
+                
+                #define WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data) \
+                fprintf(fp,"SCALARS %s float 1\n", SCALAR_NAME); \
+                fprintf(fp,"LOOKUP_TABLE default\n"); \
+                double ** visual_data   = visual->visual_data; \
+                for (size_t idx = 0; idx < nelement; idx++) \
+                    fprintf(fp,"%E ", visual_data[idx][l]); \
+                    fprintf(fp,"\n"); 
+                WRITE_SCALAR_VISUAL_DATA( "CONTRIBUTION", contrib)
+                WRITE_SCALAR_VISUAL_DATA( "TAU", tau)
+                #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data)
+
                 fclose(fp);
                 printf("wrote %s\n",filename);
             }
         }
+        
+        #undef WRITE_HEADER_AND_GRID()
  
         return;
 }

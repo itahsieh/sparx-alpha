@@ -328,14 +328,14 @@ telsim_keys = [
         Type.Custom([[Type.Angle, Type.Angle, Type.Angle, Type.Angle, Type.PosInt]]), 
         Type.Optional, 
         "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]"
+        ),
+    Key("tau", Type.NewFile, Type.Optional, 
+        "Name of output tau cube (Miriad image dataset)"
         )
 ]
 
 # for line, cont, zeeman
 radiation_keys = [
-    Key("tau", Type.NewFile, Type.Optional, 
-        "Name of output tau cube (Miriad image dataset)"
-        ),
     Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
         "Image brightness unit"
         )

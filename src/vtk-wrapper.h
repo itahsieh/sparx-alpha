@@ -35,9 +35,11 @@ typedef struct VtkData{
         } *rec3d;
         double 
                 **contrib, 
-                *contrib_dust, 
                 **tau, 
-                **tau_dev;
+                **tau_dev,
+                *contrib_dust,
+                *tau_dust,
+                *tau_dust_dev;
 } VtkData;
 
 typedef struct VtkFile{

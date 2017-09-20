@@ -13,9 +13,10 @@ static struct glb {
 	double lamb, freq;
         MirImg_Axis v;
         VtkData vtkdata;
-        VtkFile vtkfile, taufile;
+        VtkFile vtkfile;
         
-        int overlap,lte;
+        
+        int overlap, lte,  tau;
         int tracer;
         DatINode *unit;
 } glb;
@@ -59,16 +60,16 @@ static void *VtkContributionSph1dTread(void *tid_p);
 static void *VtkContributionSph3dTread(void *tid_p);
 static void *VtkContributionCyl3dTread(void *tid_p);
 
-static void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo, size_t tid);
+static void ContributionSubSamp(size_t idx, Zone *SampZone);
 
-static void ContributionTracer( double * contrib, double * contrib_dust, double * tau, Zone * SampZone, GeVec3_d * SampCartPos, size_t tid);
+static void ContributionTracer( double * contrib, double * contrib_dust, double * tau, double * tau_dust, Zone * SampZone, GeVec3_d * SampCartPos);
 
 static int HitVoxel( const GeRay * ray, const GeVox * SampVp, double * tSamp, size_t * side_Samp);
 static int HitVoxel_sph3d( const GeRay *, const GeVox *, double * t, size_t * side);
 static int HitVoxel_cyl3d( const GeRay *, const GeVox *, double * t, size_t * side);
 
-static void CalcOpticalDepth( Zone *, const GeRay *, const double, double *, double *, size_t tid);
-static void ContributionOfCell( Zone *, const GeRay *, const GeVec3_d *, double *, double *, double *, double *, size_t tid);
+static void CalcOpticalDepth( Zone *, const GeRay *, const double, double *, double *);
+static void ContributionOfCell( Zone *, const GeRay *, const GeVec3_d *, double *, double *, double *, double *);
 
 int ReachZone( const Zone * zp, const Zone * SampZone);
 int ReachCell(const GeVec3_d * GeomPos, const GeVox * voxel, size_t side);
@@ -103,20 +104,13 @@ int SpTask_Visual(void)
                 glb.task = Dat_IList_NameLookup(TASKS, Sp_PYSTR(o_task));
                 SpPy_XDECREF(o_task);
                 SpPy_XDECREF(o);
-                
-                
+
                 switch (glb.task->idx){
                       // for all radiation-related contrib tasks, except model2vtk
                       case TASK_LINECTB:
                       case TASK_ZEEMANCTB:
                       case TASK_CONTCTB:
                           /* radiation options */
-                          /* tau (optional) */
-                          if(!sts && SpPy_CheckOptionalInput("tau")) {
-                              sts = SpPy_GetInput_PyObj("tau", &o);
-                              glb.taufile.FileName = Sp_PYSTR(o);
-                              SpPy_XDECREF(o);
-                          }
                           /* unit */
                           if(!sts && !(sts = SpPy_GetInput_PyObj("unit", &o))) {
                               glb.unit = Dat_IList_NameLookup(UNITS, Sp_PYSTR(o));
@@ -139,13 +133,10 @@ int SpTask_Visual(void)
                 }
                 
                 switch (glb.task->idx){
-
-                    
                     // for task-lineobs
                     case TASK_LINECTB:
                     case TASK_ZEEMANCTB: 
                           { // get line transition
-                            
                             sts = SpPy_GetInput_PyObj("obs", &o);
                             PyObject *o_line = PyObject_GetAttrString(o, "line");
                             glb.line = Sp_PYSIZE(o_line);
@@ -209,7 +200,7 @@ int SpTask_Visual(void)
 /* 2. Initialize model */
         /* initialize sparx model */
 	if(!sts) sts = InitModel();
-
+        
 /* 3. Computing the analyzed properties */
         Zone * root = glb.model.grid;
         GEOM_TYPE geom = root->voxel.geom;
@@ -809,7 +800,6 @@ static void *VtkContributionSph1dTread(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
-        size_t nvelo = glb.v.n;
         VtkData *visual = &glb.vtkdata;
         
         // Dimension of the visualized resolution
@@ -820,11 +810,7 @@ static void *VtkContributionSph1dTread(void *tid_p)
         // link to the global pointer
         double * theta  = visual->sph3d->theta;
         double * phi    = visual->sph3d->phi;
-        double ** contrib = visual->contrib;
-        double * contrib_dust = visual->contrib_dust;
-        double ** tau   = visual->tau;
-        double ** tau_dev = visual->tau_dev;
-        
+
         size_t cell_id = 0;
         // calculate the contribution of the cells
         for( size_t i = 0; i < nr; i++){
@@ -848,15 +834,8 @@ static void *VtkContributionSph1dTread(void *tid_p)
                         SampZone.index.x[2] = k;
                         
                         size_t idx = ( i * nt + j ) * np + k ;
-                        ContributionSubSamp( contrib[idx], contrib_dust+idx, tau[idx], tau_dev[idx], &SampZone, nvelo, tid);
+                        ContributionSubSamp( idx, &SampZone);
                         
-                        #if 0
-                        printf("zone pos = %zu %zu %zu\n",i,j,k);
-                        //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
-                        if( j==3 && k==41){                                
-                                //printf("OK\n");exit(0);
-                        }
-                            #endif
                     }
                     cell_id += 1;
                 }
@@ -872,7 +851,6 @@ static void *VtkContributionSph3dTread(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
-        size_t nvelo = glb.v.n;
         VtkData *visual = &glb.vtkdata;
         
         // Dimension of the visualized resolution
@@ -883,10 +861,6 @@ static void *VtkContributionSph3dTread(void *tid_p)
         // link to the global pointer
         double * theta  = visual->sph3d->theta;
         double * phi    = visual->sph3d->phi;
-        double ** contrib = visual->contrib;
-        double * contrib_dust = visual->contrib_dust;
-        double ** tau   = visual->tau;
-        double ** tau_dev = visual->tau_dev;
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
@@ -917,15 +891,8 @@ static void *VtkContributionSph3dTread(void *tid_p)
                         }
                         
                         size_t idx = ( i * nt + j ) * np + k ;
-                        ContributionSubSamp( contrib[idx], contrib_dust+idx, tau[idx], tau_dev[idx], &SampZone, nvelo, tid);
+                        ContributionSubSamp( idx, &SampZone);
                         
-                        #if 0
-                        printf("zone pos = %zu %zu %zu\n",i,j,k);
-                        //printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
-                        if( j==3 && k==41){                                
-                                //printf("OK\n");exit(0);
-                        }
-                        #endif
               }
               cell_id += 1;
             }
@@ -941,7 +908,6 @@ static void *VtkContributionCyl3dTread(void *tid_p)
 {
         size_t tid = *((size_t *)tid_p);
         Zone * root = glb.model.grid;
-        size_t nvelo = glb.v.n;
         VtkData *visual = &glb.vtkdata;
         
         // Dimension of the visualized resolution
@@ -952,10 +918,6 @@ static void *VtkContributionCyl3dTread(void *tid_p)
         // link to the global pointer
         double * phi    = visual->cyl3d->phi;
         double * Z      = visual->cyl3d->Z;
-        double ** contrib       = visual->contrib;
-        double * contrib_dust   = visual->contrib_dust;
-        double ** tau           = visual->tau;
-        double ** tau_dev       = visual->tau_dev;
         
         size_t cell_id = 0;
         // calculate the contribution of the cells
@@ -986,15 +948,9 @@ static void *VtkContributionCyl3dTread(void *tid_p)
                         }
                         
                         size_t idx = ( i * np + j ) * nz + k ;
-                        ContributionSubSamp( contrib[idx], contrib_dust+idx, tau[idx], tau_dev[idx], &SampZone, nvelo, tid);
+                        ContributionSubSamp( idx, &SampZone);
                         
-                        #if 0
-                        printf("zone pos = %zu %zu %zu\n",i,j,k);
-                        printf("%E %E %E\n",contrib[idx + 15], tau[idx + 15], tau_dev[idx + 15]);
-                        if( j==0 && k==0){                                
-                                //printf("OK\n");exit(0);
-                        }
-                        #endif
+
               }
               cell_id += 1;
             }
@@ -1007,7 +963,7 @@ static void *VtkContributionCyl3dTread(void *tid_p)
 
 /*----------------------------------------------------------------------------*/
 
-void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, double *tau_dev, Zone *SampZone, size_t nvelo, size_t tid){
+void ContributionSubSamp(size_t idx, Zone *SampZone){
         // initialize numer of sampling
         static int nSamp_initialized;
         static int nSamp1D;
@@ -1023,13 +979,26 @@ void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, dou
         // the contribution of the cell
         // sampling n * n * n points in a cell
         // extract the geometry of the voxel
-        GeVox * vp = &SampZone->voxel;
         
-        Mem_BZERO2(contrib, nvelo);
-        *contrib_dust = 0.0;
-        Mem_BZERO2(tau, nvelo);
-        Mem_BZERO2(tau_dev, nvelo);
-              
+
+        GeVox * vp = &SampZone->voxel;
+        size_t nvelo = glb.v.n;
+        VtkData *visual = &glb.vtkdata;
+        
+        double * contrib_dust = visual->contrib_dust + idx;
+        double * tau_dust = visual->tau_dust + idx;
+        
+        double * contrib = visual->contrib[idx];
+        double * tau   = visual->tau[idx];
+        double * tau_dev = visual->tau_dev[idx];
+        
+        Mem_BZERO2( contrib_dust, 1);
+        Mem_BZERO2( tau_dust, 1);
+
+        Mem_BZERO2( contrib, nvelo);
+        Mem_BZERO2( tau, nvelo);
+        Mem_BZERO2( tau_dev, nvelo);
+        
         for(int i = 0; i < nSamp1D; i++){
             for(int j = 0; j < nSamp1D; j++){
                 for(int k = 0; k < nSamp1D; k++){
@@ -1051,10 +1020,11 @@ void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, dou
                     }
                     // Call the contribution tracer
                     double * contrib_sub = Mem_CALLOC( nvelo, contrib_sub);
-                    double contrib_dust_sub = 0.0; 
                     double * tau_sub = Mem_CALLOC( nvelo, tau_sub);
-
-                    ContributionTracer( contrib_sub, &contrib_dust_sub, tau_sub, SampZone, &SampPosXYZ, tid);
+                    double contrib_dust_sub; 
+                    double tau_dust_sub; 
+                    
+                    ContributionTracer( contrib_sub, &contrib_dust_sub, tau_sub, &tau_dust_sub, SampZone, &SampPosXYZ);
 
                     // statistics : sum up
                     for (size_t l = 0; l < nvelo; l++){
@@ -1063,6 +1033,7 @@ void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, dou
                             tau_dev[l] += tau_sub[l] * tau_sub[l];
                     }
                     *contrib_dust += contrib_dust_sub;
+                    *tau_dust += tau_dust_sub;
                     
                     // free sub memory
                     free(contrib_sub);
@@ -1082,6 +1053,7 @@ void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, dou
                 tau_dev[l] = sqrt( tau_dev[l] );
         }
         *contrib_dust *= Devide_nSampCube;
+        *tau_dust *= Devide_nSampCube;
 
         return;
 }
@@ -1089,7 +1061,7 @@ void ContributionSubSamp(double *contrib, double *contrib_dust, double *tau, dou
 /*----------------------------------------------------------------------------*/
 
 
-static void ContributionTracer( double *contrib, double *contrib_dust, double *tau_nu, Zone *SampZone, GeVec3_d *SampCartPos, size_t tid)
+static void ContributionTracer( double *contrib, double *contrib_dust, double *tau_nu, double * tau_dust, Zone *SampZone, GeVec3_d *SampCartPos)
 {
         GeVox * SampVp = &SampZone->voxel;
         GeRay ray;
@@ -1127,7 +1099,7 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
         /* Shoot ray at model and see what happens! */
         if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
             /* Reset tau for all channels */
-            double tau_dust = 0.0;
+            Mem_BZERO2(tau_dust, 1);
             Mem_BZERO2(tau_nu, glb.v.n);
                 
             
@@ -1231,14 +1203,14 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                             GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
 
                             if ( tSamp < t){
-                                    CalcOpticalDepth( zp, &ray, tSamp, tau_nu, &tau_dust, tid);
+                                    CalcOpticalDepth( zp, &ray, tSamp, tau_nu, tau_dust);
                                     /* Calculate next position */
                                     ray = GeRay_Inc(&ray, tSamp);
                                     side = side_Samp;
                             }
                             else{
                                     // will not reach in this interval
-                                    CalcOpticalDepth( zp, &ray, t, tau_nu, &tau_dust, tid);
+                                    CalcOpticalDepth( zp, &ray, t, tau_nu, tau_dust);
                                     /* Calculate next position */
                                     ray = GeRay_Inc(&ray, t);
                                     /* Get next zone to traverse to */
@@ -1255,7 +1227,7 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                     /* Calculate path to next boundary */
                     GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
                     
-                    CalcOpticalDepth( zp, &ray, t, tau_nu, &tau_dust, tid);
+                    CalcOpticalDepth( zp, &ray, t, tau_nu, tau_dust);
                     
                     /* Calculate next position */
                     ray = GeRay_Inc(&ray, t);
@@ -1269,7 +1241,7 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                 Deb_ASSERT(0);
             }
             
-            ContributionOfCell( zp, &ray, SampCartPos, contrib, contrib_dust, tau_nu, &tau_dust, tid);
+            ContributionOfCell( zp, &ray, SampCartPos, contrib, contrib_dust, tau_nu, tau_dust);
         }
         else{
             Deb_ASSERT(0);
@@ -1496,7 +1468,7 @@ static int HitVoxel_cyl3d( const GeRay *ray, const GeVox *voxel, double *t, size
 
 /*----------------------------------------------------------------------------*/
 
-static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double *tau_nu, double *tau_dust, size_t tid)
+static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double *tau_nu, double *tau_dust)
 {       /* Pointer to physical parameters associated with this zone */
         SpPhys * pp = zp->data;
         
@@ -1545,7 +1517,7 @@ static void CalcOpticalDepth( Zone *zp, const GeRay *ray, const double t, double
 
 /*----------------------------------------------------------------------------*/
 
-static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *SampCartPos, double * contrib, double * contrib_dust, double *tau_nu, double *tau_dust, size_t tid)
+static void ContributionOfCell( Zone *zp, const GeRay *ray, const GeVec3_d *SampCartPos, double * contrib, double * contrib_dust, double *tau_nu, double *tau_dust)
 {
         /* Pointer to physical parameters associated with this zone */
         SpPhys *pp = zp->data;
