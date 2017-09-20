@@ -4,8 +4,7 @@
 
 # VERSION_NUMBER of SPARX
 VERSION_NUMBER = '3.0.5'
-# MIRIAD support option
-MIRSUPPORT = 0
+
 # number of Thread using in per job
 ENABLE_MULTITREADING = 1
 if ENABLE_MULTITREADING:
@@ -43,6 +42,10 @@ if not (exists(PYINC) and exists(PYLIB)):
 # Get NumPy paths
 import numpy
 NPINC = numpy.get_include()
+
+
+# MIRIAD support option
+MIRSUPPORT = 1 if os.environ.get('MIRLIB') is not None else 0
 
 # Get Miriad paths
 if MIRSUPPORT:
