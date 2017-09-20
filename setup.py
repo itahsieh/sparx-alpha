@@ -59,9 +59,6 @@ if MIRSUPPORT:
 		raise Exception, "MIRIAD include paths '%s' and '%s' not present, cannot continue"%(MIRINC1, MIRINC2)
 
 
-
-
-
 # Check for additional search paths specified by user
 SPARXVERSION='sparx'
 SPARX_VERSION='sparx'
