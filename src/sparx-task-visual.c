@@ -17,7 +17,7 @@ static struct glb {
         VtkData vtkdata;
         VtkFile vtkfile;
 
-        int overlap, lte, tau;
+        int overlap, lte, tau, slice;
         int tracer;
 } glb;
 
@@ -42,7 +42,7 @@ static void InitRay(double *dx, double *dy, GeRay *ray);
 static void Vtk_nested_hyosun(void);
 
 
-static int CalcContrib(GEOM_TYPE geom_type);
+static int CalcContrib();
 
 static void *VtkContributionSph1dTread(void *tid_p);
 static void *VtkContributionSph3dTread(void *tid_p);
@@ -102,7 +102,7 @@ int SpTask_Visual(void)
                         glb.line = Sp_PYSIZE(o_line);
                         SpPy_XDECREF(o_line);
                     }
-                    if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+                        if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
                     
                     
                     { // get overlap velocity
@@ -115,14 +115,14 @@ int SpTask_Visual(void)
                             glb.overlap = 1;
                     }
                     
-                    /* chan */
-                    if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
-                        glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
-                        glb.v.crpix = MirWr_CRPIX(glb.v.n);
-                        glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
-                    }
+                        /* chan */
+                        if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
+                            glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
+                            glb.v.crpix = MirWr_CRPIX(glb.v.n);
+                            glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
+                        }
                     
-                    break;
+                        break;
                     // for task-contobs 
                     case TASK_CONTCTB:
                     {    
@@ -132,7 +132,7 @@ int SpTask_Visual(void)
                         glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
                         SpPy_XDECREF(o_wavelen);
                     }
-                    break;
+                        break;
                     case TASK_MODEL2VTK:
                         break;
                     default: 
@@ -167,8 +167,7 @@ int SpTask_Visual(void)
                           }
                           break;
                 }
-
-                
+                if(!sts) sts = SpPy_GetInput_bool("slice", &glb.slice);
 	}
 
 	
@@ -183,30 +182,35 @@ int SpTask_Visual(void)
                                 popsold = 1;
                 }
                 sts = SpPy_GetInput_model("source","source", &glb.model, &popsold, task);
+                
+                
         }
         
         
 /* 2. Initialize model */
         /* initialize sparx model */
-	if(!sts) sts = InitModel();
-        
-/* 3. Computing the analyzed properties */
-        Zone * root = glb.model.grid;
-        GEOM_TYPE geom = root->voxel.geom;
-        
-        if(!sts){
+        if(!sts) {
+            sts = InitModel();
             // the dimension and grid
-            Vtk_InitializeGrid(glb.v.n, root, &glb.vtkdata, geom);
-            
-            if( task == TASK_LINECTB)
-                sts = CalcContrib(geom);
+            Vtk_InitializeGrid( glb.v.n, 
+                                glb.model.grid, 
+                                &glb.vtkdata, 
+                                glb.model.grid->voxel.geom, 
+                                glb.slice
+                              );
         }
-        
+/* 3. Computing the analyzed properties */
+        if(!sts)
+            if( task == TASK_LINECTB || task == TASK_CONTCTB)
+                sts = CalcContrib();
 
 /* 4. I/O : OUTPUT */
 	if(!sts){
             // VTK visualization
-            double scale_factor = (task == TASK_MODEL2VTK) ? 1.0 : glb.I_norm/glb.ucon;
+            double scale_factor = 
+                (task == TASK_MODEL2VTK) ? 
+                1.0 : glb.I_norm/glb.ucon;
+            
             Vtk_Output( &glb.vtkfile, 
                         &glb.vtkdata, 
                         &glb.model, 
@@ -328,9 +332,8 @@ int SpTask_Visual(void)
 	
 
 /* 5. Cleanup */
-	
-        SpModel_Cleanup(glb.model);
-        Vtk_Mem_FREE(geom, &glb.vtkdata);
+        SpModel_Cleanup( glb.model );
+        Vtk_Mem_FREE( glb.model.grid->voxel.geom, &glb.vtkdata);
 
 	return sts;
 }
@@ -748,10 +751,11 @@ static void Vtk_nested_hyosun(void)
 
 /*----------------------------------------------------------------------------*/
 
-static int CalcContrib(GEOM_TYPE geom_type)
+static int CalcContrib()
 {
+        GEOM_TYPE geom = glb.model.grid->voxel.geom;
         /* multithreading calculation of the contribution of the cells */
-        switch (geom_type){
+        switch (geom){
             case GEOM_SPH1D :
                 return SpUtil_Threads2( Sp_NTHREAD, VtkContributionSph1dTread);
             case GEOM_SPH3D :

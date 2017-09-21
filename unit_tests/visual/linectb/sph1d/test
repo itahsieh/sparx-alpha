@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -rf linectb.vtk tau.vtk 
+rm -rf linectb.vtk 
 
 printf "${LIGHTCYAN}START THE MAPPING OF LINE EMISSION ${NC}\n"
 
@@ -9,5 +9,5 @@ source=model \
 out=linectb \
 lte='True' \
 line=1 \
-tau=tau \
-chan="[32,'0.1kms^-1']" 
+chan="[32,'0.1kms^-1']" \
+slice='True'

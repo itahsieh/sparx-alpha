@@ -257,16 +257,28 @@ GeVec3_d Vtk_Geom2CartPos( GEOM_TYPE geom, GeVec3_d * GeomPos)
 
 /*----------------------------------------------------------------------------*/
 
-void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE geom)
+void Vtk_InitializeGrid( size_t nvelo, 
+                         Zone * root, 
+                         VtkData *visual, 
+                         GEOM_TYPE geom, 
+                         int slice
+                       )
 {
+        if(slice)
+            if ( geom != GEOM_SPH1D ){
+                printf("slice cut must be used only on spherical 1D model!\n");
+                Deb_ASSERT(0);
+            }
+    
         size_t n1, n2, n3;
         switch (geom){
             case GEOM_SPH1D:
+                
                 visual->sph3d = Mem_CALLOC( 1, visual->sph3d);
                     
                 // Dimension of the visualized resolution
                 n1 = visual->sph3d->nr = root->nchildren;
-                n2 = visual->sph3d->nt = 45;
+                n2 = visual->sph3d->nt = slice ? 1 : 45;
                 n3 = visual->sph3d->np = 90;
                 
                 // initialize memory
@@ -283,10 +295,17 @@ void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE ge
                 for(size_t i = 1; i < n1 + 1; i++)
                         radius[i] = root->children[i-1]->voxel.max.x[0];
                 // theta
-                double delta_theta = M_PI / (double) n2;
-                theta[0] = 0.;
-                for ( size_t j = 1; j < n2 + 1; j++)
+                if (slice){
+                    double delta_theta = M_PI / 45.0;
+                    theta[0] = 0.5 * M_PI - 0.5 * delta_theta;
+                    theta[1] = theta[0] + delta_theta;
+                }
+                else{
+                    double delta_theta = M_PI / (double) n2;
+                    theta[0] = 0.;
+                    for ( size_t j = 1; j < n2 + 1; j++)
                         theta[j] = theta[j-1] + delta_theta;
+                }
                 //phi
                 double delta_phi = 2.0 * M_PI / (double) n3;
                 phi[0] = 0.;
@@ -588,6 +607,34 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
         
         
         if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){
+            
+            /* grab the maximum absolute logarithm line contribution */
+            double max_abs_log_contrib = 0.0;
+            double ** log_contrib = Mem_CALLOC( nelement, log_contrib);
+            for (size_t idx = 0; idx < nelement; idx++){
+                log_contrib[idx] = Mem_CALLOC( nvelo, log_contrib[idx]);
+                for (size_t l = 0; l < nvelo; l++){
+                    double line_contrib = visual->contrib[idx][l];
+                    double abs_log_contrib;
+                    if (line_contrib > 0.0)
+                        abs_log_contrib = log10( line_contrib );
+                    else if (line_contrib == 0.0)
+                        abs_log_contrib = 0.0;
+                    else if (line_contrib < 0.0)
+                        abs_log_contrib = log10( -line_contrib );
+                    else{
+                        printf("This case should not happen.\n");
+                        Deb_ASSERT(0);
+                    }
+                    if (abs_log_contrib > max_abs_log_contrib)
+                        max_abs_log_contrib = abs_log_contrib;
+                    log_contrib[idx][l] = abs_log_contrib;
+                }
+            }
+            
+            static const double log_level = 4.0;
+            double level_threshold = max_abs_log_contrib - log_level;
+            
             // for seperate contribution channel as a file
             for( size_t l = 0; l < nvelo; l++){
                 // open VTK file
@@ -606,7 +653,7 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                 double ** VISUAL_DATA   = visual->VISUAL_DATA; \
                 for (size_t idx = 0; idx < nelement; idx++) \
                     fprintf(fp,"%E ", (SCALE_FACTOR) * VISUAL_DATA[idx][l]); \
-                    fprintf(fp,"\n"); 
+                fprintf(fp,"\n"); 
                 char attribute_name[64];
                 switch (unit->idx){
                     case UNIT_JYPC:
@@ -619,10 +666,40 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                 WRITE_SCALAR_VISUAL_DATA( attribute_name, contrib, scale_factor)
                 WRITE_SCALAR_VISUAL_DATA( "TAU", tau, 1.0)
                 #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, VISUAL_DATA, SCALE_FACTOR)
-
+                
+                
+                
+                fprintf(fp,"SCALARS LOG_LINE_CONTRIBUTION float 1\n");
+                fprintf(fp,"LOOKUP_TABLE default\n");
+                for (size_t idx = 0; idx < nelement; idx++){
+                    double effective_log;
+                    double line_contrib = visual->contrib[idx][l];
+                    double abs_log = log_contrib[idx][l] ;
+                    if ( abs_log == 0.0 )
+                        effective_log = 0.0;
+                    else if ( abs_log < level_threshold )
+                        effective_log = 0.0;
+                    else if ( line_contrib > 0.0)
+                        effective_log = abs_log - level_threshold;
+                    else if ( line_contrib < 0.0)
+                        effective_log = - abs_log - level_threshold;
+                    else{
+                        printf("This case should not happen.\n");
+                        Deb_ASSERT(0);
+                    }
+                    fprintf(fp,"%E ", effective_log);
+                }
+                fprintf(fp,"\n"); 
+                
+                
                 fclose(fp);
                 printf("wrote %s\n",filename);
             }
+            
+            // free log_contrib pointer
+            for (size_t idx = 0; idx < nelement; idx++)
+                free(log_contrib[idx]);
+            free(log_contrib);
         }
         
         #undef WRITE_HEADER_AND_GRID()

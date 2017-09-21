@@ -343,13 +343,16 @@ radiation_keys = [
     
 # for linectb, contctb, zeemanctb
 contribution_keys = [
-    Key("unit", Type.Option(['JY/PC', 'K/PC']), "'K/PC'", 
+    Key("unit", Type.Option(['JY/PC', 'K/PC']), "K/PC", 
         "Intensity contribution per length"
         )
 ]
 
 # for linectb, contctb, and vtk
 vtk_keys = [
+    Key("slice", Type.Bool, "False", 
+        "Slice cut at X-Y plane, only used in sph1d model"
+        ),
     Key("out", Type.NewFile, None, 
         "Name of output VTK file "
         )
