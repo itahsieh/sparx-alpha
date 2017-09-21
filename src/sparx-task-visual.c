@@ -1,37 +1,25 @@
 #include "sparx.h"
 #include "task.h"
 #include "vtk-wrapper.h"
+#include "unit.h"
 
 /* Global parameter struct */
 static struct glb {
 	DatINode *task;
+        DatINode *unit;
 
 	double ucon, overlap_vel;
-	double dist, rotate[3], I_norm, I_cmb, I_in;
+	double dist, rotate[3], I_norm;
 	SpModel model;
 	size_t line;
 	double lamb, freq;
         MirImg_Axis v;
         VtkData vtkdata;
         VtkFile vtkfile;
-        
-        
-        int overlap, lte,  tau;
+
+        int overlap, lte, tau;
         int tracer;
-        DatINode *unit;
 } glb;
-
-enum {
-	UNIT_K,
-	UNIT_JYPX,
-};
-
-static DatINode UNITS[] = {
-	{"K", UNIT_K},
-	{"JY/PIXEL", UNIT_JYPX},
-	{0, 0}
-};
-
 
 
 #define RELVEL(i,j)\
@@ -218,7 +206,16 @@ int SpTask_Visual(void)
 /* 4. I/O : OUTPUT */
 	if(!sts){
             // VTK visualization
-            Vtk_Output(&glb.vtkfile, &glb.vtkdata, &glb.model, glb.line, glb.v.n, task);
+            double scale_factor = (task == TASK_MODEL2VTK) ? 1.0 : glb.I_norm/glb.ucon;
+            Vtk_Output( &glb.vtkfile, 
+                        &glb.vtkdata, 
+                        &glb.model, 
+                        glb.line, 
+                        glb.v.n, 
+                        task, 
+                        scale_factor,
+                        glb.unit
+                      );
                 
         }
 
@@ -355,7 +352,23 @@ static int InitModel(void)
                 glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
                 Deb_ASSERT(glb.line < parms->mol->nrad);
         }
-
+        
+        /* set the reference of the intensity: glb.ucon */
+        if(glb.task->idx != TASK_MODEL2VTK){
+            switch (glb.unit->idx){
+                case UNIT_KPC:
+                    glb.ucon = Phys_RayleighJeans(glb.freq, 1.0);
+                    break;
+                case UNIT_JYPC:
+                    glb.ucon = (PHYS_UNIT_MKS_JY );
+                    break;
+                default:
+                    Deb_ASSERT(0);
+            }
+            /* Sanity check */
+            Deb_ASSERT((glb.ucon > 0) && (!Num_ISNAN(glb.ucon)) && (glb.ucon < HUGE_VAL));
+        }
+        
 	/* initialization : construct overlapping table */
         if(glb.overlap){
             parms->mol->OL = Mem_CALLOC(NRAD*NRAD,parms->mol->OL);

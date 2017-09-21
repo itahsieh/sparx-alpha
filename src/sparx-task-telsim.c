@@ -1,5 +1,6 @@
 #include "sparx.h"
 #include "task.h"
+#include "unit.h"
 
 /* Miriad support */
 #define Sp_MIRSUPPORT MIRSUPPORT
@@ -27,20 +28,7 @@ static struct glb {
 	} *subres;
 } glb;
 
-enum {
-	UNIT_K,
-	UNIT_JYPX,
-	UNIT_MKS,
-        UNIT_CGS,
-};
 
-static DatINode UNITS[] = {
-	{"K", UNIT_K},
-	{"JY/PIXEL", UNIT_JYPX},
-        {"MKS", UNIT_MKS},
-        {"CGS", UNIT_CGS},
-	{0, 0}
-};
 
 #define RELVEL(i,j)\
 	glb.model.parms.mol->OL[NRAD*(i)+(j)]->RelativeVel
@@ -419,18 +407,11 @@ int SpTask_Telsim(void)
                           break;
                   // output line emission or zeeman effect (stokes V) image
                   case TASK_LINE:
-                          scale_factor = glb.I_norm/glb.ucon;
-                          stokes = 0;
-                          #if Sp_MIRSUPPORT
-                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
-                          Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
-                          #endif
-                          break;
                   case TASK_ZEEMAN:
                           scale_factor = glb.I_norm/glb.ucon;
                           stokes = 0;
                           #if Sp_MIRSUPPORT
-                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, glb.I_norm/glb.ucon);
+                          MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
                           #endif
                           break;
@@ -565,7 +546,7 @@ static int InitModel(void)
                     }
                 }
 	}
-// 	FILE * fp = fopen("pops.dat","w");
+
 	for(zp = Zone_GetMinLeaf(root); zp; zp = Zone_AscendTree(zp)) {
                 SpPhys *pp;
 		/* Pointer to physical parameters */
@@ -578,25 +559,7 @@ static int InitModel(void)
 			if(pp->X_mol > 0) {
 				/* This zone contains tracer molecules */
 				pp->has_tracer = 1;
-                                /*
- 				double radius = sqrt(
-                                        zp->voxel.cen.x[0] * zp->voxel.cen.x[0] + 
-                                        zp->voxel.cen.x[1] * zp->voxel.cen.x[1] + 
-                                        zp->voxel.cen.x[2] * zp->voxel.cen.x[2] );
- 				//double radius = zp->voxel.cen.x[0];
- 				fprintf(fp,"%g %g %g %g %g %g %g %g %g %g %g\n",
- 				radius,
-                                pp->pops_preserve[0],
-                                pp->pops_preserve[1],
-                                pp->pops_preserve[2],
-                                pp->pops_preserve[3],
-                                pp->pops_preserve[4],
-                                pp->pops_preserve[5],
-                                pp->pops_preserve[6],
-                                pp->pops_preserve[7],
-                                pp->pops_preserve[8],
-                                pp->pops_preserve[9]);
-                                */
+
 			}
 			else{
 				pp->has_tracer = 0;
@@ -607,8 +570,6 @@ static int InitModel(void)
 			pp->has_tracer = 0;
 		}
 	}
-// 	fclose(fp);
-
 	sts = SpUtil_Threads2(Sp_NTHREAD, InitModelThread);
 	//SpUtil_Threads(InitModelThread);
 

@@ -334,10 +334,17 @@ telsim_keys = [
         )
 ]
 
-# for line, cont, zeeman
+# for lineobs, contobs, zeeman
 radiation_keys = [
     Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
         "Image brightness unit"
+        )
+]
+    
+# for linectb, contctb, zeemanctb
+contribution_keys = [
+    Key("unit", Type.Option(['JY/PC', 'K/PC']), "'K/PC'", 
+        "Intensity contribution per length"
         )
 ]
 
@@ -562,7 +569,7 @@ class Task_LineCtb(Task):
 		self.expl = "Visualizing the distribution of intensity-contribution could help to analyze the region where the molecule absorbs or emits radiation "
 
 		# Keys
-		self.keys = postprocess_keys + observer_keys + vtk_keys + radiation_keys + line_keys
+		self.keys = postprocess_keys + observer_keys + vtk_keys + contribution_keys + line_keys
 
 		# C function to call
 		self.cfunc = _sparx.task_visual
@@ -602,7 +609,7 @@ class Task_ContCtb(Task):
 		self.expl = "Visualizing the distribution of intensity-contribution could help to analyze the region where the dust/free-free absorbs or emits radiation "
 
 		# Keys
-		self.keys = postprocess_keys + observer_keys + vtk_keys + radiation_keys + cont_keys
+		self.keys = postprocess_keys + observer_keys + vtk_keys + contribution_keys + cont_keys
 
 		# C function to call
 		self.cfunc = _sparx.task_visual

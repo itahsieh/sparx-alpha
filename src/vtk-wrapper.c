@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "debug.h"
 #include "sparx.h"
+#include "unit.h"
 
 #include <stdio.h>
 
@@ -424,7 +425,7 @@ void Vtk_InitializeGrid(size_t nvelo, Zone * root, VtkData *visual, GEOM_TYPE ge
 
 /*----------------------------------------------------------------------------*/
 
-void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line, size_t nvelo, TASK_TYPE task)
+void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line, size_t nvelo, TASK_TYPE task, double scale_factor, DatINode * unit)
 {
         // Dimension of the visualized resolution
     Zone * root = model->grid;
@@ -557,16 +558,25 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
             }
         }
         if(task == TASK_LINECTB || task == TASK_CONTCTB || task == TASK_ZEEMANCTB){
-            #define WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data) \
+            #define WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, VISUAL_DATA, SCALE_FACTOR) \
             fprintf(fp,"SCALARS %s float 1\n", SCALAR_NAME); \
             fprintf(fp,"LOOKUP_TABLE default\n"); \
-            double * visual_data   = visual->visual_data; \
+            double * VISUAL_DATA   = visual->VISUAL_DATA; \
             for (size_t idx = 0; idx < nelement; idx++) \
-                fprintf(fp,"%E ", visual_data[idx]); \
-            fprintf(fp,"\n"); 
-            WRITE_SCALAR_VISUAL_DATA( "DUST_CONTRIBUTION", contrib_dust )
-            WRITE_SCALAR_VISUAL_DATA( "DUST_TAU", tau_dust )
-            #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data)
+                fprintf(fp,"%E ", (SCALE_FACTOR) * VISUAL_DATA[idx]); \
+            fprintf(fp,"\n");
+            char attribute_name[64];
+            switch (unit->idx){
+                case UNIT_JYPC:
+                    strcpy( attribute_name, "DUST_CONTRIBUTION(Jy/pc)");
+                    break;
+                case UNIT_KPC:
+                    strcpy( attribute_name, "DUST_CONTRIBUTION(Kelvin/pc)");
+                    break;
+            }
+            WRITE_SCALAR_VISUAL_DATA( attribute_name, contrib_dust, scale_factor)
+            WRITE_SCALAR_VISUAL_DATA( "DUST_TAU", tau_dust, 1.0 )
+            #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, VISUAL_DATA, SCALE_FACTOR)
         }
         
 
@@ -590,16 +600,25 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                 fprintf(fp,"CELL_DATA %zu\n", nelement );
                 
                 
-                #define WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data) \
+                #define WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, VISUAL_DATA, SCALE_FACTOR) \
                 fprintf(fp,"SCALARS %s float 1\n", SCALAR_NAME); \
                 fprintf(fp,"LOOKUP_TABLE default\n"); \
-                double ** visual_data   = visual->visual_data; \
+                double ** VISUAL_DATA   = visual->VISUAL_DATA; \
                 for (size_t idx = 0; idx < nelement; idx++) \
-                    fprintf(fp,"%E ", visual_data[idx][l]); \
+                    fprintf(fp,"%E ", (SCALE_FACTOR) * VISUAL_DATA[idx][l]); \
                     fprintf(fp,"\n"); 
-                WRITE_SCALAR_VISUAL_DATA( "CONTRIBUTION", contrib)
-                WRITE_SCALAR_VISUAL_DATA( "TAU", tau)
-                #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, visual_data)
+                char attribute_name[64];
+                switch (unit->idx){
+                    case UNIT_JYPC:
+                        strcpy( attribute_name, "LINE_CONTRIBUTION(Jy/pc)");
+                        break;
+                    case UNIT_KPC:
+                        strcpy( attribute_name, "LINE_CONTRIBUTION(Kelvin/pc)");
+                        break;
+                }
+                WRITE_SCALAR_VISUAL_DATA( attribute_name, contrib, scale_factor)
+                WRITE_SCALAR_VISUAL_DATA( "TAU", tau, 1.0)
+                #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, VISUAL_DATA, SCALE_FACTOR)
 
                 fclose(fp);
                 printf("wrote %s\n",filename);
