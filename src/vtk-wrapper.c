@@ -609,12 +609,13 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
         if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){
             
             /* grab the maximum absolute logarithm line contribution */
-            double max_abs_log_contrib = 0.0;
+            
+//             double max_abs_log_contrib = 0.0;
             double ** log_contrib = Mem_CALLOC( nelement, log_contrib);
             for (size_t idx = 0; idx < nelement; idx++){
                 log_contrib[idx] = Mem_CALLOC( nvelo, log_contrib[idx]);
                 for (size_t l = 0; l < nvelo; l++){
-                    double line_contrib = visual->contrib[idx][l];
+                    double line_contrib = scale_factor * visual->contrib[idx][l];
                     double abs_log_contrib;
                     if (line_contrib > 0.0)
                         abs_log_contrib = log10( line_contrib );
@@ -626,14 +627,15 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                         printf("This case should not happen.\n");
                         Deb_ASSERT(0);
                     }
-                    if (abs_log_contrib > max_abs_log_contrib)
-                        max_abs_log_contrib = abs_log_contrib;
+//                     if (abs_log_contrib > max_abs_log_contrib)
+//                         max_abs_log_contrib = abs_log_contrib;
                     log_contrib[idx][l] = abs_log_contrib;
                 }
             }
-            
-            static const double log_level = 4.0;
-            double level_threshold = max_abs_log_contrib - log_level;
+            /* 
+            double level_threshold = max_abs_log_contrib - 4.0;
+            */
+            double level_threshold = -1.0;
             
             // for seperate contribution channel as a file
             for( size_t l = 0; l < nvelo; l++){
