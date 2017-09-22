@@ -950,7 +950,7 @@ int SpIO_H5GetAttribute_string(hid_t h5f_id, const char *obj_name, const char *a
 		hstatus = H5LTget_attribute_info(h5f_id, obj_name, attr_name, &dims, &class, &size);
 
 	if(hstatus >= 0) {
-		*attribute = Mem_CALLOC(size, *attribute);
+		*attribute = Mem_CALLOC(size+1, *attribute);
 		hstatus = H5LTget_attribute_string(h5f_id, obj_name, attr_name, *attribute);
 	}
 
