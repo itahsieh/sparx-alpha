@@ -22,9 +22,9 @@ make install
 cd ..
 
 # HDF5
-wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.17.tar -O- | tar x
-cd hdf5-1.8.17 
-CC=$OPT_DIR/openmpi-2.0.0/bin/mpicc ./configure --enable-parallel --prefix=$OPT_DIR/hdf5-1.8.17
+wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.10.1.tar -O- | tar x
+cd hdf5-1.10.1 
+CC=$OPT_DIR/openmpi-2.0.0/bin/mpicc ./configure --enable-parallel --prefix=$OPT_DIR/hdf5-1.10.1
 make 
 make check 
 make install
