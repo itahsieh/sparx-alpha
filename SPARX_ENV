@@ -20,5 +20,5 @@ FITSIO_PATH=$HOME/opt/cfitsio
 setup_app $FITSIO_PATH
 
 # HDF5
-HDF5_PATH=$HOME/opt/hdf5-1.8.17
+HDF5_PATH=$HOME/opt/hdf5-1.10.1
 setup_app $HDF5_PATH
