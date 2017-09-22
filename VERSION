@@ -43,11 +43,12 @@ alpha-3.0.1     Oct 2016        bug fixing
 alpha-3.0.2     Jan 2017        presparx functional model bug fixing 
 alpha-3.0.3     Feb 2017        parallel projection while model to distance ratio is too low
 alpha-3.0.4     Sep 2017        tag Sep 2017
+alpha-3.0.5     Sep 2017        contribution analysis detatched from telsim
+alpha-3.0.6     Sep 2017        reduce sph1d contribution visualization to 2-dim
+
 
 
 ## STATUS : ON-GOING
-alpha-3.0.5                     contribution analysis detatched from telsim
-alpha-3.0.6                     reduce sph1d contribution visualization to 2-dim
 alpha-3.0.7                     MPI utilization for contribution computing
 
 ## STATUS : PENDING

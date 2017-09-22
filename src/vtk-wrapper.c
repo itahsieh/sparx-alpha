@@ -568,8 +568,9 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                           double E_l = pp->mol->lev[lo]->E;
                           double g_u = pp->mol->lev[up]->g;
                           double g_l = pp->mol->lev[lo]->g;
-                          double Tex = (E_l-E_u)
-                                  / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
+                          double Tex = (n_l == 0.0) ? 
+                          0.0 : 
+                          (E_l-E_u) / ( PHYS_CONST_MKS_BOLTZK * log((n_u*g_l)/(n_l*g_u)) ); 
                           fprintf(fp,"%E ", Tex/(pp->T_k));
                   }
                 }
@@ -609,7 +610,7 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
         if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){
             
             /* grab the maximum absolute logarithm line contribution */
-            
+/*
 //             double max_abs_log_contrib = 0.0;
             double ** log_contrib = Mem_CALLOC( nelement, log_contrib);
             for (size_t idx = 0; idx < nelement; idx++){
@@ -626,6 +627,7 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                     log_contrib[idx][l] = abs_log_contrib;
                 }
             }
+*/
             /* 
             double level_threshold = max_abs_log_contrib - 4.0;
             */
@@ -668,21 +670,25 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                 fprintf(fp,"SCALARS LOG_LINE_CONTRIBUTION float 1\n");
                 fprintf(fp,"LOOKUP_TABLE default\n");
                 for (size_t idx = 0; idx < nelement; idx++){
+                    double line_contrib = scale_factor * visual->contrib[idx][l];
+                    double abs_log_contrib;
+                    if (line_contrib == 0.0)
+                        abs_log_contrib = 0.0;
+                    else 
+                        abs_log_contrib = log10( abs(line_contrib) );
+                    
                     double effective_log;
-                    double line_contrib = visual->contrib[idx][l];
-                    double abs_log = log_contrib[idx][l] ;
-                    if ( abs_log == 0.0 )
+                    if      ( abs_log_contrib == 0.0 )
                         effective_log = 0.0;
-                    else if ( abs_log < level_threshold )
+                    else if ( abs_log_contrib < level_threshold )
                         effective_log = 0.0;
                     else if ( line_contrib > 0.0)
-                        effective_log = abs_log - level_threshold;
+                        effective_log =   abs_log_contrib - level_threshold;
                     else if ( line_contrib < 0.0)
-                        effective_log = - abs_log - level_threshold;
-                    else{
-                        printf("This case should not happen.\n");
+                        effective_log = - abs_log_contrib - level_threshold;
+                    else
                         Deb_ASSERT(0);
-                    }
+
                     fprintf(fp,"%E ", effective_log);
                 }
                 fprintf(fp,"\n"); 
@@ -691,13 +697,13 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                 fclose(fp);
                 printf("wrote %s\n",filename);
             }
-            
+/*
             // free log_contrib pointer
             for (size_t idx = 0; idx < nelement; idx++)
                 free(log_contrib[idx]);
             free(log_contrib);
+*/
         }
-        
         #undef WRITE_HEADER_AND_GRID()
  
         return;

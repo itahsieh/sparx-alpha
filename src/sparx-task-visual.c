@@ -177,7 +177,7 @@ int SpTask_Visual(void)
         if(!sts) {
                 int popsold = 0;
                 /* only read populations data when non-LTE LINE/ZEEMAN mapping tasks*/ 
-                if( task == TASK_LINE || task == TASK_ZEEMAN ){
+                if( task == TASK_LINECTB || task == TASK_ZEEMANCTB ){
                         if (!glb.lte)
                                 popsold = 1;
                 }
@@ -210,6 +210,7 @@ int SpTask_Visual(void)
             double scale_factor = 
                 (task == TASK_MODEL2VTK) ? 
                 1.0 : glb.I_norm/glb.ucon;
+                
             
             Vtk_Output( &glb.vtkfile, 
                         &glb.vtkdata, 
@@ -394,7 +395,6 @@ static int InitModel(void)
         if(task_id != TASK_MODEL2VTK){
 		glb.I_norm = Phys_PlanckFunc(glb.freq, 10.0);
 		Deb_ASSERT(glb.I_norm > 0); /* Just in case */
-
 	}
 
 	for(zp = Zone_GetMinLeaf(root); zp; zp = Zone_AscendTree(zp)) {
@@ -450,7 +450,7 @@ static void *InitModelThread(void *tid_p)
                 if(task_id == TASK_CONTCTB) {
                     SpPhys_InitContWindows(pp, &glb.freq, (size_t)1);
                 }
-                else {
+                else if (task_id == TASK_LINECTB){
                     size_t nrad = glb.model.parms.mol->nrad;
                     double freq[nrad];
                     /* Set initial pops to either optically thin or LTE */

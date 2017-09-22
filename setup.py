@@ -3,7 +3,7 @@
 # Python Distutils setup script for SPARX
 
 # VERSION_NUMBER of SPARX
-VERSION_NUMBER = '3.0.5'
+VERSION_NUMBER = '3.0.6'
 
 # number of Thread using in per job
 ENABLE_MULTITREADING = 1
