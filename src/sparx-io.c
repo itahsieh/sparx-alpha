@@ -1227,10 +1227,6 @@ int SpIO_H5GetAttribute_string(hid_t h5f_id, const char *obj_name, const char *a
 		hstatus = H5LTget_attribute_string(h5f_id, obj_name, attr_name, *attribute);
 	}
 	
-// 	printf("OK %d %s %zu %s\n", hstatus, attr_name,size, *attribute);
-//         char * str_tmp = Mem_CALLOC(size+1, str_tmp);
-//         hstatus = H5LTget_attribute_string(h5f_id, obj_name, attr_name, str_tmp);
-//         printf("test: %s\n",str_tmp);
         
 	if(hstatus < 0) {
 		printf( "Error getting attribute '%s' from '%s'", attr_name, obj_name);
