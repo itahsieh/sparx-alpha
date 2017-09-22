@@ -617,16 +617,10 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                 for (size_t l = 0; l < nvelo; l++){
                     double line_contrib = scale_factor * visual->contrib[idx][l];
                     double abs_log_contrib;
-                    if (line_contrib > 0.0)
-                        abs_log_contrib = log10( line_contrib );
-                    else if (line_contrib == 0.0)
+                    if (line_contrib == 0.0)
                         abs_log_contrib = 0.0;
-                    else if (line_contrib < 0.0)
-                        abs_log_contrib = log10( -line_contrib );
-                    else{
-                        printf("This case should not happen.\n");
-                        Deb_ASSERT(0);
-                    }
+                    else 
+                        abs_log_contrib = log10( abs(line_contrib) );
 //                     if (abs_log_contrib > max_abs_log_contrib)
 //                         max_abs_log_contrib = abs_log_contrib;
                     log_contrib[idx][l] = abs_log_contrib;
