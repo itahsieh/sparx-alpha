@@ -130,14 +130,14 @@ SpFile *SpIO_OpenFile(const char *fname, int mode)
 		default: /* No such mode */
 			Deb_ASSERT(0);
 	}
-
+	
 	if(file_id >= 0) {
 		sfp = Mem_CALLOC(1, sfp);
 		sfp->name = Mem_STRDUP(fname);
 		sfp->h5f_id = file_id;
 	}
 	else {
-		Err_SETSTRING("Error opening file `%s'", fname);
+		printf("Error opening file `%s'", fname);
 	}
 
 	return sfp;
@@ -152,7 +152,7 @@ int SpIO_OpenFile2(const char *fname, int mode, SpFile **fp)
 	*fp = SpIO_OpenFile(fname, mode);
 
 	if(!(*fp)) {
-		PyWrErr_SetString(PyExc_Exception, "Error opening SPARX file '%s'", fname);
+		printf( "Error opening SPARX file '%s'", fname);
 		sts = 1;
 	}
 
@@ -276,7 +276,7 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
 		status = SpIO_H5WriteGrid(sfp->h5f_id, model.grid, &model.parms);        
         
 	if(status)
-		status = Err_SETSTRING("Error writing model to file `%s'", sfp->name);
+		status = printf("Error writing model to file `%s'", sfp->name);
 
 	return status;
 }
@@ -309,7 +309,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
         if(!status){
             char *mol_name = NULL;
             status = SpIO_H5GetAttribute_string(sfp->h5f_id, "/", "molec", &mol_name);
-            
+
             /* Load molecule if present */
             if(strlen(mol_name) > 0) {
                 if(!(model->parms.mol = SpIO_FreadMolec(mol_name)))
@@ -426,7 +426,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                         char format[] = "(d,d,d),(d,d,d),(d,d,d)";
 			ret = PyObject_CallFunction(model->parms.velfield, format, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 			if(!PySequence_Check(ret)) {
-				PyWrErr_SetString(PyExc_Exception, "Vgas() does not return a vector!");
+				printf( "Vgas() does not return a vector!");
 				status = 1;
 			}
 		}
@@ -450,7 +450,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
         
 
 	if(status)
-		PyWrErr_SetString(PyExc_Exception, "Error reading model from file `%s'", sfp->name);
+		printf( "Error reading model from file `%s'", sfp->name);
         
 	return status;
 }
@@ -496,24 +496,21 @@ Molec *SpIO_FreadMolec(const char *molname)
 
 	path = Mem_Sprintf("%s/%s.dat", Sp_parm.molec_path, molname);
 	fp = fopen(path, "r");
-
+        
+        
 	if(!fp) {
-		Err_SETSTRING("File `%s' could not be opened", path);
-		goto cleanup;
-		
-	}
+		printf("File `%s' could not be opened", path);
+        }
 	else {
                 
 		mol = Mol_ReadLamda(fp, path, molname);
 
 		if(!mol)
-			Err_SETSTRING("Error loading molecule from `%s'", path);
+			printf("Error loading molecule from `%s'", path);
 		else
 			SpPhys_ProcLamda(mol);	
 	}
-
-
-	cleanup:
+    
 	if(fp)
 		fclose(fp);
 	free(path);
@@ -534,13 +531,13 @@ Kappa *SpIO_FreadKappa(const char *name)
 	fp = fopen(path, "r");
 
 	if(!fp) {
-		Err_SETSTRING("File `%s' could not be opened", path);
+		printf("File `%s' could not be opened", path);
 		goto cleanup;
 	}
 	else {
 		kap = Kap_New_Table(name, path, fp);
 		if(!kap)
-			Err_SETSTRING("Error loading opacity from `%s'", path);
+			printf("Error loading opacity from `%s'", path);
 	}
 
 	cleanup:
@@ -1033,7 +1030,7 @@ int SpIO_H5WritePops(hid_t h5f_id, const Zone *zone)
 	free(pops);
 
 	if(hstatus < 0)
-		status = Err_SETSTRING("Error writing `POPS' table");
+		status = printf("Error writing `POPS' table");
 
 	return status;
 }
@@ -1068,7 +1065,7 @@ int SpIO_H5ReadPops(hid_t h5f_id, Zone *zone)
 	/* Read pops table */
 	hstatus = H5TBread_table(h5f_id, "POPS", record_size, field_offsets, field_sizes, pops);
 	if(hstatus < 0)
-		status = Err_SETSTRING("Error reading HDF5 `%s' table", "POPS");
+		status = printf("Error reading HDF5 `%s' table", "POPS");
 	#define POPS(i, j)\
 		pops[(j) + nlev * (i)]
 
@@ -1157,7 +1154,7 @@ int SpIO_H5WriteTau(hid_t h5f_id, const Zone *zone)
 	free(tau);
 
 	if(hstatus < 0)
-		status = Err_SETSTRING("Error writing `TAU' table");
+		status = printf("Error writing `TAU' table");
 
 	return status;
 }
@@ -1192,7 +1189,7 @@ int SpIO_H5ReadTau(hid_t h5f_id, Zone *zone)
 	/* Read tau table */
 	hstatus = H5TBread_table(h5f_id, "TAU", record_size, field_offsets, field_sizes, tau);
 	if(hstatus < 0)
-		status = Err_SETSTRING("Error reading HDF5 `%s' table", "TAU");
+		status = printf("Error reading HDF5 `%s' table", "TAU");
 
 	#define TAU(i, j)\
 		tau[(j) + nrad * (i)]
@@ -1224,14 +1221,19 @@ int SpIO_H5GetAttribute_string(hid_t h5f_id, const char *obj_name, const char *a
 
 	if(hstatus >= 0)
 		hstatus = H5LTget_attribute_info(h5f_id, obj_name, attr_name, &dims, &class, &size);
-
+        
 	if(hstatus >= 0) {
-		*attribute = Mem_CALLOC(size, *attribute);
+		*attribute = Mem_CALLOC(size+1, *attribute);
 		hstatus = H5LTget_attribute_string(h5f_id, obj_name, attr_name, *attribute);
 	}
-
+	
+// 	printf("OK %d %s %zu %s\n", hstatus, attr_name,size, *attribute);
+//         char * str_tmp = Mem_CALLOC(size+1, str_tmp);
+//         hstatus = H5LTget_attribute_string(h5f_id, obj_name, attr_name, str_tmp);
+//         printf("test: %s\n",str_tmp);
+        
 	if(hstatus < 0) {
-		PyWrErr_SetString(PyExc_Exception, "Error getting attribute '%s' from '%s'", attr_name, obj_name);
+		printf( "Error getting attribute '%s' from '%s'", attr_name, obj_name);
 		status = 1;
 	}
 
