@@ -880,10 +880,14 @@ void FITSoutput( MirFile *fp, MirImg *image, MirImg *StokesQ, MirImg *StokesU, c
         fits_write_key(fptr,TDOUBLE,"CDELT3",&cdelt3,"Increment value of third axis",&status);
         fits_write_key(fptr,TDOUBLE,"CRVAL3",&crval,"Offset of third axis ",&status);
         if(Stokes){
-                fits_write_key(fptr,TSTRING,"CTYPE4",&ctype4,"Type of third axis",&status);
-                fits_write_key(fptr,TINT,"CRPIX4",&crpix4,"Reference of third axis",&status);
-                fits_write_key(fptr,TINT,"CDELT4",&cdelt4,"Increment value of third axis",&status);
-                fits_write_key(fptr,TINT,"CRVAL4",&crval4,"Offset of third axis ",&status);
+            fits_write_key(fptr,TSTRING,"CTYPE4", &ctype4, 
+                           "Type of third axis", &status);
+            fits_write_key(fptr,TINT,   "CRPIX4", &crpix4,
+                           "Reference of third axis", &status);
+            fits_write_key(fptr,TINT,   "CDELT4", &cdelt4, 
+                           "Increment value of third axis",&status);
+            fits_write_key(fptr,TINT,   "CRVAL4", &crval4, 
+                           "Offset of third axis ",&status);
         }
         fits_write_key(fptr,TDOUBLE,"BMAJ",     &beam,"Major beam axis",&status);
         fits_write_key(fptr,TDOUBLE,"BMIN",     &beam,"Minor beam axis ",&status);
