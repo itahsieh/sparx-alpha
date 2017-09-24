@@ -2,6 +2,7 @@
 #include "debug.h"
 #include <stdarg.h>
 #include <memory.h>
+#include "task.h"
 
 #define PYMAIN\
 	PyImport_AddModule("__main__")

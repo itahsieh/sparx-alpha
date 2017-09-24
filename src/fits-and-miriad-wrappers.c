@@ -209,16 +209,16 @@ void MirImg_Free(void *img_p)
 
 MirFile *MirXY_Open_new(const char *name, size_t nx, size_t ny, size_t nv)
 {
-	int nsize[3] = {(int)nx, (int)ny, (int)nv}, tno;
-
         #if Sp_MIRSUPPORT
+        int nsize[3] = {(int)nx, (int)ny, (int)nv};
+        int tno;
 	xyopen_c(&tno, name, "new", 3, nsize);
+        fp->tno = tno;
         #endif
         
 	MirFile *fp = Mem_CALLOC(1, fp);
 	fp->name = Mem_STRDUP(name);
-	fp->tno = tno;
-
+	
 	return fp;
 }
 
@@ -885,14 +885,14 @@ void FITSoutput( MirFile *fp, MirImg *image, MirImg *StokesQ, MirImg *StokesU, c
                 fits_write_key(fptr,TINT,"CDELT4",&cdelt4,"Increment value of third axis",&status);
                 fits_write_key(fptr,TINT,"CRVAL4",&crval4,"Offset of third axis ",&status);
         }
-        fits_write_key(fptr,TDOUBLE,"BMAJ",&beam,"Major beam axis",&status);
-        fits_write_key(fptr,TDOUBLE,"BMIN",&beam,"Minor beam axis ",&status);
-        fits_write_key(fptr,TDOUBLE,"BPA",&beam,"PA",&status);
-        fits_write_key(fptr,TDOUBLE,"BSCALE",&bscale,"",&status);
-        fits_write_key(fptr,TDOUBLE,"BZERO",&bzero,"",&status);
-        fits_write_key(fptr,TDOUBLE,"RESTFREQ",&restfreq,"",&status);
-        fits_write_key(fptr,TSTRING,"BUNIT",bunit,"",&status);
-        fits_write_key(fptr,TSTRING,"CELLSCAL",&cellscal,"",&status);
+        fits_write_key(fptr,TDOUBLE,"BMAJ",     &beam,"Major beam axis",&status);
+        fits_write_key(fptr,TDOUBLE,"BMIN",     &beam,"Minor beam axis ",&status);
+        fits_write_key(fptr,TDOUBLE,"BPA",      &beam,"PA",&status);
+        fits_write_key(fptr,TDOUBLE,"BSCALE",   &bscale,"",&status);
+        fits_write_key(fptr,TDOUBLE,"BZERO",    &bzero,"",&status);
+        fits_write_key(fptr,TDOUBLE,"RESTFREQ", &restfreq,"",&status);
+        fits_write_key(fptr,TSTRING,"BUNIT",    bunit,"",&status);
+        fits_write_key(fptr,TSTRING,"CELLSCAL", &cellscal,"",&status);
         Deb_ASSERT(status == 0);
         
         

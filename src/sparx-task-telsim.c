@@ -258,18 +258,18 @@ int SpTask_Telsim(void)
 
 /* 4. I/O : OUTPUT */
 	if(!sts){
-                double scale_factor;
+                double scale_factor = 1.0;
                 int stokes;
                 switch(glb.task->idx){
                   // output column density image
                   case TASK_COLDENS:
                           switch(glb.unit->idx){
-                                  case UNIT_CGS:
-                                          scale_factor = 1e-7;
-                                          break;
-                                  case UNIT_MKS:
-                                          scale_factor = 1.0;
-                                          break;
+                                case UNIT_CGS:
+                                    scale_factor = 1e-7;
+                                    break;
+                                case UNIT_MKS:
+                                    scale_factor = 1.0;
+                                    break;
                           }
                           stokes = 0;
                           

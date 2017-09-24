@@ -3,6 +3,7 @@
 #include <gsl/gsl_qrng.h>
 
 #include <time.h>
+#include "task.h"
 
 enum {
     STAGE_FIX,
@@ -1037,7 +1038,6 @@ static void SyncProcs(void)
 
 static void SyncPops(size_t izone)
 {
-    size_t zone_tid = glb.zone_tid[izone];
     Zone *zp = glb.zones[izone];
     SpPhys *pp = zp->data;
     

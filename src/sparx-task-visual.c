@@ -41,8 +41,7 @@ static void InitRay(double *dx, double *dy, GeRay *ray);
 
 static void Vtk_nested_hyosun(void);
 
-
-static int CalcContrib();
+static int CalcContrib(void);
 
 static void *VtkContributionSph1dTread(void *tid_p);
 static void *VtkContributionSph3dTread(void *tid_p);

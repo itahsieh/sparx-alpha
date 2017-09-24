@@ -21,7 +21,7 @@ typedef enum{
     N_VTK_OUTPUT_TYPE
 } VTK_OUTPUT_TYPE;
 
-typedef struct VtkData{
+typedef struct{
         struct {
                 size_t nr, nt, np;
                 double *radius, *theta, *phi;
@@ -43,7 +43,7 @@ typedef struct VtkData{
                 *tau_dust_dev;
 } VtkData;
 
-typedef struct VtkFile{
+typedef struct{
     char *FileName;
     FILE *fp
 } VtkFile;
