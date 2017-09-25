@@ -596,6 +596,7 @@ ZoneH5_Record_Grid SpIO_GridToH5Record(const Zone *zone)
         SpPhys *pp = zone->data;
         grid_data.level = zone->level;
         grid_data.pos = (long int)zone->pos;
+        grid_data.nchildren = (long int)zone->nchildren;
 
         Mem_MEMCPY(grid_data.max, zone->voxel.max.x, 3);
         Mem_MEMCPY(grid_data.min, zone->voxel.min.x, 3);
@@ -801,16 +802,10 @@ void SpIO_SourceFromH5Record(SourceData *source, ZoneH5_Record_Source record)
 int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
 /* Write data of all children to an HDF5 table */
 {
-	int status = 0;
-	
-	char *strp;
-	Zone *zp;
-	hid_t group_id;
-
         ZoneH5_Record_Zone this_zone;
 	/* Write properties of this zone */
 	this_zone = SpIO_ZoneToH5Record(zone);
-	status = ZoneH5_FwriteTable_Zone(h5f_id, &this_zone);
+	int status = ZoneH5_FwriteTable_Zone(h5f_id, &this_zone);
 
         #define COPY_TYPE_TO_RECORD(DataType, ZoneH5_FwriteTable_Type, SpIO_Type ) \
             {   DataType *data; \
@@ -828,17 +823,27 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
         
         
         COPY_TYPE_TO_RECORD(ZoneH5_Record_Grid, ZoneH5_FwriteTable_Grid, SpIO_GridToH5Record);
-
-	/* Create and write pops if present */
-	if(parms->mol){
-		COPY_TYPE_TO_RECORD(ZoneH5_Record_Molec, ZoneH5_FwriteTable_Molec, SpIO_MolecToH5Record);
-                SpIO_H5WritePops(h5f_id, zone);
-        }
-        if(parms->dust){
-                COPY_TYPE_TO_RECORD(ZoneH5_Record_Dust, ZoneH5_FwriteTable_Dust, SpIO_DustToH5Record);
-        }
-        if(parms->polariz){
-                COPY_TYPE_TO_RECORD(ZoneH5_Record_Polariz, ZoneH5_FwriteTable_Polariz, SpIO_PolarizToH5Record);
+        /* if any children of the zone is leaf (zp->nchildren = 0) then write all radiative-relatied attributes */
+        int write_attr = 0;
+        for(size_t i = 0; i < zone->nchildren; i++) {
+		if(zone->children[i]->nchildren == 0) {
+                    write_attr = 1;
+                    break;
+		}
+	}
+        
+        if (write_attr){
+            /* Create and write pops if present */
+            if(parms->mol){
+                    COPY_TYPE_TO_RECORD(ZoneH5_Record_Molec, ZoneH5_FwriteTable_Molec, SpIO_MolecToH5Record);
+                    SpIO_H5WritePops(h5f_id, zone);
+            }
+            if(parms->dust){
+                    COPY_TYPE_TO_RECORD(ZoneH5_Record_Dust, ZoneH5_FwriteTable_Dust, SpIO_DustToH5Record);
+            }
+            if(parms->polariz){
+                    COPY_TYPE_TO_RECORD(ZoneH5_Record_Polariz, ZoneH5_FwriteTable_Polariz, SpIO_PolarizToH5Record);
+            }
         }
         #undef COPY_TYPE_TO_RECORD
 	/* Create and write tau if present */
@@ -849,7 +854,7 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
 	/* Loop through children and write sub-grids if present */
 	for(size_t i = 0; i < zone->nchildren; i++) {
 		/* Pointer to child */
-		zp = zone->children[i];
+		Zone *zp = zone->children[i];
 
 		if(zp->nchildren > 0) {
 			/* Sub-grid present, create group */
@@ -857,10 +862,10 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
 
 			/* Build group name string: POS */
 			//strp = Mem_Sprintf("grid%lu", (unsigned long)zone->pos);
-			strp = Mem_Sprintf("grid%lu", i);
+			char *strp = Mem_Sprintf("grid%lu", i);
 
 			/* Create a new group for this grid */
-			group_id = H5Gcreate(h5f_id, strp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+			hid_t group_id = H5Gcreate(h5f_id, strp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
 			/* Recursively call SpIO_H5WriteGrid() to write
 			 * sub-grids */
