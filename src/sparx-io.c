@@ -905,10 +905,7 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 		SpZone_GROW(*zone, (*zone)->naxes, parms);
 	}
 
-	/* Read pops if present */
-	if(!status && parms)
-		if( (*read_pops) )
-			status = SpIO_H5ReadPops(popsh5f_id, *zone);
+	
 
 	#define COPY_TYPE_FROM_RECORD(DataType, ZoneH5_FreadTable_Type, SpIO_Type ) \
 	{   DataType *data; \
@@ -938,6 +935,10 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
                 COPY_TYPE_FROM_RECORD(ZoneH5_Record_Dust, ZoneH5_FreadTable_Dust, SpIO_DustFromH5Record);
             if(parms->polariz)
                 COPY_TYPE_FROM_RECORD(ZoneH5_Record_Polariz, ZoneH5_FreadTable_Polariz, SpIO_PolarizFromH5Record);
+            /* Read pops if present */
+            if(!status && parms)
+		if( (*read_pops) )
+                    status = SpIO_H5ReadPops(popsh5f_id, *zone);
         }
         #undef COPY_TYPE_FROM_RECORD
 
