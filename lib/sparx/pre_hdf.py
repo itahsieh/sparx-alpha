@@ -327,15 +327,15 @@ class export:
             for i in range(nr):
                 for j in range(nt):
                     for k in range(np):
-                        particle['LEVEL']       = 0
-                        particle['POS']         = (i * nt + j) * np + k
-                        particle['X_max']       = [ mesh.R_p[i+1], mesh.theta_p[j+1], mesh.phi_p[k+1] ]
-                        particle['X_min']       = [ mesh.R_p[i]  , mesh.theta_p[j] , mesh.phi_p[k]  ]
-                        particle['X_cen']       = [ mesh.R_c[i]  , mesh.theta_c[j] , mesh.phi_c[k]  ]
-                        particle['n_H2']        = phys.n_H2[i,j,k]
-                        particle['V_cen']       = phys.V_gas[i,j,k]
-                        particle['T_k']         = phys.T_k[i,j,k]
-                        particle['V_t']         = phys.Vt[i,j,k]
+                        particle['LEVEL'] = 0
+                        particle['POS']   = (i * nt + j) * np + k
+                        particle['X_max'] = [ mesh.R_p[i+1], mesh.theta_p[j+1], mesh.phi_p[k+1] ]
+                        particle['X_min'] = [ mesh.R_p[i]  , mesh.theta_p[j]  , mesh.phi_p[k]  ]
+                        particle['X_cen'] = [ mesh.R_c[i]  , mesh.theta_c[j]  , mesh.phi_c[k]  ]
+                        particle['n_H2']  = phys.n_H2[i,j,k]
+                        particle['V_cen'] = phys.V_gas[i,j,k]
+                        particle['T_k']   = phys.T_k[i,j,k]
+                        particle['V_t']   = phys.Vt[i,j,k]
                         # Insert a new particle record
                         particle.append()
             table.flush()

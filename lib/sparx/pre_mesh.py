@@ -8,6 +8,47 @@ import sys
 #end = time.time()
 #print(end - start)
 
+
+class from_dataset:
+    def __init__(self, converter):
+        self.grid.naxes = converter.naxes
+        self.grid.GridType = converter.GridType
+        self.grid.x1 = converter.x1
+        self.grid.x2 = converter.x2
+        self.grid.x3 = converter.x3
+        self._gen_mesh()
+        
+    def _gen_mesh(self):
+        GridType = self.grid.GridType
+
+        if GridType == 'SPH3D':
+            self._gen_mesh_sph3d()
+        elif GridType == 'REC3D':
+            pass
+        elif GridType == 'CYL3D':
+            pass
+        else:
+            raise RuntimeError('Grid Type not defined : %s' % GridType)
+            sys.exit(2)
+            
+    def _gen_mesh_sph3d(self):
+        self.R_p        = self.grid.x1
+        self.theta_p    = self.grid.x2
+        self.phi_p      = self.grid.x3
+        
+        naxes = self.grid.naxes
+        self.R_c        = zeros(naxes[0])
+        self.theta_c    = zeros(naxes[1])
+        self.phi_c      = zeros(naxes[2])
+        
+        for i in range(naxes[0]):
+            self.R_c[i]     = 0.5 * ( self.R_p[i] + self.R_p[i+1] )
+        for j in range(naxes[1]):
+            self.theta_c[j] = 0.5 * ( self.theta_p[j] + self.theta_p[j+1] )
+        for k in range(naxes[2]):
+            self.phi_c[k]   = 0.5 * ( self.phi_p[k] + self.phi_p[k+1] )
+        
+        
 class mesh:
     def __init__(self, grid):
         self.grid = grid
@@ -47,7 +88,6 @@ class mesh:
             
     def _gen_mesh_sph2d(self):
         self._sph_r_gridding()
-        
         self._sph_theta_gridding()
         
         phi_p = [0., 2. * pi]
@@ -57,9 +97,7 @@ class mesh:
             
     def _gen_mesh_sph3d(self):
         self._sph_r_gridding()
-        
         self._sph_theta_gridding()
-        
         self._sph_phi_gridding()
             
        

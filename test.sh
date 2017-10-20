@@ -94,6 +94,12 @@ case $CASE in
         presparx -o model -epv
         ;;
         
+    "ZEUS")
+        \cp ../../preprocessor/presparx/Zeus/* ./
+        #presparx -o model -epv
+        python converter.py
+        ;;
+        
         
 # AMC solver
     "AMC")

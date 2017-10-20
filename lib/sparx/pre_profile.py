@@ -2,11 +2,48 @@ from numpy import zeros
 from math import pi,cos,sqrt
 from pre_unit import *
 
+
+class from_dataset:
+    def __init__(self, mesh, converter):
+        cvt = converter
+
+        
+        self._CheckAndSetAttr(cvt,'molec')
+        self._CheckAndSetAttr(cvt,'T_cmb')
+        self._CheckAndSetAttr(cvt,'T_in')
+        self._CheckAndSetAttr(cvt,'OuterSource')
+
+        self._CheckAndSetAttr(cvt,'n_H2')
+        self._CheckAndSetAttr(cvt,'T_k')
+        self.V_gas = zeros(mesh.grid.naxes)
+        self.V_gas
+        
+        
+        if hasattr(cvt, 'B_cen'):
+            self.B_field = 1
+        
+        if hasattr(cvt, 'T_d'):
+            self.dust = 1
+            _CheckAndSetAttr(cvt,'T_d')
+            
+    def _CheckAndSetAttr( self, obj, attr):
+        if hasattr(obj,attr):
+            setattr(self,attr,getattr(obj,attr))
+        
+            
+            
+            
+            
+        
+
+
 class profile:
     def __init__(self, mesh, model):
         md = self.model = model
 
-        self.molec = md.molec
+        if hasattr(md, 'molec'):
+            self.molec = md.molec
+            
         if hasattr(md, 'T_cmb'):
             self.T_cmb = md.T_cmb
         

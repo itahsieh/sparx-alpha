@@ -38,24 +38,33 @@ for opt, arg in opts:
 
 # pre-check
 from os.path import isfile
+convert_mode = 0
+Converter = 'converter.py'
 GridFile='grid.py'
-if not isfile(GridFile):
-        print '%s not found' % GridFile
-        sys.exit(1)
 ModelFile='model.py'
-if not isfile(ModelFile):
-        print '%s not found' % ModelFile
-        sys.exit(1)
+if isfile(Converter):
+    convert_mode = 1
+elif not isfile(GridFile):
+    print '%s not found' % GridFile
+    sys.exit(1)
+elif not isfile(ModelFile):
+    print '%s not found' % ModelFile
+    sys.exit(1)
 
-# generate mesh
-import grid as gr
 from sparx import pre_mesh 
-mesh = pre_mesh.mesh(gr)
-
-# mapping physical model
-import model as md
 from sparx import pre_profile
-phys = pre_profile.profile(mesh,md)
+
+if convert_mode:
+    import converter as cvt
+    mesh = pre_mesh.from_dataset(cvt)
+    phys = pre_profile.from_dataset(mesh,cvt)
+else:
+    import grid as gr
+    import model as md
+    # generate mesh
+    mesh = pre_mesh.mesh(gr)
+    # mapping physical model
+    phys = pre_profile.profile(mesh,md)
 
 # double check the error of the model
 if error:

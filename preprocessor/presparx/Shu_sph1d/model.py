@@ -12,8 +12,10 @@ T_in = 0.0
 
 # reference radius
 r_ref = 0.01
+
 # reference H2 number density (m^-3)
 n_H2_ref = 1e10
+
 # reference velocity (m/s)
 V_ref = -200.0
 
