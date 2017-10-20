@@ -96,8 +96,7 @@ case $CASE in
         
     "ZEUS")
         \cp ../../preprocessor/presparx/Zeus/* ./
-        #presparx -o model -epv
-        python converter.py
+        presparx -o model -cepv
         ;;
         
         

@@ -6,7 +6,8 @@ def usage():
 presparx -o < Output File >
          -e : error estimation 
          -p : profile plot
-         -v : generate vtk file 
+         -v : generate vtk file
+         -c : converter
 '''
 
 # parser
@@ -17,18 +18,18 @@ if not argv:
         sys.exit(2)
 OutputFile = ''
 try:
-        opts, args = getopt.getopt(argv,"o:vpe",["--out","out=","--plot","--vtk","--error"])
+        opts, args = getopt.getopt(argv,"o:cvpe",["--out","out=","--converter","--plot","--vtk","--error"])
 except getopt.GetoptError:
         print 'can not recognize option : ', args
         usage()
         sys.exit(2)
 
-plot = False
-vtk = False
-error = False
+convert_mode = plot = vtk = error = False
 for opt, arg in opts:
         if   opt in ("-o", "--out"):
                 OutputFile = arg
+        elif opt in ("-c", "--converter "):
+                convert_mode = True
         elif opt in ("-p", "--plot "):
                 plot = True
         elif opt in ("-v", "--visual"):
@@ -38,12 +39,13 @@ for opt, arg in opts:
 
 # pre-check
 from os.path import isfile
-convert_mode = 0
 Converter = 'converter.py'
 GridFile='grid.py'
 ModelFile='model.py'
-if isfile(Converter):
-    convert_mode = 1
+if convert_mode:
+    if not isfile(Converter):
+        print '%s not found' % Converter
+        sys.exit(1)
 elif not isfile(GridFile):
     print '%s not found' % GridFile
     sys.exit(1)
@@ -53,18 +55,19 @@ elif not isfile(ModelFile):
 
 from sparx import pre_mesh 
 from sparx import pre_profile
-
+phys = pre_profile.profile()
 if convert_mode:
     import converter as cvt
     mesh = pre_mesh.from_dataset(cvt)
-    phys = pre_profile.from_dataset(mesh,cvt)
+    phys.from_dataset(mesh,cvt)
 else:
     import grid as gr
     import model as md
     # generate mesh
     mesh = pre_mesh.mesh(gr)
     # mapping physical model
-    phys = pre_profile.profile(mesh,md)
+    phys.from_model(mesh,md)
+
 
 # double check the error of the model
 if error:

@@ -10,6 +10,9 @@ import sys
 
 
 class from_dataset:
+    class grid(object):
+        pass
+    
     def __init__(self, converter):
         self.grid.naxes = converter.naxes
         self.grid.GridType = converter.GridType
@@ -32,6 +35,11 @@ class from_dataset:
             sys.exit(2)
             
     def _gen_mesh_sph3d(self):
+        n = self.grid.naxes
+        self.grid.nr = n[0]
+        self.grid.nt = n[1]
+        self.grid.np = n[2]
+        
         self.R_p        = self.grid.x1
         self.theta_p    = self.grid.x2
         self.phi_p      = self.grid.x3

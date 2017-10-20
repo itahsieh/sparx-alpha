@@ -1,12 +1,29 @@
-from numpy import zeros
+from numpy import zeros,chararray
 from math import pi,cos,sqrt
 from pre_unit import *
 
 
-class from_dataset:
-    def __init__(self, mesh, converter):
-        cvt = converter
 
+class profile(object):
+    def __init__(self):
+        # accumulated mass
+        self.mass = 0.0
+        # accumulated volume
+        self.volume = 0.0
+        # Max Velocity Dispersion to Vt
+        self.MVD2Vt = 0.0 
+        # MVD2Vt index
+        self.MVD2Vt_index = 0
+    
+    def _CheckAndSetAttr( self, obj, attr):
+        if hasattr(obj,attr):
+            setattr(self,attr,getattr(obj,attr))
+        else:
+            print("{0} has no {1} data".format(obj.__name__,attr) )
+
+    def from_dataset(self, mesh, converter):
+        cvt = converter
+        n = mesh.grid.naxes
         
         self._CheckAndSetAttr(cvt,'molec')
         self._CheckAndSetAttr(cvt,'T_cmb')
@@ -15,45 +32,47 @@ class from_dataset:
 
         self._CheckAndSetAttr(cvt,'n_H2')
         self._CheckAndSetAttr(cvt,'T_k')
-        self.V_gas = zeros(mesh.grid.naxes)
-        self.V_gas
+        self._CheckAndSetAttr(cvt,'Vt')
         
+        if hasattr(self,'molec'):
+            self.X_mol = cvt.X_mol
         
-        if hasattr(cvt, 'B_cen'):
-            self.B_field = 1
+        self.V_gas = zeros( tuple(n)+(3,) )
+        for i in range(n[0]):
+            for j in range(n[1]):
+                for k in range(n[2]):
+                    self.V_gas[i,j,k,:] = [ cvt.v1[i,j,k], cvt.v2[i,j,k], cvt.v3[i,j,k] ]
+
+        if hasattr(cvt, 'b1') and hasattr(cvt, 'b2') and hasattr(cvt, 'b3'):
+            self.B_field = zeros( tuple(n)+(3,) )
+            for i in range(n[0]):
+                for j in range(n[1]):
+                    for k in range(n[2]):
+                        self.B_field[i,j,k,:] = [ cvt.b1[i,j,k], cvt.b2[i,j,k], cvt.b3[i,j,k] ]
         
         if hasattr(cvt, 'T_d'):
             self.dust = 1
-            _CheckAndSetAttr(cvt,'T_d')
+            self.T_d = cvt.T_d
+            self.kapp_d = chararray(n)
+            for i in range(n[0]):
+                for j in range(n[1]):
+                    for k in range(n[2]):
+                        self.kapp_d[i,j,k] = cvt.kapp_d
+            self.dust_to_gas = cvt.dust_to_gas
             
-    def _CheckAndSetAttr( self, obj, attr):
-        if hasattr(obj,attr):
-            setattr(self,attr,getattr(obj,attr))
+        GridType = mesh.grid.GridType
         
+        if GridType == 'SPH3D':
+            self._Mass_VeloDisp_sph3d(mesh)
             
-            
-            
-            
-        
 
-
-class profile:
-    def __init__(self, mesh, model):
+    def from_model(self,mesh, model):
         md = self.model = model
 
-        if hasattr(md, 'molec'):
-            self.molec = md.molec
-            
-        if hasattr(md, 'T_cmb'):
-            self.T_cmb = md.T_cmb
-        
-        if hasattr(md, 'T_in'):
-            self.T_in = md.T_in
-        
-        if hasattr(md, 'OuterSource'):
-            self.OuterSource = md.OuterSource
-        
-        
+        self._CheckAndSetAttr(md,'molec')
+        self._CheckAndSetAttr(md,'T_cmb')
+        self._CheckAndSetAttr(md,'T_in')
+        self._CheckAndSetAttr(md,'OuterSource')
         
         if md.ModelType == 'Function':
             GridType = mesh.grid.GridType
@@ -66,18 +85,11 @@ class profile:
         elif md.ModelType == 'user_defined':
                 phys = md
         
-        if hasattr(phys, 'B_cen'):
-            self.B_field = 1
         
         if hasattr(phys, 'T_d'):
             self.dust = 1
 
-        # accumulated mass
-        self.mass = 0.0
-        # accumulated volume
-        self.volume = 0.0
-        # Max Velocity Dispersion to Vt
-        self.MVD2Vt = 0.0 
+
         
         ModelType = self.model.ModelType
         if ModelType == 'Function':
@@ -96,14 +108,7 @@ class profile:
     def _MappingFunction(self, mesh):
         gr = mesh.grid
         
-        # accumulated mass
-        self.mass = 0.0
-        # accumulated volume
-        self.volume = 0.0
-        # Max Velocity Dispersion to Vt
-        self.MVD2Vt = 0.0 
-        # MVD2Vt index
-        self.MVD2Vt_index = 0
+
         
         GridType = gr.GridType
         if GridType == 'SPH1D':
@@ -154,8 +159,11 @@ class profile:
         if hasattr(phys, 'T_d'):
             self.T_d = zeros(n)
             self.dust_to_gas = zeros(n)
-            self.kapp_d = []
-    
+            self.kapp_d = chararray(n)
+        
+        if hasattr(phys, 'B_cen'):
+            self.B_field = zeros(n+(3,))
+            
     def _MappingPhys(self, phys, molec, i):
         self.n_H2[i]         = phys.n_H2
         self.T_k[i]          = phys.T_k
@@ -182,8 +190,11 @@ class profile:
         if hasattr(phys, 'T_d'):
             self.T_d[i]          = phys.T_d
             self.dust_to_gas[i]  = phys.dust_to_gas
-            self.kapp_d.append(phys.kapp_d)
-
+            self.kapp_d[i]       = phys.kapp_d
+        
+        if hasattr(phys, 'B_cen'):
+            self.B_field[i] = phys.Bcen
+            
         
     def _MappingFunction_sph1d(self,mesh):
             md = self.model
@@ -281,8 +292,8 @@ class profile:
             gr = mesh.grid
             GridType = gr.GridType
             if GridType == 'SPH1D':
-                    self._MappingUserDefined_sph1d(mesh)
-                    self._Mass_VeloDisp_sph1d(mesh)
+                    _MappingUserDefined_sph1d(mesh)
+                    _Mass_VeloDisp_sph1d(mesh)
             elif GridType == 'SPH2D':
                     pass
             elif GridType == 'SPH3D':
@@ -297,25 +308,29 @@ class profile:
     def _MappingUserDefined_sph1d(self,mesh):
             phys = self.model
             nr = mesh.grid.nr
-            self.n_H2 = zeros(nr)
-            self.T_k = zeros(nr)
-            self.V_gas = zeros((nr,3))
-            self.Vt = zeros(nr)
+            self.n_H2   = zeros(nr)
+            self.T_k    = zeros(nr)
+            self.V_gas  = zeros((nr,3))
+            self.Vt     = zeros(nr)
             for i in range(nr):                        
-                    self.n_H2[i]         = phys.n_H2[i]
-                    self.T_k[i]          = phys.T_k[i]
-                    self.V_gas[i]        = [ phys.Vr[i], 0., 0.]
-                    self.Vt[i]           = phys.Vt[i]
+                self.n_H2[i]         = phys.n_H2[i]
+                self.T_k[i]          = phys.T_k[i]
+                self.V_gas[i]        = [ phys.Vr[i], 0., 0.]
+                self.Vt[i]           = phys.Vt[i]
 
             if phys.molec:
-                    self.X_mol = phys.X_mol
+                self.X_mol     = zeros(nr)
+                for i in range(nr): 
+                    self.X_mol[i] = phys.X_mol[i]
 
             if hasattr(phys, 'T_d'):
-                    self.T_d = phys.T_d
-                    self.dust_to_gas = phys.dust_to_gas
-                    self.kapp_d = []
+                    self.T_d    = zeros(nr)
+                    self.dust_to_gas = zeros(nr)
+                    self.kapp_d = chararray(n)
                     for i in range(nr):
-                            self.kapp_d.append(phys.kapp_d)
+                        self.T_d[i] = phys.T_d[i]
+                        self.dust_to_gas[i] = phys.dust_to_gas[i]
+                        self.kapp_d[i] = phys.kapp_d[i]
 
 
     def _Mass_VeloDisp_sph1d(self,mesh):                
@@ -446,12 +461,17 @@ class profile:
                         else:
                                 Vt_t = max( abs(self.V_gas[i,j+1,k,1] - self.V_gas[i,j,k,1]), abs(self.V_gas[i,j,k,1] - self.V_gas[i,j-1,k,1]) )
                         
-                        if      k == 0:
-                                Vp_p = self.V_gas[i,j,k+1,2] - self.V_gas[i,j,k,2]
-                        elif    k == np-1:
-                                Vp_p = self.V_gas[i,j,k,2] - self.V_gas[i,j,k-1,2]
+                        
+                        if np == 1:
+                            Vp_p = 0.0
                         else:
-                                Vp_p = max( abs(self.V_gas[i,j,k+1,2] - self.V_gas[i,j,k,2]), abs(self.V_gas[i,j,k,2] - self.V_gas[i,j,k-1,2]) )
+                        
+                            if      k == 0:
+                                    Vp_p = self.V_gas[i,j,k+1,2] - self.V_gas[i,j,k,2]
+                            elif    k == np-1:
+                                    Vp_p = self.V_gas[i,j,k,2] - self.V_gas[i,j,k-1,2]
+                            else:
+                                    Vp_p = max( abs(self.V_gas[i,j,k+1,2] - self.V_gas[i,j,k,2]), abs(self.V_gas[i,j,k,2] - self.V_gas[i,j,k-1,2]) )
                         
                         VeloDispersion = sqrt(Vr_r * Vr_r + Vt_t * Vt_t + Vp_p*Vp_p)
 
@@ -461,7 +481,7 @@ class profile:
                         if VeloDispersion2Vt > self.MVD2Vt :
                                 self.MVD2Vt = VeloDispersion2Vt
                                 self.MVD2Vt_index = [i,j,k]
- 
+
     def _Mass_VeloDisp_cyl2d(self,mesh):
             gr = mesh.grid
             nrc = gr.nrc

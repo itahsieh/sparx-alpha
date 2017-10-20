@@ -2,6 +2,13 @@ import numpy as np
 import scipy.interpolate as scintp
 from sparx_tc.pre_unit import AU2cm
 
+
+
+import astropy.constants as const
+mH = const.u.to('g').value
+pc = const.pc.to('cm').value
+
+
 # directory for the variable and geometry files
 zeus_data_dir='/tiara/home/ithsieh/zeustw2sparx/zeus_data'
 # Time stamp of the files
@@ -113,13 +120,13 @@ def quadrantset(naxes,R_ap,R_bp,T_ap,T_bp,density,Vr,Vth,Rmax=1e99,mirror=True):
 
     # Return properties 
     return (naxes_new, \
-            R_bounds, \
+            R_bounds/pc, \
             T_bounds, \
             P_bounds, \
-            Density_cells, \
-            Vr_cells, \
-            Vth_cells, \
-            Vph_cells \
+            Density_cells/(2.0*mH)*1e6, \
+            Vr_cells*1e-2, \
+            Vth_cells*1e-2, \
+            Vph_cells*1e-2 \
             )
 
 # Replicate ZeusTW output to form a full two-quadrant matrix if needed
@@ -152,20 +159,27 @@ Rmax_AU = 12500.0
 # v1    : gas velocity on the first  dimension, unit in [m/s]
 # v2    : gas velocity on the second dimension, unit in [m/s]
 # v3    : gas velocity on the third  dimension, unit in [m/s]
-# kapp_d: dust opacity profile
+# Vt    : turbulent velocity
 
 # grid type
 GridType = "SPH3D" 
 naxes, x1, x2, x3, n_H2, v1, v2, v3 = \
 quadrantset( naxes, ra, rb, thetaa, thetab, \
     density, Vr, Vt, Rmax = Rmax_AU*AU2cm, mirror=True )
-T_k = 10.0 * ones(naxes)
+T_k = 10.0 * np.ones(naxes)
+Vt  = 500.0 * np.ones(naxes)
+# dust attributes
+# T_d   : dust temperature
+# kapp_d: dust opacity profile
+# dust_to_gas : dust-to-gas ratio
 T_d = T_k
 kapp_d = 'table,jena_thin_e5'
+dust_to_gas = 0.01 * np.ones(naxes)
 
 
 # model attribute: molecular name
 molec='co@xpol'
+X_mol  = 1e-3 * np.ones(naxes)
 # model attribute: CMB temperature
 T_cmb=2.73
 
