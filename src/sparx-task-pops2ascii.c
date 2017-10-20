@@ -1,5 +1,4 @@
 #include "sparx.h"
-#include "task.h"
 #include "vtk-wrapper.h"
 
 /* Global parameter struct */
@@ -10,18 +9,6 @@ static struct glb {
     SpModel model;
     char *FileName;
 } glb;
-
-enum {
-    UNIT_K,
-    UNIT_JYPX,
-};
-
-static DatINode UNITS[] = {
-    {"K", UNIT_K},
-    {"JY/PIXEL", UNIT_JYPX},
-    {0, 0}
-};
-
 
 
 #define RELVEL(i,j)\
@@ -80,7 +67,7 @@ int SpTask_Pops2ASCII(void)
                 }
             }
         }
-        close(fp);
+        fclose(fp);
         
     }
     

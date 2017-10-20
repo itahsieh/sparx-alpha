@@ -565,13 +565,8 @@ void SpPhys_ProcLamda(Molec *mol)
 {
 	static double
 		m_u = PHYS_UNIT_MKS_AMU,
-		cm = PHYS_UNIT_MKS_CM,
-		cc = PHYS_UNIT_MKS_CC,
 		h = PHYS_CONST_MKS_PLANCKH,
 		c = PHYS_CONST_MKS_LIGHTC;
-	size_t i, j, k, up, lo;
-	double g_u, g_l, E_u, E_l, nu;
-	MolTrRad *rad;
 
 	/* Convert molecular weight to kg */
 	mol->weight *= m_u;
@@ -584,19 +579,21 @@ void SpPhys_ProcLamda(Molec *mol)
 	 *       c = speed of light in vacuum
 	 *       lambda = transition wavelength
 	 */
-	for(i = 0; i < mol->nlev; i++)
+        static double cm = PHYS_UNIT_MKS_CM;
+	for(size_t i = 0; i < mol->nlev; i++)
 		mol->lev[i]->E = h * c * (mol->lev[i]->E * (1.0 / cm));
 
 	/* Calculate line parameters */
-	for(i = 0; i < mol->nrad; i++) {
-		rad = mol->rad[i];
-		up = rad->up;
-		lo = rad->lo;
-		g_u = mol->lev[up]->g;
-		g_l = mol->lev[lo]->g;
-		E_u = mol->lev[up]->E;
-		E_l = mol->lev[lo]->E;
-
+	for(size_t i = 0; i < mol->nrad; i++) {
+		MolTrRad * rad = mol->rad[i];
+		size_t up = rad->up;
+		size_t lo = rad->lo;
+		double g_u = mol->lev[up]->g;
+		double g_l = mol->lev[lo]->g;
+		/*
+                double E_u = mol->lev[up]->E;
+		double E_l = mol->lev[lo]->E;
+                */
 		/* Recalculate frequency based on level energies:
 		 * 	nu = (E_u - E_l) / h
 		 *
@@ -606,7 +603,7 @@ void SpPhys_ProcLamda(Molec *mol)
 		 *       h = Planck's constant
 		 */
 		//nu = rad->freq = (E_u - E_l) / h;
-                nu = rad->freq *= 1e9;
+                double nu = rad->freq *= 1e9;
                
                 
 		/* Einstein B coefficient for stimulated emission:
@@ -630,9 +627,10 @@ void SpPhys_ProcLamda(Molec *mol)
 
 	/* Convert collisional rate coefficients from Gaussian units
 	 * to SI units */
-	for(i = 0; i < mol->ncol; i++) {
-		for(j = 0; j < mol->col[i]->ntr; j++) {
-			for(k = 0; k < mol->col[i]->ntmp; k++) {
+        static double cc = PHYS_UNIT_MKS_CC;
+	for(size_t i = 0; i < mol->ncol; i++) {
+		for(size_t j = 0; j < mol->col[i]->ntr; j++) {
+			for(size_t k = 0; k < mol->col[i]->ntmp; k++) {
 				mol->col[i]->tr[j]->K_ul[k] *= cc; /* [cm^3 s^-1] -> [m^3 s^-1] */
 			}
 		}

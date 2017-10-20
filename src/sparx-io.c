@@ -137,7 +137,7 @@ SpFile *SpIO_OpenFile(const char *fname, int mode)
 		sfp->h5f_id = file_id;
 	}
 	else {
-		printf("Error opening file `%s'", fname);
+		printf("Error opening file `%s'\n", fname);
 	}
 
 	return sfp;
@@ -152,7 +152,7 @@ int SpIO_OpenFile2(const char *fname, int mode, SpFile **fp)
 	*fp = SpIO_OpenFile(fname, mode);
 
 	if(!(*fp)) {
-		printf( "Error opening SPARX file '%s'", fname);
+		printf( "Error opening SPARX file '%s'\n", fname);
 		sts = 1;
 	}
 
@@ -276,7 +276,7 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
 		status = SpIO_H5WriteGrid(sfp->h5f_id, model.grid, &model.parms);        
         
 	if(status)
-		status = printf("Error writing model to file `%s'", sfp->name);
+		status = printf("Error writing model to file `%s'\n", sfp->name);
 
 	return status;
 }
@@ -426,7 +426,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                         char format[] = "(d,d,d),(d,d,d),(d,d,d)";
 			ret = PyObject_CallFunction(model->parms.velfield, format, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 			if(!PySequence_Check(ret)) {
-				printf( "Vgas() does not return a vector!");
+				printf( "Vgas() does not return a vector!\n");
 				status = 1;
 			}
 		}
@@ -450,7 +450,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
         
 
 	if(status)
-		printf( "Error reading model from file `%s'", sfp->name);
+		printf( "Error reading model from file `%s'\n", sfp->name);
         
 	return status;
 }
@@ -499,14 +499,14 @@ Molec *SpIO_FreadMolec(const char *molname)
         
         
 	if(!fp) {
-		printf("File `%s' could not be opened", path);
+		printf("File `%s' could not be opened\n", path);
         }
 	else {
                 
 		mol = Mol_ReadLamda(fp, path, molname);
 
 		if(!mol)
-			printf("Error loading molecule from `%s'", path);
+			printf("Error loading molecule from `%s'\n", path);
 		else
 			SpPhys_ProcLamda(mol);	
 	}
@@ -531,13 +531,13 @@ Kappa *SpIO_FreadKappa(const char *name)
 	fp = fopen(path, "r");
 
 	if(!fp) {
-		printf("File `%s' could not be opened", path);
+		printf("File `%s' could not be opened\n", path);
 		goto cleanup;
 	}
 	else {
 		kap = Kap_New_Table(name, path, fp);
 		if(!kap)
-			printf("Error loading opacity from `%s'", path);
+			printf("Error loading opacity from `%s'\n", path);
 	}
 
 	cleanup:
@@ -596,6 +596,7 @@ ZoneH5_Record_Grid SpIO_GridToH5Record(const Zone *zone)
         SpPhys *pp = zone->data;
         grid_data.level = zone->level;
         grid_data.pos = (long int)zone->pos;
+        grid_data.nchildren = (long int)zone->nchildren;
 
         Mem_MEMCPY(grid_data.max, zone->voxel.max.x, 3);
         Mem_MEMCPY(grid_data.min, zone->voxel.min.x, 3);
@@ -801,16 +802,10 @@ void SpIO_SourceFromH5Record(SourceData *source, ZoneH5_Record_Source record)
 int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
 /* Write data of all children to an HDF5 table */
 {
-	int status = 0;
-	
-	char *strp;
-	Zone *zp;
-	hid_t group_id;
-
         ZoneH5_Record_Zone this_zone;
 	/* Write properties of this zone */
 	this_zone = SpIO_ZoneToH5Record(zone);
-	status = ZoneH5_FwriteTable_Zone(h5f_id, &this_zone);
+	int status = ZoneH5_FwriteTable_Zone(h5f_id, &this_zone);
 
         #define COPY_TYPE_TO_RECORD(DataType, ZoneH5_FwriteTable_Type, SpIO_Type ) \
             {   DataType *data; \
@@ -828,17 +823,27 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
         
         
         COPY_TYPE_TO_RECORD(ZoneH5_Record_Grid, ZoneH5_FwriteTable_Grid, SpIO_GridToH5Record);
-
-	/* Create and write pops if present */
-	if(parms->mol){
-		COPY_TYPE_TO_RECORD(ZoneH5_Record_Molec, ZoneH5_FwriteTable_Molec, SpIO_MolecToH5Record);
-                SpIO_H5WritePops(h5f_id, zone);
-        }
-        if(parms->dust){
-                COPY_TYPE_TO_RECORD(ZoneH5_Record_Dust, ZoneH5_FwriteTable_Dust, SpIO_DustToH5Record);
-        }
-        if(parms->polariz){
-                COPY_TYPE_TO_RECORD(ZoneH5_Record_Polariz, ZoneH5_FwriteTable_Polariz, SpIO_PolarizToH5Record);
+        /* if any children of the zone is leaf (zp->nchildren = 0) then write all radiative-relatied attributes */
+        int write_attr = 0;
+        for(size_t i = 0; i < zone->nchildren; i++) {
+		if(zone->children[i]->nchildren == 0) {
+                    write_attr = 1;
+                    break;
+		}
+	}
+        
+        if (write_attr){
+            /* Create and write pops if present */
+            if(parms->mol){
+                    COPY_TYPE_TO_RECORD(ZoneH5_Record_Molec, ZoneH5_FwriteTable_Molec, SpIO_MolecToH5Record);
+                    SpIO_H5WritePops(h5f_id, zone);
+            }
+            if(parms->dust){
+                    COPY_TYPE_TO_RECORD(ZoneH5_Record_Dust, ZoneH5_FwriteTable_Dust, SpIO_DustToH5Record);
+            }
+            if(parms->polariz){
+                    COPY_TYPE_TO_RECORD(ZoneH5_Record_Polariz, ZoneH5_FwriteTable_Polariz, SpIO_PolarizToH5Record);
+            }
         }
         #undef COPY_TYPE_TO_RECORD
 	/* Create and write tau if present */
@@ -849,7 +854,7 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
 	/* Loop through children and write sub-grids if present */
 	for(size_t i = 0; i < zone->nchildren; i++) {
 		/* Pointer to child */
-		zp = zone->children[i];
+		Zone *zp = zone->children[i];
 
 		if(zp->nchildren > 0) {
 			/* Sub-grid present, create group */
@@ -857,10 +862,10 @@ int SpIO_H5WriteGrid(hid_t h5f_id, const Zone *zone, const SpPhysParm *parms)
 
 			/* Build group name string: POS */
 			//strp = Mem_Sprintf("grid%lu", (unsigned long)zone->pos);
-			strp = Mem_Sprintf("grid%lu", i);
+			char *strp = Mem_Sprintf("grid%lu", i);
 
 			/* Create a new group for this grid */
-			group_id = H5Gcreate(h5f_id, strp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+			hid_t group_id = H5Gcreate(h5f_id, strp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
 			/* Recursively call SpIO_H5WriteGrid() to write
 			 * sub-grids */
@@ -900,12 +905,7 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 		SpZone_GROW(*zone, (*zone)->naxes, parms);
 	}
 
-	/* Read pops if present */
-	if(!status && parms) {
-		if(*read_pops){
-			status = SpIO_H5ReadPops(popsh5f_id, *zone);
-		}
-	}
+	
 
 	#define COPY_TYPE_FROM_RECORD(DataType, ZoneH5_FreadTable_Type, SpIO_Type ) \
 	{   DataType *data; \
@@ -935,6 +935,10 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
                 COPY_TYPE_FROM_RECORD(ZoneH5_Record_Dust, ZoneH5_FreadTable_Dust, SpIO_DustFromH5Record);
             if(parms->polariz)
                 COPY_TYPE_FROM_RECORD(ZoneH5_Record_Polariz, ZoneH5_FreadTable_Polariz, SpIO_PolarizFromH5Record);
+            /* Read pops if present */
+            if(!status && parms)
+		if( parms->mol && (*read_pops) )
+                    status = SpIO_H5ReadPops(popsh5f_id, *zone);
         }
         #undef COPY_TYPE_FROM_RECORD
 
@@ -1030,7 +1034,7 @@ int SpIO_H5WritePops(hid_t h5f_id, const Zone *zone)
 	free(pops);
 
 	if(hstatus < 0)
-		status = printf("Error writing `POPS' table");
+		status = printf("Error writing `POPS' table\n");
 
 	return status;
 }
@@ -1065,7 +1069,7 @@ int SpIO_H5ReadPops(hid_t h5f_id, Zone *zone)
 	/* Read pops table */
 	hstatus = H5TBread_table(h5f_id, "POPS", record_size, field_offsets, field_sizes, pops);
 	if(hstatus < 0)
-		status = printf("Error reading HDF5 `%s' table", "POPS");
+		status = printf("Error reading HDF5 `%s' table\n", "POPS");
 	#define POPS(i, j)\
 		pops[(j) + nlev * (i)]
 
@@ -1154,7 +1158,7 @@ int SpIO_H5WriteTau(hid_t h5f_id, const Zone *zone)
 	free(tau);
 
 	if(hstatus < 0)
-		status = printf("Error writing `TAU' table");
+		status = printf("Error writing `TAU' table\n");
 
 	return status;
 }
@@ -1189,7 +1193,7 @@ int SpIO_H5ReadTau(hid_t h5f_id, Zone *zone)
 	/* Read tau table */
 	hstatus = H5TBread_table(h5f_id, "TAU", record_size, field_offsets, field_sizes, tau);
 	if(hstatus < 0)
-		status = printf("Error reading HDF5 `%s' table", "TAU");
+		status = printf("Error reading HDF5 `%s' table\n", "TAU");
 
 	#define TAU(i, j)\
 		tau[(j) + nrad * (i)]
@@ -1229,7 +1233,7 @@ int SpIO_H5GetAttribute_string(hid_t h5f_id, const char *obj_name, const char *a
 	
         
 	if(hstatus < 0) {
-		printf( "Error getting attribute '%s' from '%s'", attr_name, obj_name);
+		printf( "Error getting attribute '%s' from '%s'\n", attr_name, obj_name);
 		status = 1;
 	}
 
