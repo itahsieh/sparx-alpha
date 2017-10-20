@@ -69,7 +69,7 @@ def quadrantset(naxes,R_ap,R_bp,T_ap,T_bp,density,Vr,Vth,Rmax=1e99,mirror=True):
         T_bounds = np.concatenate((T_ap[gh:-gh+1], np.pi-T_ap[-gh-1:gh-1:-1]))
         R_cells = R_bp[gh:-gh]
         T_cells = np.concatenate((T_bp[gh:-gh], np.pi-T_bp[-gh-1:gh-1:-1]))
-        Density_cells = np.concatenate( ( density[gh:-gh,gh:-gh], quad*density[-gh:gh:-1,gh:-gh]), axis=1)
+        Density_cells = np.concatenate( ( density[gh:-gh,gh:-gh], quad*density[gh:-gh,-gh:gh:-1]), axis=1)
         Vr_bounds = np.concatenate((Vr[gh:-gh+1,gh:-gh+1], Vr[gh:-gh+1,-gh-1:gh-1:-1]), axis=1)
         Vth_bounds = np.concatenate((Vth[gh:-gh+1,gh:-gh+1], -Vth[gh:-gh+1,-gh-1:gh-1:-1]), axis=1)
     elif (np.abs(Theta_max - 2.0) <= 0.01):

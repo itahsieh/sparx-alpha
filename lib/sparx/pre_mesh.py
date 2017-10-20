@@ -36,6 +36,8 @@ class from_dataset:
             
     def _gen_mesh_sph3d(self):
         n = self.grid.naxes
+        self.grid.Rin = self.grid.x1[0]
+        self.grid.Rout = self.grid.x1[-1]
         self.grid.nr = n[0]
         self.grid.nt = n[1]
         self.grid.np = n[2]

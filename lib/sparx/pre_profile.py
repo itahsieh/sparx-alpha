@@ -64,7 +64,8 @@ class profile(object):
         
         if GridType == 'SPH3D':
             self._Mass_VeloDisp_sph3d(mesh)
-            
+        
+        self.mass *= kg2Msun # Msun
 
     def from_model(self,mesh, model):
         md = self.model = model

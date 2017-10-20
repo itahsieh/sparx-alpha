@@ -284,7 +284,7 @@ class export:
                     for i in range(nr):
                         for j in range(nt):
                             particle['T_d']         = phys.T_d[i,j]
-                            particle['kapp_d']      = phys.kapp_d[i * nt + j]
+                            particle['kapp_d']      = phys.kapp_d[i,j]
                             particle['dust_to_gas'] = phys.dust_to_gas[i,j]
                             particle.append()
                     table.flush()
@@ -361,7 +361,7 @@ class export:
                         for j in range(nt):
                             for k in range(np):
                                 particle['T_d']         = phys.T_d[i,j,k]
-                                particle['kapp_d']      = phys.kapp_d[(i * nt + j) * np + k]
+                                particle['kapp_d']      = phys.kapp_d[i,j,k]
                                 particle['dust_to_gas'] = phys.dust_to_gas[i,j,k]
                                 particle.append()
                     table.flush()
@@ -437,7 +437,7 @@ class export:
                     for i in range(nrc):
                         for j in range(nz):
                             particle['T_d']         = phys.T_d[i,j]
-                            particle['kapp_d']      = phys.kapp_d[i * nz + j]
+                            particle['kapp_d']      = phys.kapp_d[i,j]
                             particle['dust_to_gas'] = phys.dust_to_gas[i,j]
                             particle.append()
                     table.flush()
