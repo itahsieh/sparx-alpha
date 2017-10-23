@@ -53,7 +53,7 @@ class profile(object):
         if hasattr(cvt, 'T_d'):
             self.dust = 1
             self.T_d = cvt.T_d
-            self.kapp_d = chararray(n)
+            self.kapp_d = chararray(shape=n,itemsize=64)
             for i in range(n[0]):
                 for j in range(n[1]):
                     for k in range(n[2]):
@@ -160,7 +160,7 @@ class profile(object):
         if hasattr(phys, 'T_d'):
             self.T_d = zeros(n)
             self.dust_to_gas = zeros(n)
-            self.kapp_d = chararray(n)
+            self.kapp_d = chararray(shape=n,itemsize=64)
         
         if hasattr(phys, 'B_cen'):
             self.B_field = zeros(n+(3,))
@@ -327,7 +327,7 @@ class profile(object):
             if hasattr(phys, 'T_d'):
                     self.T_d    = zeros(nr)
                     self.dust_to_gas = zeros(nr)
-                    self.kapp_d = chararray(n)
+                    self.kapp_d = chararray(shape=n,itemsize=64)
                     for i in range(nr):
                         self.T_d[i] = phys.T_d[i]
                         self.dust_to_gas[i] = phys.dust_to_gas[i]
