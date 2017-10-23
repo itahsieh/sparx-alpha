@@ -73,7 +73,6 @@
 #include "physics.h"
 #include "molec.h"
 #include "kappa.h"
-#include "task.h"
 
 
 /* Globally useful constants */
