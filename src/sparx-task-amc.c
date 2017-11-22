@@ -981,13 +981,13 @@ static void *CalcExcThread(void *tid_p)
         free(tau);
     }
     #if TIMER	
-    
-    printf("Tid = %zu , Detailed Balance : %f ms \n", tid, 100.*Tdb_thread/Tall_thread);
+    printf("Tid = %zu , total time = %f, Detailed Balance percentage: %f % \n", tid, Tall_thread, 100.*Tdb_thread/Tall_thread);
     #endif
     #undef TIMER	
     
     free(hist);
     pthread_exit(NULL);
+    
 }
 
 /*----------------------------------------------------------------------------*/

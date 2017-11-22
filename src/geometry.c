@@ -1334,15 +1334,14 @@ Side 4&5: lower/upper phi
 	
 	double t30, t31;
 	if(theta_out < half_pi && fabs(theta_in-half_pi)>1e-16 ){
-                
 		GeRay_IntersectTheta(ray, theta_out, &t30, &t31);
 		if( oldside == 3 ){
 			t3 = Num_MAX(t30,t31);
-			if(t3<=0.0) t3=HUGE_VAL;
+			if(t3<=0.0) t3 = HUGE_VAL;
 		}
 		else{
-			if(t30<=0.0) t30=HUGE_VAL;
-			if(t31<=0.0) t31=HUGE_VAL;
+			if(t30<=0.0) t30 = HUGE_VAL;
+			if(t31<=0.0) t31 = HUGE_VAL;
 			t3 = Num_MIN(t30,t31);
 		}
 	}
@@ -1357,16 +1356,16 @@ Side 4&5: lower/upper phi
 	}
 	
 	if( oldside == 4 )
-		t4=HUGE_VAL;
+		t4 = HUGE_VAL;
 	else if( sin(phi_in)*GeRay_D(*ray, 0) - cos(phi_in)*GeRay_D(*ray, 1) < 0.0 )
-		t4=HUGE_VAL;
+		t4 = HUGE_VAL;
 	else
 		GeRay_IntersectPhi(ray, phi_in, &t4);
 
 	if( oldside == 5 )
 		t5 = HUGE_VAL;
 	else if( -sin(phi_out)*GeRay_D(*ray, 0) + cos(phi_out)*GeRay_D(*ray, 1) < 0.0 )
-		t5=HUGE_VAL;
+		t5 = HUGE_VAL;
 	else
 		GeRay_IntersectPhi(ray, phi_out, &t5);
 	

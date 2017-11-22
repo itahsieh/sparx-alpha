@@ -139,6 +139,9 @@ compiler_flags = [
 	'-Wcast-align',
 	'-Wwrite-strings',
 	'-Wnested-externs',
+	#'-finline-limit=600',
+	#'-fwhole-program',
+	'-ftree-vectorize',
 ]
 
 
