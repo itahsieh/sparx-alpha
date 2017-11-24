@@ -10,7 +10,7 @@ static size_t record_size = sizeof(ZoneH5_Record);
 
 /* CHK when format change */
 
-#define B_FIELD_VERSION 1
+#define B_FIELD_VERSION 0
 
 #if B_FIELD_VERSION
         #define NFIELDS ((hsize_t)26)
