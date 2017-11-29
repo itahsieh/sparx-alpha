@@ -13,9 +13,16 @@ else:
         NumberOfThread = 1
 print 'Number Of Thread=',NumberOfThread
 
+
+# Some necessary imports
+import os, glob
+from os.path import exists, realpath, expanduser
 # Test for MPI by checking whether mpicc can be called
 from subprocess import call, Popen, PIPE
-HAVE_MPI = (call("mpicc src/mpi-test.c -o/tmp/a.out", shell=True, stdout=PIPE, stderr=PIPE) == 0)
+
+if not exists('unit_tests/tmp'):
+    os.makedirs('unit_tests/tmp')
+HAVE_MPI = (call("mpicc src/mpi-test.c -o unit_tests/tmp/a.out", shell=True, stdout=PIPE, stderr=PIPE) == 0)
 # Get svn revision and update VERSION
 import time
 p = Popen("svnversion", shell=True, stdout=PIPE)
@@ -26,10 +33,7 @@ fo.close()
 
 ##
 ## Gather information for setting up the package
-##                              
-# Some necessary imports
-import os, glob
-from os.path import exists, realpath, expanduser
+##  
 
 # Get Python paths
 import sys
