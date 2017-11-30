@@ -389,7 +389,7 @@ coldens_keys = [
     Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[1, '0.1kms^-1']", 
         "Number of spectral channels and width of each channel (in velocity units)"
         ),
-    Key("unit", Type.Option(['MKS', 'CGS']), "CGS", 
+    Key("unit", Type.Option(['MKS', 'CGS']), "MKS", 
         "Image brightness unit"
         ),
     Key("tracer", Type.Bool, "False", 
