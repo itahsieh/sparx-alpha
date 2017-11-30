@@ -36,7 +36,7 @@ static DatINode UNITS[] = {
 	{"K", UNIT_K},
 	{"JY/PIXEL", UNIT_JYPX},
         {"MKS", UNIT_MKS},
-        {"CGS", UNIT_MKS},
+        {"CGS", UNIT_CGS},
 	{0, 0}
 };
 
@@ -335,7 +335,7 @@ int SpTask_Telsim(void)
                   case TASK_COLDENS:
                           switch(glb.unit->idx){
                                   case UNIT_CGS:
-                                          scale_factor = 1e-7;
+                                          scale_factor = 1e-4;
                                           break;
                                   case UNIT_MKS:
                                           scale_factor = 1.0;
