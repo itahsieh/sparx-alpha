@@ -8,44 +8,57 @@ presparx -o < Output File >
          -p : profile plot
          -v : generate vtk file
          -c : converter
+         -z : ZeusTW interface
 '''
 
 # parser
 import sys, getopt
 argv = sys.argv[1:]
+
 if not argv:
         usage()
         sys.exit(2)
-OutputFile = ''
-try:
-        opts, args = getopt.getopt(argv,"o:cvpe",["--out","out=","--converter","--plot","--vtk","--error"])
-except getopt.GetoptError:
-        print 'can not recognize option : ', args
-        usage()
-        sys.exit(2)
 
-convert_mode = plot = vtk = error = False
+try:
+    opts, args = getopt.getopt( argv, "o:cvpez", [ "--out", "out=", "--converter", "--plot", "--vtk", "--error", "--zeus"] )
+except getopt.GetoptError:
+    print 'can not recognize option : ', args
+    usage()
+    sys.exit(2)
+
+OutputFile = ''
+convert_mode = plot = vtk = error = zeus = False
 for opt, arg in opts:
-        if   opt in ("-o", "--out"):
-                OutputFile = arg
-        elif opt in ("-c", "--converter "):
-                convert_mode = True
-        elif opt in ("-p", "--plot "):
-                plot = True
-        elif opt in ("-v", "--visual"):
-                vtk = True
-        elif opt in ("-e", "--error"):
-                error = True
+    if   opt in ("-o", "--out"):
+        OutputFile = arg
+    elif opt in ("-c", "--converter "):
+        convert_mode = True
+    elif opt in ("-p", "--plot "):
+        plot = True
+    elif opt in ("-v", "--visual"):
+        vtk = True
+    elif opt in ("-e", "--error"):
+        error = True
+    elif opt in ("-z", "--zeus"):
+        zeus = True
+        convert_mode = True
 
 # pre-check
-from os.path import isfile
+from os.path import isfile, expanduser
 Converter = 'converter.py'
-GridFile='grid.py'
-ModelFile='model.py'
+ZeusPars =  'zeus_parameter.py'
+GridFile=   'grid.py'
+ModelFile=  'model.py'
 if convert_mode:
-    if not isfile(Converter):
-        print '%s not found' % Converter
-        sys.exit(1)
+    if zeus:
+        if not isfile(ZeusPars):
+            print '%s not found' % ZeusPars
+            sys.exit(1)
+        sys.path.append(expanduser('~/sparx-alpha/preprocessor/presparx/Zeus'))
+    else:
+        if not isfile(Converter):
+            print '%s not found' % Converter
+            sys.exit(1)
 elif not isfile(GridFile):
     print '%s not found' % GridFile
     sys.exit(1)
