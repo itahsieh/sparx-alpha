@@ -100,6 +100,19 @@ n2 = x2a.shape[0]
 n3 = x3a.shape[0] if x3a != None else 1
 
 
+# reverse the index order from (k,j,i) to (i,j,k)
+def ReverseIndex(data):
+    naxes = data.shape
+    len_naxes = len(naxes)
+    new_naxes = ()
+    for i in range(len_naxes):
+        new_naxes += (naxes[len_naxes-1-i],) 
+    new_data = np.zeros(new_naxes)
+    for i in range(new_naxes[0]):
+        for j in range(new_naxes[1]):
+            for k in range(new_naxes[2]):
+                new_data[i,j,k] = data[k,j,i] 
+    return new_data
 
 # Function to fetch Zeus Physical data
 def FetchZeusPhys(filename):
@@ -107,13 +120,7 @@ def FetchZeusPhys(filename):
     if data == None:
         return None
     data = np.reshape( data, (n3,n2,n1))
-    # reverse the index order from (k,j,i) to (i,j,k)
-    new_data = np.zeros((n1,n2,n3))
-    for i in range(n1):
-        for j in range(n2):
-            for k in range(n3):
-                new_data[i,j,k] = data[k,j,i] 
-    return new_data
+    return ReverseIndex(data)
 
 
 # Time stamp of the files
@@ -169,14 +176,14 @@ def Sph_MirrorNTrimR(
         if np.size(T) > 1:
             Temperature_cells = np.concatenate( ( T[Ngz:-Ngz, Ngz:-Ngz, :], T[Ngz:-Ngz, -Ngz:Ngz:-1, :]), axis=1)
         
-        upper_hemisphere_index = slice(Ngz:-Ngz+1),slice(Ngz:-Ngz+1),    slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz:-Ngz+1)
-        lower_hemisphere_index = slice(Ngz:-Ngz+1),slice(-Ngz-1:Ngz-1,1),slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz:-Ngz+1)
-
+        upper_hemisphere_index = slice(Ngz,-Ngz+1),slice(Ngz,-Ngz+1),    slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz+1)
+        lower_hemisphere_index = slice(Ngz,-Ngz+1),slice(-Ngz-1,Ngz-1,-1),slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz+1)
+        
         Vr_bounds =     np.concatenate(( Vr[upper_hemisphere_index],   Vr[lower_hemisphere_index]), axis=1)
         Vth_bounds =    np.concatenate((Vth[upper_hemisphere_index], -Vth[lower_hemisphere_index]), axis=1)
         if Vp != None:
             Vp_bounds = np.concatenate(( Vp[upper_hemisphere_index],   Vp[lower_hemisphere_index]), axis=1)
-         
+
     elif (np.abs(Theta_max - 2.0) <= 0.01):
         print "[ZeusTW2SPARX] Two quadrants exist. No need for mirroring."
         naxes_new = naxes
@@ -187,7 +194,7 @@ def Sph_MirrorNTrimR(
         if np.size(T) > 1:
             Temperature_cells =   T[Ngz:-Ngz,  Ngz:-Ngzv, :] 
         
-        index = slice(Ngz:-Ngz+1),slice(Ngz:-Ngz+1),    slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz:-Ngz+1)
+        index = slice(Ngz,-Ngz+1),slice(Ngz,-Ngz+1),    slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz+1)
         
         Vr_bounds =          Vr[index]
         Vth_bounds =        Vth[index]
@@ -203,24 +210,23 @@ def Sph_MirrorNTrimR(
         P_bounds = P_ap[Ngz:-Ngz+1]
         P_cells =  P_bp[Ngz:-Ngz]
     
-    
+    R_map, T_map, P_map = np.meshgrid(R_cells,T_cells, P_cells, indexing='ij')
+    mesh = (R_map, T_map, P_map)
+
 
     # Two-dimensional interpolation for the velocities onto cell center
     fspline_r = \
-        scintp.RegularGridInterpolator(( R_bounds, T_cells), Vr_bounds[:,1:], fill_value=0.0)
+        scintp.RegularGridInterpolator(( R_bounds, T_cells, P_cells), Vr_bounds[:,1:,:], fill_value=0.0)
+    Vr_cells =  fspline_r(mesh)
     fspline_th = \
-        scintp.RegularGridInterpolator((R_cells, T_bounds), Vth_bounds[:-1,:], fill_value=0.0)
-    
+        scintp.RegularGridInterpolator(( R_cells, T_bounds, P_cells), Vth_bounds[:-1,:,:], fill_value=0.0)
+    Vth_cells = fspline_th(mesh)
     if Vp == None:
-        Vph_cells = np.zeros(Density_cells.shape)
+        Vph_cells = np.zeros(naxes_new)
     else:
-        
-        
-    
-    R_map, T_map = np.meshgrid(R_cells,T_cells)
-    
-    Vr_cells =  fspline_r( (np.rollaxis(R_map,1,0), np.rollaxis(T_map,1,0)))
-    Vth_cells = fspline_th((np.rollaxis(R_map,1,0), np.rollaxis(T_map,1,0)))
+        fspline_p = \
+            scintp.RegularGridInterpolator(( R_cells, T_cells, P_bounds), Vp_bounds[:,:,1:], fill_value=0.0)
+        Vph_cells = fspline_p(mesh)
 
     # Determine the outermost index of the R-direction
     rind_max = np.argmax(np.where(R_cells < Rmax))
