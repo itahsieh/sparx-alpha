@@ -3,9 +3,11 @@ GridType =              'SPH'
 # data type : BINARY or ASCII
 DataType =              'BINARY'
 # The path of the directory of Zeus Data
-ZeusDataDir =           '/tiara/ara/data/outflows/zeustw2sparx/ly/n=6_case/'
+#ZeusDataDir =           '/tiara/ara/data/outflows/zeustw2sparx/ly/n=6_case/'
+ZeusDataDir =           '/tiara/ara/data/ithsieh/datab335'
 # the time stamp of the files (INTEGER)
-TimeStamp =             10
+#TimeStamp =             10
+TimeStamp =             35
 # number of merged cell, to reduce resolution of one dimension,
 # the value 0 or 1 will do nothing on griding
 Nmerged =               8
@@ -29,4 +31,5 @@ DustKappa =             'table,jena_thin_e5'
 DustToGas =             0.01
 # the temperature of CMB emission
 T_cmb =                 2.73
-
+# Dust polarized efficiency
+DustAlpha = 0.15

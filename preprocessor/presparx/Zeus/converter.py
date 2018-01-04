@@ -37,10 +37,10 @@
 
 # BOUNDARY attribute: 
 # T_cmb : CMB temperature
+TIARA_CLUSTER = ['oc','tc','px','xl']
 
 import numpy as np
 import scipy.interpolate as scintp
-from sparx_oc.pre_unit import AU2cm
 from os.path import isfile
 import zeus_parameter as ZeusPar
 
@@ -97,8 +97,7 @@ x3b = FetchZeusData('z_x3bp')
 # the resolution of the original data
 n1 = x1a.shape[0]
 n2 = x2a.shape[0]
-n3 = x3a.shape[0] if x3a != None else 1
-
+n3 = x3a.shape[0] if x3a is not None else 1
 
 # reverse the index order from (k,j,i) to (i,j,k)
 def ReverseIndex(data):
@@ -117,12 +116,25 @@ def ReverseIndex(data):
 # Function to fetch Zeus Physical data
 def FetchZeusPhys(filename):
     data = FetchZeusData(filename)
-    if data == None:
+    if data is None:
         return None
     data = np.reshape( data, (n3,n2,n1))
     return ReverseIndex(data)
 
+def CheckAbdSetAtrr(attr):
+    if hasattr(ZeusPar,attr):
+        return getattr(ZeusPar,attr)
+    else:
+        print("{0} has no {1} data".format(ZeusPar.__name__,attr) )
+        return None
 
+def CheckAndSetArray(attr):
+    if hasattr(ZeusPar,attr):
+        return getattr(ZeusPar,attr) * np.ones(naxes)
+    else:
+        print("{0} has no {1} data".format(ZeusPar.__name__,attr) )
+        return None
+    
 # Time stamp of the files
 time_stamp = str('%.5d' % ZeusPar.TimeStamp)
 
@@ -133,7 +145,7 @@ else:
     density = FetchZeusPhys('o_d__'+time_stamp)
 
 # Load temperature if desired
-if hasattr( ZeusPar, 'UseConstantTemperature'):
+if hasattr( ZeusPar, 'ConstantTemperature'):
     if ZeusPar.ConstantTemperature > 0.0:
         temperature = ZeusPar.ConstantTemperature
     else:
@@ -155,7 +167,7 @@ B3 = FetchZeusPhys('o_b3_'+time_stamp)
 # Function definition for generating both sides of equatorial plane if necessary
 #
 def Sph_MirrorNTrimR( 
-    naxes, R_ap, R_bp, T_ap, T_bp, density, Vr, Vth, Vp,
+    naxes, R_ap, R_bp, T_ap, T_bp, P_ap, P_bp, density, Vr, Vth, Vp,
     Rmax=1e99, T = temperature ):
 
     R_bounds = R_ap[Ngz:-Ngz+1]
@@ -172,16 +184,19 @@ def Sph_MirrorNTrimR(
         T_bounds = np.concatenate((T_ap[Ngz:-Ngz+1], np.pi-T_ap[-Ngz-1:Ngz-1:-1]))
         T_cells =  np.concatenate((T_bp[Ngz:-Ngz], np.pi-T_bp[-Ngz-1:Ngz-1:-1]))
         
-        Density_cells = np.concatenate((density[Ngz:-Ngz, Ngz:-Ngz, :],density[Ngz:-Ngz, -Ngz:Ngz:-1, :]), axis=1)
+        upper_hemisphere_index = slice(Ngz,-Ngz),slice(Ngz,-Ngz),   slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz)
+        lower_hemisphere_index = slice(Ngz,-Ngz),slice(-Ngz,Ngz,-1),slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz)
+        
+        Density_cells = np.concatenate((density[upper_hemisphere_index],density[lower_hemisphere_index]), axis=1)
         if np.size(T) > 1:
-            Temperature_cells = np.concatenate( ( T[Ngz:-Ngz, Ngz:-Ngz, :], T[Ngz:-Ngz, -Ngz:Ngz:-1, :]), axis=1)
+            Temperature_cells = np.concatenate( ( T[upper_hemisphere_index], T[lower_hemisphere_index]), axis=1)
         
         upper_hemisphere_index = slice(Ngz,-Ngz+1),slice(Ngz,-Ngz+1),    slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz+1)
         lower_hemisphere_index = slice(Ngz,-Ngz+1),slice(-Ngz-1,Ngz-1,-1),slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz+1)
         
         Vr_bounds =     np.concatenate(( Vr[upper_hemisphere_index],   Vr[lower_hemisphere_index]), axis=1)
         Vth_bounds =    np.concatenate((Vth[upper_hemisphere_index], -Vth[lower_hemisphere_index]), axis=1)
-        if Vp != None:
+        if Vp is not None:
             Vp_bounds = np.concatenate(( Vp[upper_hemisphere_index],   Vp[lower_hemisphere_index]), axis=1)
 
     elif (np.abs(Theta_max - 2.0) <= 0.01):
@@ -190,15 +205,17 @@ def Sph_MirrorNTrimR(
         T_bounds = T_ap[Ngz:-Ngz+1]
         T_cells =  T_bp[Ngz:-Ngz]
         
-        Density_cells = density[Ngz:-Ngz,  Ngz:-Ngz,  :]
+        index = slice(Ngz,-Ngz), slice(Ngz,-Ngz), slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz)
+        
+        Density_cells = density[index]
         if np.size(T) > 1:
-            Temperature_cells =   T[Ngz:-Ngz,  Ngz:-Ngzv, :] 
+            Temperature_cells =   T[index] 
         
         index = slice(Ngz,-Ngz+1),slice(Ngz,-Ngz+1),    slice(0,naxes[2]) if naxes[2] == 1 else slice(Ngz,-Ngz+1)
         
         Vr_bounds =          Vr[index]
         Vth_bounds =        Vth[index]
-        if Vp != None:
+        if Vp is not None:
             Vp_bounds =      Vp[index]
         
 
@@ -215,17 +232,24 @@ def Sph_MirrorNTrimR(
 
 
     # Two-dimensional interpolation for the velocities onto cell center
-    fspline_r = \
-        scintp.RegularGridInterpolator(( R_bounds, T_cells, P_cells), Vr_bounds[:,1:,:], fill_value=0.0)
-    Vr_cells =  fspline_r(mesh)
-    fspline_th = \
-        scintp.RegularGridInterpolator(( R_cells, T_bounds, P_cells), Vth_bounds[:-1,:,:], fill_value=0.0)
-    Vth_cells = fspline_th(mesh)
-    if Vp == None:
+    if Vp is None:
+        fspline_r = \
+            scintp.RegularGridInterpolator(( R_bounds, T_cells, P_cells), Vr_bounds[:,:-1,:], fill_value=0.0)
+        Vr_cells =  fspline_r(mesh)
+        fspline_th = \
+            scintp.RegularGridInterpolator(( R_cells, T_bounds, P_cells), Vth_bounds[:-1,:,:], fill_value=0.0)
+        Vth_cells = fspline_th(mesh)
+    
         Vph_cells = np.zeros(naxes_new)
     else:
+        fspline_r = \
+            scintp.RegularGridInterpolator(( R_bounds, T_cells, P_cells), Vr_bounds[:,:-1,:-1], fill_value=0.0)
+        Vr_cells =  fspline_r(mesh)
+        fspline_th = \
+            scintp.RegularGridInterpolator(( R_cells, T_bounds, P_cells), Vth_bounds[:-1,:,:-1], fill_value=0.0)
+        Vth_cells = fspline_th(mesh)
         fspline_p = \
-            scintp.RegularGridInterpolator(( R_cells, T_cells, P_bounds), Vp_bounds[:,:,1:], fill_value=0.0)
+            scintp.RegularGridInterpolator(( R_cells, T_cells, P_bounds), Vp_bounds[:-1,:-1,:], fill_value=0.0)
         Vph_cells = fspline_p(mesh)
 
     # Determine the outermost index of the R-direction
@@ -233,7 +257,7 @@ def Sph_MirrorNTrimR(
     naxes_new[0] = rind_max + 1
     R_bounds = R_bounds[:naxes_new[0]+1]
     R_cells =   R_cells[:naxes_new[0]]
-    
+
     Density_cells = Density_cells[:naxes_new[0],:,:]
     Density_cells = Density_cells.reshape(naxes_new)
     Vr_cells =           Vr_cells[:naxes_new[0],:,:]
@@ -248,6 +272,8 @@ def Sph_MirrorNTrimR(
     else:
         Temperature_cells = T * np.ones(naxes_new)
     
+    
+    
     import astropy.constants as const
     mH = const.u.to('g').value
     pc = const.pc.to('cm').value
@@ -257,27 +283,49 @@ def Sph_MirrorNTrimR(
 
 # Replicate ZeusTW output to form a full two-quadrant matrix if needed
 naxes = [ n1 - 2*Ngz, n2 - 2*Ngz, n3 if n3 == 1 else n3 - 2*Ngz]  # sizes of the active zones from the ZeusTW data
+print "[ZeusTW2SPARX] Total number of cells is %d x %d x %d = %d" % (naxes[0], naxes[1], naxes[2], np.prod(naxes))
+
+
+
+
 
 if ZeusPar.GridType == 'SPH':
+    import importlib
+    import socket
+    hostname = socket.gethostname()
+    library_version = ''
+    for cluster_name in TIARA_CLUSTER:
+        if hostname[:2] == cluster_name:
+            library_version = '_'+cluster_name
+    pre_unit = "sparx"+library_version+".pre_unit"
+    AU2cm = importlib.import_module(pre_unit).AU2cm
+
     naxes, x1, x2, x3, n_H2, v1, v2, v3, T_k = \
-    Sph_MirrorNTrimR( naxes, x1a, x1b, x2a, x2b, density, V1, V2, V3, Rmax = ZeusPar.Rmax_AU*AU2cm, T = temperature )
+        Sph_MirrorNTrimR( naxes, x1a, x1b, x2a, x2b, x3a, x3b, density, V1, V2, V3, Rmax = CheckAbdSetAtrr('Rmax_AU')*AU2cm, T = temperature )
+    print "[ZeusTW2SPARX] Include the inner R = %d AU into SPARX HDF5 table" % CheckAbdSetAtrr('Rmax_AU')
+    
+    
 
 
 
-Vt = ZeusPar.TurbulentVelocity * np.ones(naxes)
+
+
+
+
+alpha = CheckAndSetArray('DustAlpha')
+Vt = CheckAndSetArray('TurbulentVelocity')
 
 T_d = T_k
-kapp_d = ZeusPar.DustKappa
-dust_to_gas = ZeusPar.DustToGas * np.ones(naxes)
+kapp_d = CheckAbdSetAtrr('DustKappa')
+dust_to_gas = CheckAndSetArray('DustToGas')
 
 
 # model attribute: molecular name
-molec = ZeusPar.MolecularSpecie
-X_mol = ZeusPar.MolecularAbundance * np.ones(naxes)
+molec = CheckAbdSetAtrr('MolecularSpecie')
+X_mol = CheckAndSetArray('MolecularAbundance')
 # model attribute: CMB temperature
-T_cmb = ZeusPar.T_cmb
+T_cmb = CheckAbdSetAtrr('T_cmb')
 
 
-print "[ZeusTW2SPARX] Include the inner R = %d AU into SPARX HDF5 table" % ZeusPar.Rmax_AU
-print "[ZeusTW2SPARX] Total number of cells is %d x %d x %d = %d" % (naxes[0], naxes[1], naxes[2], np.prod(naxes))
+
 

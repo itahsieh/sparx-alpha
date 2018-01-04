@@ -49,6 +49,7 @@ class profile(object):
                 for j in range(n[1]):
                     for k in range(n[2]):
                         self.B_field[i,j,k,:] = [ cvt.b1[i,j,k], cvt.b2[i,j,k], cvt.b3[i,j,k] ]
+            self._CheckAndSetAttr(cvt,'alpha')
         
         if hasattr(cvt, 'T_d'):
             self.dust = 1
