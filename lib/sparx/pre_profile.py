@@ -19,7 +19,7 @@ class profile(object):
         if hasattr(obj,attr):
             setattr(self,attr,getattr(obj,attr))
         else:
-            print("{0} has no {1} data".format(obj.__name__,attr) )
+            print("[PRESPARX] {0} has no {1} data".format(obj.__name__,attr) )
 
     def from_dataset(self, mesh, converter):
         cvt = converter

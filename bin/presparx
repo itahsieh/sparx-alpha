@@ -52,18 +52,18 @@ ModelFile=  'model.py'
 if convert_mode:
     if zeus:
         if not isfile(ZeusPars):
-            print '%s not found' % ZeusPars
+            print '[PRESPARX] %s not found' % ZeusPars
             sys.exit(1)
         sys.path.append(expanduser('~/sparx-alpha/preprocessor/presparx/Zeus'))
     else:
         if not isfile(Converter):
-            print '%s not found' % Converter
+            print '[PRESPARX] %s not found' % Converter
             sys.exit(1)
 elif not isfile(GridFile):
-    print '%s not found' % GridFile
+    print '[PRESPARX] %s not found' % GridFile
     sys.exit(1)
 elif not isfile(ModelFile):
-    print '%s not found' % ModelFile
+    print '[PRESPARX] %s not found' % ModelFile
     sys.exit(1)
 
 from sparx import pre_mesh 
@@ -100,7 +100,7 @@ if vtk:
 if OutputFile:
         from sparx import pre_hdf
         pre_hdf.export(mesh,phys,OutputFile)
-        print 'wrote out "%s"' %OutputFile
+        print '[PRESPARX] wrote out "%s"' %OutputFile
 
 
 
