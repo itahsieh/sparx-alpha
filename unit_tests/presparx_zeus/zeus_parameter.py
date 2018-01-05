@@ -18,7 +18,8 @@ PostProcessedDensity =  False
 # use the file 'o_T__'+'%5d' % TimeStamp if the value is zero or without the attribute
 ConstantTemperature =   10.0
 # maximum extension in the outflow axis (AU)
-Rmax_AU =               12500.0 # AU
+#Rmax_AU =               12500.0 # AU
+Rmax_AU =               1e9 # AU
 # turbulent velocity (m/s)
 TurbulentVelocity =     500.0 
 # the name of the molecule to be simulated

@@ -1,13 +1,14 @@
 #!/bin/bash
 
-rm -rf map/ stokesq_map/ stokesu_map/ tau/ map.fits tau.fits
+rm -rf map/ stokesQ_map/ stokesU_map/ tau/ map.fits tau.fits
 
 printf "${LIGHTCYAN}START THE MAPPING OF CONTINUUM EMISSION ${NC}\n"
 
 sparx run task_contobs \
-source=pops \
+source=model \
 out=map \
 wavelen='850um' \
 tau=tau \
-subres="[['-10asec','-10asec','10asec','10asec',4]]" 
+subres="[['-10asec','-10asec','10asec','10asec',4]]" \
+dist='200pc'
 

@@ -309,6 +309,7 @@ int SpTask_Telsim(void)
                           MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
                           #endif
+
                           
                           if (glb.model.parms.polariz){
                               

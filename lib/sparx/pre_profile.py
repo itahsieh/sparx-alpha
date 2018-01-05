@@ -44,6 +44,7 @@ class profile(object):
                     self.V_gas[i,j,k,:] = [ cvt.v1[i,j,k], cvt.v2[i,j,k], cvt.v3[i,j,k] ]
 
         if hasattr(cvt, 'b1') and hasattr(cvt, 'b2') and hasattr(cvt, 'b3'):
+            self.polariz = 1
             self.B_field = zeros( tuple(n)+(3,) )
             for i in range(n[0]):
                 for j in range(n[1]):
@@ -164,6 +165,7 @@ class profile(object):
             self.kapp_d = chararray(shape=n,itemsize=64)
         
         if hasattr(phys, 'B_cen'):
+            self.polariz = 1
             self.B_field = zeros(n+(3,))
             
     def _MappingPhys(self, phys, molec, i):

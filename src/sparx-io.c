@@ -213,7 +213,6 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
         }
         
 
-
         /* Write molecule name */
         if(!status) {
                 Molec *mol = model.parms.mol;
@@ -238,6 +237,8 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
         /* Write polariz-switch */
         if(!status) {
                 hstatus = H5LTset_attribute_int(sfp->h5f_id, "/", "polariz", &model.parms.polariz, (size_t)1);
+                
+                
                 if(hstatus < 0)
                         status = 1;
         }
@@ -247,7 +248,7 @@ int SpIO_FwriteModel(SpFile *sfp, SpModel model)
                 if(hstatus < 0)
                         status = 1;
         }
-        
+
         
         /* Write Outer_Source */
         if(!status) {
