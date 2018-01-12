@@ -231,7 +231,7 @@ int SpTask_Telsim(void)
                 sts = SpPy_GetInput_model("source","source", &glb.model, &popsold, task_id);
         }
         
-        
+
 /* 2. Initialize model */
 	if(!sts) sts = InitModel();
 
@@ -472,12 +472,12 @@ static int InitModel(void)
 	
 	int sts = 0;
         int task_id = glb.task->idx; 
-        
+
         /* initialize line profile if LINE or ZEEMAN task */
         if( task_id == TASK_LINE || task_id == TASK_ZEEMAN ){
-                glb.freq = parms->mol->rad[glb.line]->freq;
-                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                Deb_ASSERT(glb.line < parms->mol->nrad);
+            Deb_ASSERT(glb.line < parms->mol->nrad);
+            glb.freq = parms->mol->rad[glb.line]->freq;
+            glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
         }
         /* set the reference of the intensity: glb.ucon */
         if(glb.task->idx != TASK_COLDENS){

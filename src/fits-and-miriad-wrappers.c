@@ -863,7 +863,7 @@ void FITSoutput( MirFile *fp, MirImg *image, MirImg *StokesQ, MirImg *StokesU, c
 
         double *array = Mem_CALLOC(nelements, array);;
         
-        fits_create_img(fptr, FLOAT_IMG, naxis, naxes, &status);
+        fits_create_img(fptr, DOUBLE_IMG, naxis, naxes, &status);
         Deb_ASSERT(status == 0);
             /* Write a keyword; must pass the ADDRESS of the value */
          

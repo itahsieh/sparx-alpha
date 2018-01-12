@@ -436,7 +436,6 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
 	}
 #endif
 
-
 	/* Load grid */	
 	if(!status)
 		status = 
@@ -906,7 +905,8 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
 		SpZone_GROW(*zone, (*zone)->naxes, parms);
 	}
 
-	
+
+        
 
 	#define COPY_TYPE_FROM_RECORD(DataType, ZoneH5_FreadTable_Type, SpIO_Type ) \
 	{   DataType *data; \
@@ -920,7 +920,7 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
                 free(data); \
         }
         COPY_TYPE_FROM_RECORD(ZoneH5_Record_Grid, ZoneH5_FreadTable_Grid, SpIO_GridFromH5Record);
-        
+
         int read_leaf = 0;
         for(size_t i = 0; i < (*zone)->nchildren; i++){
             if ( (*zone)->children[i]->nchildren == 0 ){
@@ -948,20 +948,20 @@ int SpIO_H5ReadGrid(hid_t h5f_id, hid_t popsh5f_id, Zone **zone, SpPhysParm *par
             if(!status) {
                 if((*zone)->children[i]->nchildren > 0){
                     char *grid_idx = Mem_Sprintf("grid%lu", (unsigned long)i);
-                    
+
                     hid_t group_id = H5Gopen(h5f_id, grid_idx, H5P_DEFAULT);
-                    hid_t popsgroup_id = H5Gopen(popsh5f_id, grid_idx, H5P_DEFAULT);
-                    
+                    hid_t popsgroup_id = (*read_pops) ? H5Gopen(popsh5f_id, grid_idx, H5P_DEFAULT) : NULL;
                     status = SpIO_H5ReadGrid(
                         group_id, 
                         popsgroup_id, 
                         &(*zone)->children[i], 
                         parms, 
                         read_pops);
+
                 }
             }
         }
-
+        
 	return status;
 }
 
