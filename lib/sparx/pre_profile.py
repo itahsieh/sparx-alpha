@@ -296,8 +296,8 @@ class profile(object):
             gr = mesh.grid
             GridType = gr.GridType
             if GridType == 'SPH1D':
-                    _MappingUserDefined_sph1d(mesh)
-                    _Mass_VeloDisp_sph1d(mesh)
+                    self._MappingUserDefined_sph1d(mesh)
+                    self._Mass_VeloDisp_sph1d(mesh)
             elif GridType == 'SPH2D':
                     pass
             elif GridType == 'SPH3D':

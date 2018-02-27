@@ -39,7 +39,7 @@ case $CASE in
         sparx run task_amc \
         source=model \
         out=$POPSFILE \
-        trace='True' \
+        trace=1 \
         dat='True'
         
         \cp ../benchmark/2002_p2a_benchmark/model_1.d ./
@@ -60,7 +60,7 @@ case $CASE in
         sparx run task_amc \
         source=model \
         out=$POPSFILE \
-        trace='True' \
+        trace=1 \
         dat='True'
         
         \cp ../benchmark/2002_p2b_benchmark/model_2.d ./
