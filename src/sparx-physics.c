@@ -1080,6 +1080,7 @@ double SpPhys_GetVfac(const GeRay *ray, double dt, double v_los, const Zone *zon
 		for(size_t j = 0; j < n_avg; j++) {
 			double s = s_0 + (s_1 - s_0) * ((double)j + 0.5) / (double)n_avg;
 			GeVec3_d v = SpPhys_GetVfunc(ray, s, zone);
+                        // if (!(pp->width > 0.0)) printf("width=%g pos=%zu\n",pp->width,zone->pos);
 			vfac += Num_GaussNormal(v_los - GeVec3_DotProd(&v, &ray->d), pp->width) / (double)n_avg;
 		}
 	}

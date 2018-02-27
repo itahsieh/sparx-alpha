@@ -557,9 +557,9 @@ double Num_GaussNormal(double x, double width)
 		}
 		init = 1;
 	}
-
+	if (!(width > 0.0)) printf("width=%g\n",width);
 	/* Find position of x in Gaussian normal */
-	Deb_ASSERT(width > 0); /* Just in case */
+	Deb_ASSERT(width > 0.0); /* Just in case */
 	//igau = (size_t)round(fac * fabs(x) / width);
         xp = fac * fabs(x) / width;
 	igau = (size_t)xp;

@@ -620,6 +620,12 @@ static void *InitModelThread(void *tid_p)
                     }
                         
                     pp->width = SpPhys_CalcLineWidth(pp);
+                    /*
+                    if (!(pp->width > 0.0)) {
+                        printf("width = %g pos=%zu temp=%g\n",pp->width,zp->pos,pp->T_k);
+                        exit(0);
+                    }
+                    */
                 }
                 
                 /* Add dust emission/absorption if T_d > 0 */
