@@ -306,7 +306,7 @@ observer_keys = [
         )
 ]
 
-# for lineobe, zeeman, contobs, coldens
+# for lineobs, zeeman, contobs, coldens
 telsim_keys = [
     Key("out", Type.NewFile, None, 
         "Name of output image (FITS image dataset)"
@@ -328,9 +328,6 @@ telsim_keys = [
         Type.Custom([[Type.Angle, Type.Angle, Type.Angle, Type.Angle, Type.PosInt]]), 
         Type.Optional, 
         "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]"
-        ),
-    Key("tau", Type.NewFile, Type.Optional, 
-        "Name of output tau cube (Miriad image dataset)"
         )
 ]
 
@@ -338,6 +335,9 @@ telsim_keys = [
 radiation_keys = [
     Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
         "Image brightness unit"
+        ),
+    Key("tau", Type.NewFile, Type.Optional, 
+        "Name of output tau cube (Miriad image dataset)"
         )
 ]
     

@@ -1,5 +1,5 @@
 #!/usr/bin/gnuplot
-set terminal postscript enhanced portrait color "Helvetica" 8
+set terminal postscript enhanced portrait color "Helvetica" 12
 set output 'p2a.eps'
 
 
@@ -9,8 +9,8 @@ set multiplot
   set size square 0.5,0.5
   set origin 0,0.4
   set title 'H_2 Number Density' font "Helvetica,16"
-  set xlabel 'R[cm]' font "Helvetica,8"
-  set ylabel 'density (cc^{-1})' font "Helvetica,8"
+  set xlabel 'R[cm]' font "Helvetica,12"
+  set ylabel 'density (cc^{-1})' font "Helvetica,12"
   set logscale xy
   set format xy "10^{%L}"
   set xrange[7e15:1e18]
@@ -19,15 +19,15 @@ set multiplot
   
   set origin 0.5,0.4
   set title 'Gas Temperature' font "Helvetica,16"
-  set ylabel 'T (K)' font "Helvetica,8"
+  set ylabel 'T (K)' font "Helvetica,12"
   unset logscale y
   set format y "%g"
   set yrange[0:20]
   plot 'model_1.d' using 1:4 with line lw 2 notitle  
 
   set origin 0,0
-  set title 'Rasial Velocity' font "Helvetica,16"
-  set ylabel 'V_r (km/s)' font "Helvetica,8"
+  set title 'Radial Velocity' font "Helvetica,16"
+  set ylabel 'V_r (km/s)' font "Helvetica,12"
   set format y "%4.1f"
   set yrange[-1:0.1]
   set xzeroaxis lt 0
@@ -35,7 +35,7 @@ set multiplot
   
   set origin 0.5,0
   set title 'Turbulent Velocity' font "Helvetica,16"
-  set ylabel 'V_{tur} (km/s)' font "Helvetica,8"
+  set ylabel 'V_{tur} (km/s)' font "Helvetica,12"
   unset logscale y
   set format y "%4.2f"
   set yrange[0:0.2]
@@ -47,8 +47,8 @@ unset title
 set multiplot
   set size square 0.5,0.5
   set origin 0,0.57
-  set xlabel 'R[cm]' font "Helvetica,8"
-  set ylabel 'frac. population' font "Helvetica,8"
+  set xlabel 'R[cm]' font "Helvetica,12"
+  set ylabel 'frac. population' font "Helvetica,12"
   set logscale xy
   set format xy "10^{%L}"
   set xrange[7e15:1e18]
