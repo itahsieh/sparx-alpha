@@ -200,6 +200,12 @@ class export:
                     particle['V_cen']       = phys.V_gas[i]
                     particle['T_k']         = phys.T_k[i]
                     particle['V_t']         = phys.Vt[i]
+                    
+                    particle['X_pH2']       = phys.X_pH2[i]
+                    particle['X_oH2']       = phys.X_oH2[i]
+                    particle['X_e']         = phys.X_e[i]
+                    particle['X_H']         = phys.X_H[i]
+                    particle['X_He']        = phys.X_He[i]
                     # Insert a new particle record
                     particle.append()
             table.flush()
@@ -261,6 +267,12 @@ class export:
                     particle['V_cen']       = phys.V_gas[i,j]
                     particle['T_k']         = phys.T_k[i,j]
                     particle['V_t']         = phys.Vt[i,j]
+                    
+                    particle['X_pH2']       = phys.X_pH2[i,j]
+                    particle['X_oH2']       = phys.X_oH2[i,j]
+                    particle['X_e']         = phys.X_e[i,j]
+                    particle['X_H']         = phys.X_H[i,j]
+                    particle['X_He']        = phys.X_He[i,j]
                     # Insert a new particle record
                     particle.append()
             table.flush()
@@ -336,6 +348,12 @@ class export:
                         particle['V_cen'] = phys.V_gas[i,j,k]
                         particle['T_k']   = phys.T_k[i,j,k]
                         particle['V_t']   = phys.Vt[i,j,k]
+                        
+                        particle['X_pH2']       = phys.X_pH2[i,j,k]
+                        particle['X_oH2']       = phys.X_oH2[i,j,k]
+                        particle['X_e']         = phys.X_e[i,j,k]
+                        particle['X_H']         = phys.X_H[i,j,k]
+                        particle['X_He']        = phys.X_He[i,j,k]
                         # Insert a new particle record
                         particle.append()
             table.flush()
@@ -414,6 +432,12 @@ class export:
                     particle['V_cen']       = phys.V_gas[i,j]
                     particle['T_k']         = phys.T_k[i,j]
                     particle['V_t']         = phys.Vt[i,j]
+                    
+                    particle['X_pH2']       = phys.X_pH2[i,j]
+                    particle['X_oH2']       = phys.X_oH2[i,j]
+                    particle['X_e']         = phys.X_e[i,j]
+                    particle['X_H']         = phys.X_H[i,j]
+                    particle['X_He']        = phys.X_He[i,j]
                     # Insert a new particle record
                     particle.append()
             table.flush()

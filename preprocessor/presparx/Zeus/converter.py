@@ -64,7 +64,7 @@ if ZeusPar.DataType == 'BINARY':
 elif ZeusPar.DataType == 'ASCII':
     read_mode = 'r'
 else:
-    print 'DataType in zeus_parameter.pyis not recognized. It should be BINARY/ASCII'
+    print 'DataType in zeus_parameter.py is not recognized. It should be BINARY/ASCII'
     exit(1)
 
 
