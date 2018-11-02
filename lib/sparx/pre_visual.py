@@ -79,7 +79,7 @@ class plot:
                 plt.subplot(231, aspect=1)
                 plt.pcolormesh(x, y, phys.n_H2, norm=matplotlib.colors.LogNorm())
                 plt.title('H2 density (m^-3)')
-                plt.colorbar
+                plt.colorbar()
 
                 
                 # Temperature plot
