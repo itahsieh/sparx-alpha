@@ -25,7 +25,7 @@ class plot:
                 
                 plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
                 filename='profile.png'
-                savefig(filename)
+                savefig(filename, dpi=150)
                 print filename,'generated'
                 
         def _plot_sph1d(self,mesh,phys):     
@@ -79,7 +79,8 @@ class plot:
                 plt.subplot(231, aspect=1)
                 plt.pcolormesh(x, y, phys.n_H2, norm=matplotlib.colors.LogNorm())
                 plt.title('H2 density (m^-3)')
-                plt.colorbar()
+                plt.colorbar
+
                 
                 # Temperature plot
                 plt.subplot(232, aspect=1)
@@ -112,6 +113,8 @@ class plot:
                 plt.pcolormesh(x, y, phys.V_gas[:,:,2], norm=matplotlib.colors.Normalize(vmin=-absmax, vmax=absmax), cmap='seismic')
                 plt.title('V_phi (m/s)')
                 plt.colorbar()
+                
+
         
         def _plot_sph3d(self,mesh,phys):     
                 r = mesh.R_c
