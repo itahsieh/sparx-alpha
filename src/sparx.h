@@ -237,6 +237,16 @@ typedef struct SpModel {
     Zone *grid;
 } SpModel;
 
+
+typedef struct SpTelsim {
+    double dist, rotate[3];
+    size_t nsubres;
+    struct {
+        double blc_x, blc_y, trc_x, trc_y;
+        size_t nsub;
+    } *subres;
+} SpTelsim;
+
 void *SpPhys_Alloc(const Zone *zp, const void *parms_p);
 void SpPhys_Free(void *ptr);
 void SpPhys_Fprintf(SpPhys *pp, FILE *fp);
@@ -388,6 +398,7 @@ int SpTask_Example(void);
 int SpTask_Powerlaw(void);
 //int SpTask_PyGrid(void);
 int SpTask_Telsim(void);
+int SpTask_ColDens(void);
 int SpTask_Visual(void);
 int SpTask_Pops2ASCII(void);
 int SpTask_Uniform(void);
@@ -455,6 +466,20 @@ int SpPy_GetInput_spfile(const char *name, SpFile **fp, int mode);
 int SpPy_GetInput_mirxy_new(const char *name, size_t nx, size_t ny, size_t nv, MirFile **fp);
 
 #endif
+
+
+void SpImgTrac_InitRay(Zone *root, double *dx, double *dy, GeRay *ray, SpTelsim *tel_parms);
+size_t SpImgTrac_Init_nsub(size_t ix, size_t iy, SpTelsim *tel_parms,
+                           MirImg_Axis *x, MirImg_Axis *y);
+void SpImgTrac_InitSubPixel( double *dx, 
+                           double *dy, 
+                           size_t ix, 
+                           size_t iy, 
+                           size_t isub, 
+                           size_t jsub, 
+                           size_t nsub,
+                           MirImg_Axis *x, MirImg_Axis *y
+);
 
 
 

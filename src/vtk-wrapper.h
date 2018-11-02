@@ -45,7 +45,7 @@ typedef struct{
 
 typedef struct{
     char *FileName;
-    FILE *fp
+    FILE *fp;
 } VtkFile;
 
 void Vtk_Mem_CALL(GEOM_TYPE geom, VtkData * visual, size_t nvelo);

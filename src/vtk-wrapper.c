@@ -521,7 +521,7 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
         WRITE_SCALAR_MODEL_DATA( "Molecular_Number_Density", pp->n_H2 * pp->X_mol ) 
         WRITE_SCALAR_MODEL_DATA( "Temperature", pp->T_k ) 
 
-        #undef WRITE_SCALAR_MODEL_DATA( SCALAR_NAME, MODEL_DATA )
+        #undef WRITE_SCALAR_MODEL_DATA /* WRITE_SCALAR_MODEL_DATA-notdefined */
         // write the velocity field
         
         #define WRITE_VECTOR_MODEL_DATA( VECTOR_NAME, VECTOR_FUNCTION) \
@@ -543,7 +543,7 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
         if( model->parms.polariz ){
             WRITE_VECTOR_MODEL_DATA("b-field", SpPhys_GetBgas)
         }
-        #undef WRITE_VECTOR_MODEL_DATA
+        #undef WRITE_VECTOR_MODEL_DATA /* WRITE_VECTOR_MODEL_DATA-notdefined */
 
         
         if(task == TASK_LINECTB || task == TASK_ZEEMANCTB){
@@ -596,7 +596,8 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
             }
             WRITE_SCALAR_VISUAL_DATA( attribute_name, contrib_dust, scale_factor)
             WRITE_SCALAR_VISUAL_DATA( "DUST_TAU", tau_dust, 1.0 )
-            #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, VISUAL_DATA, SCALE_FACTOR)
+            #undef WRITE_SCALAR_VISUAL_DATA
+            /* WRITE_SCALAR_VISUAL_DATA-notdefined */
         }
         
 
@@ -663,7 +664,8 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
                 }
                 WRITE_SCALAR_VISUAL_DATA( attribute_name, contrib, scale_factor)
                 WRITE_SCALAR_VISUAL_DATA( "TAU", tau, 1.0)
-                #undef WRITE_SCALAR_VISUAL_DATA( SCALAR_NAME, VISUAL_DATA, SCALE_FACTOR)
+                #undef WRITE_SCALAR_VISUAL_DATA
+                /* WRITE_SCALAR_VISUAL_DATA-notdefined */
                 
                 
                 
@@ -704,7 +706,8 @@ void Vtk_Output(VtkFile *vtkfile, VtkData * visual, SpModel *model, size_t line,
             free(log_contrib);
 */
         }
-        #undef WRITE_HEADER_AND_GRID()
+        #undef WRITE_HEADER_AND_GRID
+        /* WRITE_HEADER_AND_GRID-notdefined */
  
         return;
 }

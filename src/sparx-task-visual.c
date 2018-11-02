@@ -9,7 +9,9 @@ static struct glb {
         DatINode *unit;
 
 	double ucon, overlap_vel;
-	double dist, rotate[3], I_norm;
+	double I_norm;
+        
+        SpTelsim tel_parms;
 	SpModel model;
 	size_t line;
 	double lamb, freq;
@@ -37,7 +39,6 @@ static struct glb {
 static int InitModel(void);
 static void *InitModelThread(void *tid_p);
 
-static void InitRay(double *dx, double *dy, GeRay *ray);
 
 static void Vtk_nested_hyosun(void);
 
@@ -154,14 +155,14 @@ int SpTask_Visual(void)
                           }
                           /* observer options  */
                           /* dist */
-                          if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.dist);
-                          glb.dist /= Sp_LENFAC;
+                          if(!sts) sts = SpPy_GetInput_dbl("dist", &glb.tel_parms.dist);
+                          glb.tel_parms.dist /= Sp_LENFAC;
                           
                           /* rotate */
                           if(!sts && !(sts = SpPy_GetInput_PyObj("rotate", &o))) {
-                              glb.rotate[0] = Sp_PYDBL(Sp_PYLST(o, 0));
-                              glb.rotate[1] = Sp_PYDBL(Sp_PYLST(o, 1));
-                              glb.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
+                              glb.tel_parms.rotate[0] = Sp_PYDBL(Sp_PYLST(o, 0));
+                              glb.tel_parms.rotate[1] = Sp_PYDBL(Sp_PYLST(o, 1));
+                              glb.tel_parms.rotate[2] = Sp_PYDBL(Sp_PYLST(o, 2));
                               SpPy_XDECREF(o);
                           }
                           break;
@@ -488,95 +489,7 @@ static void *InitModelThread(void *tid_p)
     pthread_exit(NULL);
 }
 
-/*---------------------------------------------------------------------------- */
-/* Initialize the position of the ray and its shooting direction */
-static void InitRay(double *dx, double *dy, GeRay *ray)
-{       
-        Zone *root = glb.model.grid;
 
-        /* Reset ray */
-        Mem_BZERO(ray);
-        
-
-        double ModelSize = Zone_ZoneSize(root);
-        double Model2DistanceRatio = ModelSize / glb.dist;
-        
-        if ( Model2DistanceRatio > 1.0 ){
-            // distance is too close
-            Sp_PRINT("The observing distance is too close!\n");
-            Deb_ASSERT(0);
-        }
-        else{ 
-            if ( Model2DistanceRatio > 1e-4 ){
-                // stereopsis projection
-                /* Init ray position to <dist, 0, 0> */
-                GeRay_E(*ray, 0) = glb.dist;
-                GeRay_E(*ray, 1) = 0.0;
-                GeRay_E(*ray, 2) = 0.0;
-
-                /* Set "reversed" direction of ray according to pixel position
-                * !!! backward tracing !!! :
-                *   theta = PI/2 - dy
-                *   phi = PI - dx
-                */
-                
-                double theta = 0.5 * M_PI - (*dy);
-                double phi = M_PI - (*dx);
-                
-                /* Convert to Cartesian coordinates */
-                GeRay_D(*ray, 0) = sin(theta) * cos(phi);
-                GeRay_D(*ray, 1) = sin(theta) * sin(phi);
-                GeRay_D(*ray, 2) = cos(theta);
-            }
-            /* parallel projection mode 
-                if the ratio of domain size and observing distance is less than 10^-4,
-                then switch to parallel projection mode to avoid precision lost
-                particularly in cylindrical and spherical coordinate
-                the ray shooting solves the second order equation with the coefficient 
-                c = Ex^2 - r^2
-            */
-            else{
-                GeRay_E(*ray, 0) = ModelSize;
-                GeRay_E(*ray, 1) = (*dx) * glb.dist;
-                GeRay_E(*ray, 2) = (*dy) * glb.dist;
-
-                GeRay_D(*ray, 0) = -1.0;
-                GeRay_D(*ray, 1) = 0.0;
-                GeRay_D(*ray, 2) = 0.0;
-            }
-        }
-        
-
-        /* Rotate ray:
-         * Since what we REALLY want to rotate is the model and that the rays
-         * are pointed towards the model, rays should be rotated in the negative
-         * direction, and in the opposite order of what we would've done to
-         * rotate the model. */
-        *ray = GeRay_Rotate(ray, 0, -glb.rotate[0]);
-        *ray = GeRay_Rotate(ray, 1, -glb.rotate[1]);
-        *ray = GeRay_Rotate(ray, 2, -glb.rotate[2]);
-
-        /* Coordinate-dependent offset */
-        switch(root->voxel.geom) {
-                case GEOM_SPH1D:
-                        break;
-                        
-                case GEOM_SPH3D:
-                        break;
-
-                case GEOM_REC3D:
-                        ray->e = GeVec3_Add(&ray->e, &root->voxel.cen);
-                        break;
-                        
-                case GEOM_CYL3D:
-                        break;
-
-                default: 
-                        /* Shouldn't reach here */
-                        Deb_ASSERT(0);
-        }
-        return;
-}
 
 
 
@@ -1045,22 +958,22 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
 #if 1
         GeVec3_d SampCartPosRotate = *SampCartPos;
         
-        SampCartPosRotate = GeVec3_Rotate_x( &SampCartPosRotate, glb.rotate[0]);
-        SampCartPosRotate = GeVec3_Rotate_y( &SampCartPosRotate, glb.rotate[1]);
-        SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.rotate[2]);
+        SampCartPosRotate = GeVec3_Rotate_x( &SampCartPosRotate, glb.tel_parms.rotate[0]);
+        SampCartPosRotate = GeVec3_Rotate_y( &SampCartPosRotate, glb.tel_parms.rotate[1]);
+        SampCartPosRotate = GeVec3_Rotate_z( &SampCartPosRotate, glb.tel_parms.rotate[2]);
         
-        double dx = atan( SampCartPosRotate.x[1] / ( glb.dist - SampCartPosRotate.x[0] ) );
-        double dy = atan( SampCartPosRotate.x[2] / ( glb.dist - SampCartPosRotate.x[0] ) );
-        InitRay( &dx, &dy, &ray);
+        double dx = atan( SampCartPosRotate.x[1] / ( glb.tel_parms.dist - SampCartPosRotate.x[0] ) );
+        double dy = atan( SampCartPosRotate.x[2] / ( glb.tel_parms.dist - SampCartPosRotate.x[0] ) );
+        SpImgTrac_InitRay( root, &dx, &dy, &ray, &glb.tel_parms);
 #else
         Mem_BZERO(&ray);
-        GeRay_E(ray, 0) = glb.dist;
+        GeRay_E(ray, 0) = glb.tel_parms.dist;
         GeRay_E(ray, 1) = 0.0;
         GeRay_E(ray, 2) = 0.0;
         
-        ray = GeRay_Rotate(&ray, 0, -glb.rotate[0]);
-        ray = GeRay_Rotate(&ray, 1, -glb.rotate[1]);
-        ray = GeRay_Rotate(&ray, 2, -glb.rotate[2]);
+        ray = GeRay_Rotate(&ray, 0, -glb.tel_parms.rotate[0]);
+        ray = GeRay_Rotate(&ray, 1, -glb.tel_parms.rotate[1]);
+        ray = GeRay_Rotate(&ray, 2, -glb.tel_parms.rotate[2]);
         
         GeRay_D(ray, 0) = SampCartPos->x[0] - GeRay_E(ray, 0);
         GeRay_D(ray, 1) = SampCartPos->x[1] - GeRay_E(ray, 1);
@@ -1089,7 +1002,7 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
             {
 //                 printf("geom: %s\n",GEOM_TYPES[root->voxel.geom]);
                 //printf("SampPos x y z : %E %E %E\n",SampCartPosRotate.x[0], SampCartPosRotate.x[1], SampCartPosRotate.x[2]);
-                //printf("dist : %E\n", glb.dist);
+                //printf("dist : %E\n", glb.tel_parms.dist);
                 //printf("dx \t= %E, dy = %E\n",dx,dy);
                 
                 
@@ -1097,7 +1010,7 @@ static void ContributionTracer( double *contrib, double *contrib_dust, double *t
                 printf("ray.d \t= %E %E %E\n", ray.d.x[0], ray.d.x[1], ray.d.x[2]);
                 
 //                 GeVec3_d tmp;
-//                 tmp.x[0] = SampCartPosRotate.x[0] - glb.dist;
+//                 tmp.x[0] = SampCartPosRotate.x[0] - glb.tel_parms.dist;
 //                 tmp.x[1] = SampCartPosRotate.x[1];
 //                 tmp.x[2] = SampCartPosRotate.x[2];
 //                 tmp = GeVec3_Normalize(&tmp);

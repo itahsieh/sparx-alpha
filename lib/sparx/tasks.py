@@ -535,7 +535,7 @@ class Task_ColDens(Task):
                 self.keys = postprocess_keys + observer_keys + telsim_keys + coldens_keys
 
 		# C function to call
-		self.cfunc = _sparx.task_telsim
+		self.cfunc = _sparx.task_coldens
 
 	##
 	## Task procedures

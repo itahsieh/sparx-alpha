@@ -249,6 +249,7 @@ sources_sparx = [
 	'src/sparx-inputs.c',
 	'src/sparx-io.c',
 	'src/sparx-utils.c',
+	'src/sparx-ImageTracing.c',
 ]
 
 # SPARX dependencies
@@ -278,6 +279,7 @@ ext_sparx = Extension( SPARX_VERSION + '._sparx'  ,
 		'src/sparx-pyext-_sparx.c',
 		'src/sparx-task-amc.c',
 		'src/sparx-task-telsim.c',
+		'src/sparx-task-coldens.c',
 		'src/sparx-task-visual.c',
 		'src/sparx-task-pops2ascii.c',
 		#'src/sparx-task-pygrid.c',
