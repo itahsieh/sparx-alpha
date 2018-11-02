@@ -77,10 +77,6 @@ static void InitSubPixel( double *dx,
                           size_t nsub
                         );
 
-
-
-
-
 /*----------------------------------------------------------------------------*/
 
 int SpTask_Telsim(void)
