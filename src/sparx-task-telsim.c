@@ -1273,7 +1273,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                                 // psi is the angle between the projected B-field on p.o.s. and the north of the image 
                                 double B_Mag = GeVec3_Mag(&B);
                                 double psi = atan2( -eproduct, nproduct); 
-                                // gamma ia the angle bettwen B-field an the plane of sky
+                                // gamma is the angle bettwen B-field an the plane of sky
                                 double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B);
                                 
                                 double alpha = pp->alpha;
