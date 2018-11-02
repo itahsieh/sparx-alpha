@@ -200,6 +200,17 @@ class export:
                     particle['V_cen']       = phys.V_gas[i]
                     particle['T_k']         = phys.T_k[i]
                     particle['V_t']         = phys.Vt[i]
+                    
+                    if hasattr(phys, 'X_pH2'):
+                        particle['X_pH2']       = phys.X_pH2[i]
+                    if hasattr(phys, 'X_oH2'):
+                        particle['X_oH2']       = phys.X_oH2[i]
+                    if hasattr(phys, 'X_e'):
+                        particle['X_e']         = phys.X_e[i]
+                    if hasattr(phys, 'X_H'):
+                        particle['X_H']         = phys.X_H[i]
+                    if hasattr(phys, 'X_He'):
+                        particle['X_He']        = phys.X_He[i]
                     # Insert a new particle record
                     particle.append()
             table.flush()
@@ -261,6 +272,17 @@ class export:
                     particle['V_cen']       = phys.V_gas[i,j]
                     particle['T_k']         = phys.T_k[i,j]
                     particle['V_t']         = phys.Vt[i,j]
+                    
+                    if hasattr(phys, 'X_pH2'):
+                        particle['X_pH2']       = phys.X_pH2[i,j]
+                    if hasattr(phys, 'X_oH2'):
+                        particle['X_oH2']       = phys.X_oH2[i,j]
+                    if hasattr(phys, 'X_e'):
+                        particle['X_e']         = phys.X_e[i,j]
+                    if hasattr(phys, 'X_H'):
+                        particle['X_H']         = phys.X_H[i,j]
+                    if hasattr(phys, 'X_He'):
+                        particle['X_He']        = phys.X_He[i,j]
                     # Insert a new particle record
                     particle.append()
             table.flush()
@@ -284,7 +306,7 @@ class export:
                     for i in range(nr):
                         for j in range(nt):
                             particle['T_d']         = phys.T_d[i,j]
-                            particle['kapp_d']      = phys.kapp_d[i * nt + j]
+                            particle['kapp_d']      = phys.kapp_d[i,j]
                             particle['dust_to_gas'] = phys.dust_to_gas[i,j]
                             particle.append()
                     table.flush()
@@ -327,15 +349,26 @@ class export:
             for i in range(nr):
                 for j in range(nt):
                     for k in range(np):
-                        particle['LEVEL']       = 0
-                        particle['POS']         = (i * nt + j) * np + k
-                        particle['X_max']       = [ mesh.R_p[i+1], mesh.theta_p[j+1], mesh.phi_p[k+1] ]
-                        particle['X_min']       = [ mesh.R_p[i]  , mesh.theta_p[j] , mesh.phi_p[k]  ]
-                        particle['X_cen']       = [ mesh.R_c[i]  , mesh.theta_c[j] , mesh.phi_c[k]  ]
-                        particle['n_H2']        = phys.n_H2[i,j,k]
-                        particle['V_cen']       = phys.V_gas[i,j,k]
-                        particle['T_k']         = phys.T_k[i,j,k]
-                        particle['V_t']         = phys.Vt[i,j,k]
+                        particle['LEVEL'] = 0
+                        particle['POS']   = (i * nt + j) * np + k
+                        particle['X_max'] = [ mesh.R_p[i+1], mesh.theta_p[j+1], mesh.phi_p[k+1] ]
+                        particle['X_min'] = [ mesh.R_p[i]  , mesh.theta_p[j]  , mesh.phi_p[k]  ]
+                        particle['X_cen'] = [ mesh.R_c[i]  , mesh.theta_c[j]  , mesh.phi_c[k]  ]
+                        particle['n_H2']  = phys.n_H2[i,j,k]
+                        particle['V_cen'] = phys.V_gas[i,j,k]
+                        particle['T_k']   = phys.T_k[i,j,k]
+                        particle['V_t']   = phys.Vt[i,j,k]
+                        
+                        if hasattr(phys, 'X_pH2'):
+                            particle['X_pH2']       = phys.X_pH2[i,j,k]
+                        if hasattr(phys, 'X_oH2'):
+                            particle['X_oH2']       = phys.X_oH2[i,j,k]
+                        if hasattr(phys, 'X_e'):
+                            particle['X_e']         = phys.X_e[i,j,k]
+                        if hasattr(phys, 'X_H'):
+                            particle['X_H']         = phys.X_H[i,j,k]
+                        if hasattr(phys, 'X_He'):
+                            particle['X_He']        = phys.X_He[i,j,k]
                         # Insert a new particle record
                         particle.append()
             table.flush()
@@ -361,7 +394,7 @@ class export:
                         for j in range(nt):
                             for k in range(np):
                                 particle['T_d']         = phys.T_d[i,j,k]
-                                particle['kapp_d']      = phys.kapp_d[(i * nt + j) * np + k]
+                                particle['kapp_d']      = phys.kapp_d[i,j,k]
                                 particle['dust_to_gas'] = phys.dust_to_gas[i,j,k]
                                 particle.append()
                     table.flush()
@@ -414,6 +447,17 @@ class export:
                     particle['V_cen']       = phys.V_gas[i,j]
                     particle['T_k']         = phys.T_k[i,j]
                     particle['V_t']         = phys.Vt[i,j]
+                    
+                    if hasattr(phys, 'X_pH2'):
+                        particle['X_pH2']       = phys.X_pH2[i,j]
+                    if hasattr(phys, 'X_oH2'):
+                        particle['X_oH2']       = phys.X_oH2[i,j]
+                    if hasattr(phys, 'X_eH2'):
+                        particle['X_e']         = phys.X_e[i,j]
+                    if hasattr(phys, 'X_H'):
+                        particle['X_H']         = phys.X_H[i,j]
+                    if hasattr(phys, 'X_He'):
+                        particle['X_He']        = phys.X_He[i,j]
                     # Insert a new particle record
                     particle.append()
             table.flush()
@@ -437,7 +481,7 @@ class export:
                     for i in range(nrc):
                         for j in range(nz):
                             particle['T_d']         = phys.T_d[i,j]
-                            particle['kapp_d']      = phys.kapp_d[i * nz + j]
+                            particle['kapp_d']      = phys.kapp_d[i,j]
                             particle['dust_to_gas'] = phys.dust_to_gas[i,j]
                             particle.append()
                     table.flush()

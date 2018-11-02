@@ -4,10 +4,7 @@ from pre_unit import *
 
 class error:
     def __init__(self,mesh,phys):
-        ModelType = phys.model.ModelType
-        GridType = mesh.grid.GridType
-        
-        #if ModelType == 'Function' and GridType =='SPH1D':
+        #if phys.model.ModelType == 'Function' and mesh.grid.GridType =='SPH1D':
         if False:
             self.calc_exact_mass(mesh,phys)
             print 'Analytical Mass : %e Msun' %self.exact_mass

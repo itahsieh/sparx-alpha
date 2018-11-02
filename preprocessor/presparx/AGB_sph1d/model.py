@@ -61,7 +61,7 @@ class model:
         def _Tgas1D(self,r):
                 T_in = 1000.
                 # power law for temperature profile
-                P_temp = 0.0
+                P_temp = 0.7
                 factor = r / R_star
                 self.T_k = T_in * factor**(-P_temp)
 

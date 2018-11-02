@@ -227,7 +227,7 @@ int SpTask_Telsim(void)
                 sts = SpPy_GetInput_model("source","source", &glb.model, &popsold, task_id);
         }
         
-        
+
 /* 2. Initialize model */
 	if(!sts) sts = InitModel();
 
@@ -261,7 +261,7 @@ int SpTask_Telsim(void)
                   case TASK_COLDENS:
                           switch(glb.unit->idx){
                                 case UNIT_CGS:
-                                    scale_factor = 1e-7;
+                                    scale_factor = 1e-4;
                                     break;
                                 case UNIT_MKS:
                                     scale_factor = 1.0;
@@ -305,6 +305,7 @@ int SpTask_Telsim(void)
                           MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
                           Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
                           #endif
+
                           
                           if (glb.model.parms.polariz){
                               
@@ -467,12 +468,12 @@ static int InitModel(void)
 	
 	int sts = 0;
         int task_id = glb.task->idx; 
-        
+
         /* initialize line profile if LINE or ZEEMAN task */
         if( task_id == TASK_LINE || task_id == TASK_ZEEMAN ){
-                glb.freq = parms->mol->rad[glb.line]->freq;
-                glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
-                Deb_ASSERT(glb.line < parms->mol->nrad);
+            Deb_ASSERT(glb.line < parms->mol->nrad);
+            glb.freq = parms->mol->rad[glb.line]->freq;
+            glb.lamb = PHYS_CONST_MKS_LIGHTC / glb.freq;
         }
         /* set the reference of the intensity: glb.ucon */
         if(glb.task->idx != TASK_COLDENS){
@@ -615,6 +616,12 @@ static void *InitModelThread(void *tid_p)
                     }
                         
                     pp->width = SpPhys_CalcLineWidth(pp);
+                    /*
+                    if (!(pp->width > 0.0)) {
+                        printf("width = %g pos=%zu temp=%g\n",pp->width,zp->pos,pp->T_k);
+                        exit(0);
+                    }
+                    */
                 }
                 
                 /* Add dust emission/absorption if T_d > 0 */
@@ -1262,7 +1269,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, 
                                 // psi is the angle between the projected B-field on p.o.s. and the north of the image 
                                 double B_Mag = GeVec3_Mag(&B);
                                 double psi = atan2( -eproduct, nproduct); 
-                                // gamma ia the angle bettwen B-field an the plane of sky
+                                // gamma is the angle bettwen B-field an the plane of sky
                                 double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B);
                                 
                                 double alpha = pp->alpha;

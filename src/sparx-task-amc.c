@@ -26,7 +26,9 @@ static struct glb {
     unsigned long seed;
     double tolerance, minpop, snr, max_diff, overlap_vel, sor;
     double  *I_norm, *I_cmb, *I_in;
-    int stage, fully_random, lte, overlap, trace, popsold, qmc, ali, dat;
+    int stage, fully_random, lte, overlap, popsold, qmc, ali, dat;
+    // parameter trace lets the temporary result wroe out in every n step of iteration  
+    size_t trace;
     
     pthread_mutex_t exc_mutex;
 } glb;
@@ -113,12 +115,11 @@ int SpTask_Amc(void)
     if(!sts) sts = SpPy_GetInput_sizt("maxiter", &glb.maxi);
     if(!sts) sts = SpPy_GetInput_sizt("fixiter", &glb.fixi);
     if(!sts) sts = SpPy_GetInput_sizt("raniter", &glb.rani);
+    if(!sts) sts = SpPy_GetInput_sizt("trace", &glb.trace);
     /* Deduct raniter and fixiter by 1 (remove at some point?) */
     if(!sts) glb.fixi -= 1;
     if(!sts) glb.rani -= 1;
     if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-    if(!sts) sts = SpPy_GetInput_bool("trace", &glb.trace);
-    //if(!sts) sts = SpPy_GetInput_dbl("tolerance", &glb.tolerance);
     if(!sts) sts = SpPy_GetInput_bool("qmc", &glb.qmc);
     if(!sts) sts = SpPy_GetInput_bool("ali", &glb.ali);
     if(!sts) sts = SpPy_GetInput_bool("dat", &glb.dat);
@@ -578,16 +579,17 @@ static int CalcExc(void)
             #endif
             
             /* Write out model if requested by user to trace convergence history */
-            if(glb.trace && Sp_MPIRANK == 0) {
-                SpFile *tracefp = NULL;
-                if(!sts) {
-                    char *stmp = Mem_Sprintf("%s.stage%d-%05d", glb.outf->name, glb.stage, iter);
-                    sts = SpIO_OpenFile2(stmp, Sp_NEW, &tracefp);
-                    free(stmp);
+            if (glb.trace)
+                if( iter % glb.trace == 0 && Sp_MPIRANK == 0 ) {
+                    SpFile *tracefp = NULL;
+                    if(!sts) {
+                        char *stmp = Mem_Sprintf("%s.stage%d-%05d", glb.outf->name, glb.stage, iter);
+                        sts = SpIO_OpenFile2(stmp, Sp_NEW, &tracefp);
+                        free(stmp);
+                    }
+                    if(!sts) sts = SpIO_FwriteModel(tracefp, glb.model);
+                    if(!sts) SpIO_CloseFile(tracefp);
                 }
-                if(!sts) sts = SpIO_FwriteModel(tracefp, glb.model);
-                if(!sts) SpIO_CloseFile(tracefp);
-            }
             
             /* Redistribute parallelization by weighting nray (added by I-Ta)*/
             if(glb.stage == STAGE_RAN){
@@ -981,13 +983,13 @@ static void *CalcExcThread(void *tid_p)
         free(tau);
     }
     #if TIMER	
-    
-    printf("Tid = %zu , Detailed Balance : %f ms \n", tid, 100.*Tdb_thread/Tall_thread);
+    printf("Tid = %zu , total time = %f, Detailed Balance percentage: %f % \n", tid, Tall_thread, 100.*Tdb_thread/Tall_thread);
     #endif
     #undef TIMER	
     
     free(hist);
     pthread_exit(NULL);
+    
 }
 
 /*----------------------------------------------------------------------------*/

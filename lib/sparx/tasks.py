@@ -251,7 +251,7 @@ class Task_AMC(Task):
 			Key("out", Type.NewFile, None, "Name of output file (HDF5 file)"),
 			Key("overlap", Type.Velo, '0kms^-1', "overlapping calculation (for hyperfine splitting)"),
 			Key("lte", Type.Bool, "True", "Whether to start convergence from LTE conditions"),
-			Key("trace", Type.Bool, "False", "Whether to trace convergence history"),
+			Key("trace", Type.Integer, 0, "Write out the temporary result in every n stetp of iteration"),
 			#Key("tolerance", Type.Fraction, "5e-3", "Convergence criterion for fixed rays stage"),
 			Key("snr", Type.Float, "20", "Upper limit of Monte Carlo noise level"),
 			Key("minpop", Type.Fraction, "1e-6", "Minimum pops to test for convergence"),
@@ -306,7 +306,7 @@ observer_keys = [
         )
 ]
 
-# for lineobe, zeeman, contobs, coldens
+# for lineobs, zeeman, contobs, coldens
 telsim_keys = [
     Key("out", Type.NewFile, None, 
         "Name of output image (FITS image dataset)"
@@ -328,9 +328,6 @@ telsim_keys = [
         Type.Custom([[Type.Angle, Type.Angle, Type.Angle, Type.Angle, Type.PosInt]]), 
         Type.Optional, 
         "Boxed regions for sub-resolution averaging. Meaning of values are [[blc_x, blc_y, trc_x, trc_y, nsub], ...]"
-        ),
-    Key("tau", Type.NewFile, Type.Optional, 
-        "Name of output tau cube (Miriad image dataset)"
         )
 ]
 
@@ -338,6 +335,9 @@ telsim_keys = [
 radiation_keys = [
     Key("unit", Type.Option(['JY/PIXEL', 'K']), "JY/PIXEL", 
         "Image brightness unit"
+        ),
+    Key("tau", Type.NewFile, Type.Optional, 
+        "Name of output tau cube (Miriad image dataset)"
         )
 ]
     
@@ -389,7 +389,7 @@ coldens_keys = [
     Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[1, '0.1kms^-1']", 
         "Number of spectral channels and width of each channel (in velocity units)"
         ),
-    Key("unit", Type.Option(['MKS', 'CGS']), "CGS", 
+    Key("unit", Type.Option(['MKS', 'CGS']), "MKS", 
         "Image brightness unit"
         ),
     Key("tracer", Type.Bool, "False", 

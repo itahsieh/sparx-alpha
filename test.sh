@@ -39,7 +39,7 @@ case $CASE in
         sparx run task_amc \
         source=model \
         out=$POPSFILE \
-        trace='True' \
+        trace=1 \
         dat='True'
         
         \cp ../benchmark/2002_p2a_benchmark/model_1.d ./
@@ -60,7 +60,7 @@ case $CASE in
         sparx run task_amc \
         source=model \
         out=$POPSFILE \
-        trace='True' \
+        trace=1 \
         dat='True'
         
         \cp ../benchmark/2002_p2b_benchmark/model_2.d ./
@@ -92,6 +92,12 @@ case $CASE in
     "COMET2D")
         \cp ../../preprocessor/presparx/comet2D/* ./
         presparx -o model -epv
+        ;;
+        
+    "ZEUS")
+        rm -f converter.py converter.pyc
+        \cp ../presparx_zeus/zeus_parameter.py ./
+        presparx -o model -epz
         ;;
         
         

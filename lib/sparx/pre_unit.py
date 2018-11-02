@@ -11,8 +11,12 @@ kg2Msun = 1./ Msun2kg # Msun
 ### LENGTH ###
 # AU to m
 AU2MKS = 0.14960E+12 / (100*365.25*24*60*60)
+AU2m = 149597870700.0
+m2cm = 100.0
 # AU to parsec
 AU2pc = 1. / 206260.
+# AU to cm
+AU2cm = AU2m *m2cm
 # km to m
 km2m = 1e3
 # parsec to m
