@@ -134,69 +134,59 @@ int SpTask_ColDens(void)
     
     /* 2. Initialize model */
     if(!sts) sts = InitModel();
-    
+
     /* 3. Synthesize image */
     if(!sts) {
         /* Allocate image */
         glb.image = MirImg_Alloc(glb.x, glb.y, glb.v);
-
         /* Calculate image */
-        switch(glb.task->idx){
-            case TASK_COLDENS:
-                return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadColdens);
-            default:
-                /* Shouldn't reach here */
-                Deb_ASSERT(0);
-        }
+        sts = SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadColdens);
     }
-    
+
     /* 4. I/O : OUTPUT */
     if(!sts){
         double scale_factor = 1.0;
         int stokes;
-        switch(glb.task->idx){
-            // output column density image
-            case TASK_COLDENS:
-                switch(glb.unit->idx){
-                    case UNIT_CGS:
-                        scale_factor = 1e-4;
-                        break;
-                    case UNIT_MKS:
-                        scale_factor = 1.0;
-                        break;
-                }
-                stokes = 0;
-                
-                char filename[32];
-                sprintf(filename,"%s.vtk",glb.imgf->name);
-                {
-                    FILE *fp=fopen(filename,"w");
-                    fprintf(fp,"# vtk DataFile Version 3.0\n");
-                    fprintf(fp,"Column density\n");
-                    fprintf(fp,"ASCII\n");
-                    fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-                    fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
-                    fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,1);
-                    fprintf(fp,"SPACING %d %d %d\n",1,1,1);
-                    fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n );
-                    fprintf(fp,"SCALARS CD float 1\n");
-                    fprintf(fp,"LOOKUP_TABLE default\n");
-                    size_t iv=0;
-                    for(size_t iy = 0; iy < glb.y.n; iy++) 
-                        for(size_t ix = 0; ix < glb.x.n; ix++)
-                            fprintf(fp,"%11.4e\n",MirImg_PIXEL(*glb.image, iv, ix, iy));
-                        
-                        fclose(fp);
-                }
-                #if Sp_MIRSUPPORT
-                MirImg_WriteXY( glb.imgf, glb.image, glb.unit->name, scale_factor);
-                Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
-                #endif
+
+        // output column density image
+        switch(glb.unit->idx){
+            case UNIT_CGS:
+                scale_factor = 1e-4;
                 break;
-   
-            default:
-                Deb_ASSERT(0);
+            case UNIT_MKS:
+                scale_factor = 1.0;
+                break;
         }
+        stokes = 0;
+        
+        char filename[32];
+        sprintf(filename,"%s.vtk",glb.imgf->name);
+        {
+            FILE *fp=fopen(filename,"w");
+            fprintf(fp,"# vtk DataFile Version 3.0\n");
+            fprintf(fp,"Column density\n");
+            fprintf(fp,"ASCII\n");
+            fprintf(fp,"DATASET STRUCTURED_POINTS\n");
+            fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
+            fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,1);
+            fprintf(fp,"SPACING %d %d %d\n",1,1,1);
+            fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n );
+            fprintf(fp,"SCALARS CD float 1\n");
+            fprintf(fp,"LOOKUP_TABLE default\n");
+            size_t iv=0;
+            for(size_t iy = 0; iy < glb.y.n; iy++) 
+                for(size_t ix = 0; ix < glb.x.n; ix++)
+                    fprintf(fp,"%11.4e\n",MirImg_PIXEL(*glb.image, iv, ix, iy));
+                
+            fclose(fp);
+        }
+        #if Sp_MIRSUPPORT
+        MirImg_WriteXY( glb.imgf, glb.image, glb.unit->name, scale_factor);
+        Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+        #endif
+
+   
+
         FITSoutput( glb.imgf, glb.image, NULL, NULL, glb.unit->name, scale_factor, stokes);
         Sp_PRINT("Wrote FITS image to `%s'\n", glb.imgf->name);
         
@@ -252,11 +242,6 @@ static int InitModel(void)
     return 0;
 }
 
-
-
-
-
-
 /*----------------------------------------------------------------------------*/
 
 static void *CalcImageThreadColdens(void *tid_p)
@@ -264,7 +249,7 @@ static void *CalcImageThreadColdens(void *tid_p)
     /* Column density image tracer
      *           CD is the column density at pixel (ix, iy)
      *           glb.v.n = 1                                     */
-    
+
     size_t tid = *((size_t *)tid_p);
     /* pix_id is used for distributing work to threads */
     size_t pix_id = 0;
@@ -299,6 +284,10 @@ static void *CalcImageThreadColdens(void *tid_p)
             pix_id += 1;
         }
     }
+
+    /* Cleanup */
+    free(CD_sub);
+    free(CD);	
     
     return NULL;
 }
@@ -361,7 +350,6 @@ static void ColumnDensityTracer(double dx, double dy, double *CD)
             zp = Zone_GetNext(zp, &side, &ray);
         }
     }
-    
     return;
 }
 

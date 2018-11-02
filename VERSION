@@ -46,6 +46,7 @@ alpha-3.0.4     Sep 2017        tag Sep 2017
 alpha-3.0.5     Sep 2017        contribution analysis detatched from telsim
 alpha-3.0.6     Sep 2017        reduce sph1d contribution visualization to 2-dim
 alpha-3.1       Oct 2017        preprocessor: ZeusTW converter interface
+alpha-3.1.1     Nov 2018        task_coldens is detached from task_telsim 
 
 
 

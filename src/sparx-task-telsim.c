@@ -50,32 +50,9 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
 static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu);
 
 static void IntensityBC( size_t side, double *I_nu, double *tau_nu, GeRay *ray);
-<<<<<<< HEAD
 static void InitLOSCoord( double *dx, double *dy, GeRay *ray, GeVec3_d *z, GeVec3_d *n, GeVec3_d *e);
 
 
-=======
-
-
-static void InitRay(double *dx, double *dy, GeRay *ray);
-static void InitLOSCoord( double *dx, 
-                          double *dy, 
-                          GeRay *ray, 
-                          GeVec3_d *z, 
-                          GeVec3_d *n, 
-                          GeVec3_d *e
-                        );
-static size_t Init_nsub(size_t ix, size_t iy);
-static void InitSubPixel( double *dx, 
-                          double *dy, 
-                          size_t ix, 
-                          size_t iy, 
-                          size_t isub, 
-                          size_t jsub, 
-                          size_t nsub
-                        );
-
->>>>>>> 305216e2cb1188862d928f7ef0e51731253b8987
 /*----------------------------------------------------------------------------*/
 
 int SpTask_Telsim(void)
