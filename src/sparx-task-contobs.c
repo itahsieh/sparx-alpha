@@ -20,7 +20,7 @@ static struct glb {
     
     size_t line;
     double lamb, freq;
-
+    
     SpTelsim tel_parms;
     
     MirImg_Axis x, y, v;
@@ -152,30 +152,30 @@ int SpTask_Telsim(void)
                 // for task-lineobs
             case TASK_LINE:
             case TASK_ZEEMAN:
-                { // get line transition
-                    PyObject *o_line;
-                    o_line = PyObject_GetAttrString(o, "line");
-                    glb.line = Sp_PYSIZE(o_line);
-                    SpPy_XDECREF(o_line);
-                }
-                if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
-                
-                /* tau (optional) */
-                if(!sts && SpPy_CheckOptionalInput("tau")) {
-                    sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
-                }
-                
-                { // get overlap velocity
-                    PyObject *o3;
-                    o3 = PyObject_GetAttrString(o, "overlap_vel");
-                    glb.overlap_vel = Sp_PYDBL(o3);
-                    if (glb.overlap_vel == 0.0)
-                        glb.overlap = 0;
-                    else
-                        glb.overlap = 1;
-                    SpPy_XDECREF(o3);
-                }
-                break;
+            { // get line transition
+                PyObject *o_line;
+                o_line = PyObject_GetAttrString(o, "line");
+                glb.line = Sp_PYSIZE(o_line);
+                SpPy_XDECREF(o_line);
+            }
+            if(!sts) sts = SpPy_GetInput_bool("lte", &glb.lte);
+            
+            /* tau (optional) */
+            if(!sts && SpPy_CheckOptionalInput("tau")) {
+                sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
+            }
+            
+            { // get overlap velocity
+                PyObject *o3;
+                o3 = PyObject_GetAttrString(o, "overlap_vel");
+                glb.overlap_vel = Sp_PYDBL(o3);
+                if (glb.overlap_vel == 0.0)
+                    glb.overlap = 0;
+                else
+                    glb.overlap = 1;
+                SpPy_XDECREF(o3);
+            }
+            break;
             default: 
                 /* Shouldn't reach here */
                 Deb_ASSERT(0);
@@ -338,18 +338,18 @@ int SpTask_Telsim(void)
                     
                 }
                 break;
-            // output line emission or zeeman effect (stokes V) image
-            case TASK_LINE:
-            case TASK_ZEEMAN:
-                scale_factor = glb.I_norm/glb.ucon;
-                stokes = 0;
-                #if Sp_MIRSUPPORT
-                MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
-                Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
-                #endif
-                break;
-            default:
-                        Deb_ASSERT(0);
+                // output line emission or zeeman effect (stokes V) image
+                case TASK_LINE:
+                case TASK_ZEEMAN:
+                    scale_factor = glb.I_norm/glb.ucon;
+                    stokes = 0;
+                    #if Sp_MIRSUPPORT
+                    MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
+                    Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
+                    #endif
+                    break;
+                default:
+                    Deb_ASSERT(0);
         }
         FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, scale_factor, stokes);
         Sp_PRINT("Wrote FITS image to `%s'\n", glb.imgf->name);
@@ -548,9 +548,9 @@ static void *InitModelThread(void *tid_p)
                 
                 pp->width = SpPhys_CalcLineWidth(pp);
                 /*
-                    *                    if (!(pp->width > 0.0)) {
-                    *                        printf("width = %g pos=%zu temp=%g\n",pp->width,zp->pos,pp->T_k);
-                    *                        exit(0);
+                 *                    if (!(pp->width > 0.0)) {
+                 *                        printf("width = %g pos=%zu temp=%g\n",pp->width,zp->pos,pp->T_k);
+                 *                        exit(0);
             }
             */
             }
