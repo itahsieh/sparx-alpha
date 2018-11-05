@@ -10,7 +10,6 @@ static struct glb {
     DatINode *task;
     
     int overlap,lte;
-    int tracer;
     
     DatINode *unit;
     double ucon, overlap_vel;
@@ -24,8 +23,8 @@ static struct glb {
     SpTelsim tel_parms;
     
     MirImg_Axis x, y, v;
-    MirFile *imgf, *StxQf, *StxUf, *tau_imgf;
-    MirImg *image, *StokesQ, *StokesU, *StokesV, *sigma2, *tau_img;
+    MirFile *imgf, *tau_imgf;
+    MirImg *image, *tau_img;
 } glb;
 
 
@@ -48,11 +47,11 @@ static void *InitModelThread(void *tid_p);
 static int CalcImage(void);
 static void *CalcImageThreadLine(void *tid_p);
 static void *CalcImageThreadZeeman(void *tid_p);
-static void *CalcImageThreadCont(void *tid_p);
+
 static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu, size_t tid);
 static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau_nu, size_t tid);
 static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_nu, size_t tid);
-static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu);
+
 
 
 
@@ -136,19 +135,6 @@ int SpTask_Telsim(void)
         SpPy_XDECREF(o_task);	
         
         switch (glb.task->idx){
-            // for task-contobs 
-            case TASK_CONT:
-                /* tau (optional) */
-                if(!sts && SpPy_CheckOptionalInput("tau")) {
-                    sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
-                }
-                PyObject *o_wavelen;
-                o_wavelen = PyObject_GetAttrString(o, "wavelen");
-                glb.lamb = Sp_PYDBL(o_wavelen);
-                glb.freq = PHYS_CONST_MKS_LIGHTC / glb.lamb;
-                SpPy_XDECREF(o_wavelen);
-                break;
-                
                 // for task-lineobs
             case TASK_LINE:
             case TASK_ZEEMAN:
@@ -212,14 +198,6 @@ int SpTask_Telsim(void)
         /* Allocate image */
         glb.image = MirImg_Alloc(glb.x, glb.y, glb.v);
         glb.image->restfreq = glb.freq;
-        if(glb.task->idx == TASK_CONT){
-            glb.StokesQ = MirImg_Alloc(glb.x, glb.y, glb.v);
-            glb.StokesU = MirImg_Alloc(glb.x, glb.y, glb.v);
-            glb.sigma2 = MirImg_Alloc(glb.x, glb.y, glb.v);
-            glb.StokesQ->restfreq = glb.freq;
-            glb.StokesU->restfreq = glb.freq;
-            glb.sigma2->restfreq = glb.freq;
-        }
         if(glb.tau_imgf){
             glb.tau_img = MirImg_Alloc(glb.x, glb.y, glb.v);
             glb.tau_img->restfreq = glb.freq;
@@ -231,118 +209,11 @@ int SpTask_Telsim(void)
     /* 4. I/O : OUTPUT */
     if(!sts){
         double scale_factor = 1.0;
-        int stokes;
         switch(glb.task->idx){
-            // output dust emission and its polarization image
-            case TASK_CONT:
-                scale_factor = glb.I_norm/glb.ucon;
-                stokes = 1;
-                
-                #if Sp_MIRSUPPORT
-                MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
-                Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
-                #endif
-                
-                
-                if (glb.model.parms.polariz){
-                    
-                    #if Sp_MIRSUPPORT
-                    char SQFName[64],SUFName[64];
-                    
-                    sprintf( SQFName, "stokesQ_%s", glb.imgf->name);
-                    glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
-                    MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, scale_factor);
-                    Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxQf->name);
-                    
-                    sprintf( SUFName, "stokesU_%s", glb.imgf->name);
-                    glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
-                    MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, scale_factor);
-                    Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxUf->name);
-                    #endif
-                    
-                    char filename[32];
-                    sprintf(filename,"stokesIQU_%s.vtk",glb.imgf->name);
-                    FILE *fp=fopen(filename,"w");
-                    fprintf(fp,"# vtk DataFile Version 3.0\n");
-                    fprintf(fp,"Stokes parameters\n");
-                    fprintf(fp,"ASCII\n");
-                    fprintf(fp,"DATASET STRUCTURED_POINTS\n");
-                    fprintf(fp,"DIMENSIONS %zu %zu %d\n",glb.x.n,glb.y.n,1);
-                    fprintf(fp,"ORIGIN %f %f %d\n",-glb.x.crpix,-glb.y.crpix,0);
-                    fprintf(fp,"SPACING %11.4e %11.4e %d\n",glb.x.delt,glb.y.delt,1);
-                    fprintf(fp,"POINT_DATA %zu\n",glb.x.n * glb.y.n);
-                    fprintf(fp,"SCALARS Stokes_I float 1\n");
-                    fprintf(fp,"LOOKUP_TABLE default\n");
-                    for(size_t iy = 0; iy < glb.y.n; iy++) 
-                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                            fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.image, 0, ix, iy));
-                        fprintf(fp,"\n");
-                    fprintf(fp,"SCALARS Stokes_Q float 1\n");
-                    fprintf(fp,"LOOKUP_TABLE default\n");
-                    for(size_t iy = 0; iy < glb.y.n; iy++) 
-                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                            fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
-                        fprintf(fp,"\n");
-                    fprintf(fp,"SCALARS Stokes_U float 1\n");
-                    fprintf(fp,"LOOKUP_TABLE default\n");
-                    for(size_t iy = 0; iy < glb.y.n; iy++) 
-                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                            fprintf(fp,"%11.4e ",MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
-                        fclose(fp);
-                    
-                    
-                    sprintf(filename,"stokesI_%s.dat",glb.imgf->name);
-                    fp=fopen(filename,"w"); 
-                    for(size_t iy = 0; iy < glb.y.n; iy++) {
-                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                            fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.image, 0, ix, iy));
-                        fprintf(fp,"\n");
-                    }
-                    fclose(fp);
-                    sprintf(filename,"stokesQ_%s.dat",glb.imgf->name);
-                    fp=fopen(filename,"w"); 
-                    for(size_t iy = 0; iy < glb.y.n; iy++) {
-                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                            fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesQ, 0, ix, iy));
-                        fprintf(fp,"\n");
-                    }
-                    fclose(fp);
-                    sprintf(filename,"stokesU_%s.dat",glb.imgf->name);
-                    fp=fopen(filename,"w"); 
-                    for(size_t iy = 0; iy < glb.y.n; iy++) {
-                        for(size_t ix = 0; ix < glb.x.n; ix++) 
-                            fprintf(fp,"%5zu %5zu %11.4e\n",ix,iy,MirImg_PIXEL(*glb.StokesU, 0, ix, iy));
-                        fprintf(fp,"\n");
-                    }
-                    fclose(fp);
-                    
-                    sprintf(filename,"vector_%s.dat",glb.imgf->name);
-                    fp=fopen(filename,"w");         
-                    for(size_t iy = 0; iy < glb.y.n; iy++) {
-                        for(size_t ix = 0; ix < glb.x.n; ix++) {
-                            double StxI = MirImg_PIXEL(*glb.image, 0, ix, iy);
-                            double StxQ = MirImg_PIXEL(*glb.StokesQ, 0, ix, iy);
-                            double StxU = MirImg_PIXEL(*glb.StokesU, 0, ix, iy);
-                            
-                            double pd = sqrt( StxQ*StxQ + StxU*StxU ) / StxI;
-                            
-                            double xi=atan2(StxU,StxQ); xi = 0.5 * xi;
-                            double vecx=-pd*sin(xi);
-                            double vecy=pd*cos(xi);
-                            
-                            fprintf(fp,"%5zu %5zu %11.4e %11.4e %11.4e %11.4e\n",ix,iy,vecx,vecy,pd,xi);
-                        }
-                        fprintf(fp,"\n");
-                    }
-                    fclose(fp);
-                    
-                }
-                break;
             // output line emission or zeeman effect (stokes V) image
             case TASK_LINE:
             case TASK_ZEEMAN:
                 scale_factor = glb.I_norm/glb.ucon;
-                stokes = 0;
                 #if Sp_MIRSUPPORT
                 MirImg_WriteXY(glb.imgf, glb.image, glb.unit->name, scale_factor);
                 Sp_PRINT("Wrote Miriad image to `%s'\n", glb.imgf->name);
@@ -351,12 +222,12 @@ int SpTask_Telsim(void)
             default:
                         Deb_ASSERT(0);
         }
-        FITSoutput( glb.imgf, glb.image, glb.StokesQ, glb.StokesU, glb.unit->name, scale_factor, stokes);
+        FITSoutput( glb.imgf, glb.image, NULL, NULL, glb.unit->name, scale_factor, 0);
         Sp_PRINT("Wrote FITS image to `%s'\n", glb.imgf->name);
         
         // output tau image
         if(glb.tau_imgf){
-            FITSoutput( glb.tau_imgf, glb.tau_img, glb.StokesQ, glb.StokesU, "Optical depth", 1., 0);
+            FITSoutput( glb.tau_imgf, glb.tau_img, NULL, NULL, "Optical depth", 1., 0);
             Sp_PRINT("Wrote FITS image to `%s'\n", glb.tau_imgf->name);
             
             #if Sp_MIRSUPPORT
@@ -372,19 +243,9 @@ int SpTask_Telsim(void)
     /* Miriad images must always be closed! */
     if(glb.imgf)
         MirXY_Close(glb.imgf);
-    if(glb.StxQf)
-        MirXY_Close(glb.StxQf);
-    if(glb.StxUf)
-        MirXY_Close(glb.StxUf);
     #endif
     if(glb.image)
         MirImg_Free(glb.image);
-    if(glb.StokesQ)
-        MirImg_Free(glb.StokesQ);
-    if(glb.StokesU)
-        MirImg_Free(glb.StokesU);
-    if(glb.sigma2)
-        MirImg_Free(glb.sigma2);
     if(glb.tau_img)
         MirImg_Free(glb.tau_img);
     if(glb.tel_parms.subres)
@@ -513,7 +374,6 @@ static void *InitModelThread(void *tid_p)
     size_t zone_id;
     Zone *root = glb.model.grid, *zp;
     SpPhys *pp;
-    int task_id = glb.task->idx; 
     
     for(zp = Zone_GetMinLeaf(root), zone_id = 0; zp; zp = Zone_AscendTree(zp), zone_id++) {
         if(zone_id % Sp_NTHREAD == tid) {
@@ -523,45 +383,42 @@ static void *InitModelThread(void *tid_p)
             /* Init zone parameters */
             pp = zp->data;
             
-            if(task_id == TASK_CONT) {
-                SpPhys_InitContWindows(pp, &glb.freq, (size_t)1);
-            }
-            else {
-                size_t nrad = glb.model.parms.mol->nrad;
-                double freq[nrad];
-                /* Set initial pops to either optically thin or LTE */
-                if(glb.lte){
-                    // initialize level population for LTE condition
-                    pp->mol = glb.model.parms.mol;
-                    pp->pops_preserve = Mem_CALLOC(pp->mol->nlev, pp->pops_preserve);
-                    
-                    // LTE : Boltzmann distribution
-                    for(size_t j = 0; j < pp->mol->nlev; j++) 
-                        pp->pops_preserve[j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
-                    
-                    /* Allocate continuum emission/absorption */
-                    for(size_t i = 0; i < nrad; i++) {
-                        freq[i] = pp->mol->rad[i]->freq;
-                    }
-                    SpPhys_InitContWindows(pp, freq, nrad);
-                }
+
+            size_t nrad = glb.model.parms.mol->nrad;
+            double freq[nrad];
+            /* Set initial pops to either optically thin or LTE */
+            if(glb.lte){
+                // initialize level population for LTE condition
+                pp->mol = glb.model.parms.mol;
+                pp->pops_preserve = Mem_CALLOC(pp->mol->nlev, pp->pops_preserve);
                 
-                pp->width = SpPhys_CalcLineWidth(pp);
-                /*
-                    *                    if (!(pp->width > 0.0)) {
-                    *                        printf("width = %g pos=%zu temp=%g\n",pp->width,zp->pos,pp->T_k);
-                    *                        exit(0);
+                // LTE : Boltzmann distribution
+                for(size_t j = 0; j < pp->mol->nlev; j++) 
+                    pp->pops_preserve[j] = SpPhys_BoltzPops(pp->mol, j, pp->T_k);
+                
+                /* Allocate continuum emission/absorption */
+                for(size_t i = 0; i < nrad; i++) {
+                    freq[i] = pp->mol->rad[i]->freq;
+                }
+                SpPhys_InitContWindows(pp, freq, nrad);
             }
+            
+            pp->width = SpPhys_CalcLineWidth(pp);
+            /*
+                *                    if (!(pp->width > 0.0)) {
+                *                        printf("width = %g pos=%zu temp=%g\n",pp->width,zp->pos,pp->T_k);
+                *                        exit(0);
+                }
             */
-            }
+
             
             /* Add dust emission/absorption if T_d > 0 */
             if(pp->T_d > 0) {
-                SpPhys_AddContinuum_d(pp, task_id == TASK_CONT, pp->dust_to_gas);
+                SpPhys_AddContinuum_d(pp, 0, pp->dust_to_gas);
             }
             /* Add free-free emission/absorption if T_ff > 0 */
             if(pp->X_e > 0) {
-                SpPhys_AddContinuum_ff(pp, task_id == TASK_CONT);
+                SpPhys_AddContinuum_ff(pp, 0);
             }
             
         }
@@ -577,8 +434,6 @@ static int CalcImage(void)
     switch(glb.task->idx){
         case TASK_ZEEMAN:
             return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadZeeman);
-        case TASK_CONT:
-            return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadCont);
         case TASK_LINE:
             return SpUtil_Threads2(Sp_NTHREAD, CalcImageThreadLine);
         default:
@@ -716,90 +571,6 @@ static void *CalcImageThreadZeeman(void *tid_p)
     return NULL;
 }
 
-
-
-/*----------------------------------------------------------------------------*/
-
-static void *CalcImageThreadCont(void *tid_p)
-{
-    size_t tid = *((size_t *)tid_p);
-    size_t nvelo = glb.v.n;
-    
-    /* pix_id is used for distributing work to threads */
-    size_t pix_id = 0;
-    for(size_t ix = 0; ix < glb.x.n; ix++) {
-        for(size_t iy = 0; iy < glb.y.n; iy++) {
-            if(pix_id % Sp_NTHREAD == tid) {
-                /* Check for thread termination */
-                Sp_CHECKTERMTHREAD();
-                /* check sub-sampling region */
-                size_t nsub = SpImgTrac_Init_nsub( ix, iy, &glb.tel_parms, &glb.x, &glb.y);
-                
-                /* I_nu is the brightness for all channels at pixel (ix, iy) */
-                double *I_nu = Mem_CALLOC(nvelo, I_nu);
-                double *Q_nu = Mem_CALLOC(nvelo, Q_nu);
-                double *U_nu = Mem_CALLOC(nvelo, U_nu);
-                double *sigma2 = Mem_CALLOC(nvelo, sigma2);
-                /* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
-                double *tau_nu = Mem_CALLOC(nvelo, tau_nu);
-                
-                /* Loop through sub-resolution positions */
-                for(size_t isub = 0; isub < nsub; isub++) {
-                    for(size_t jsub = 0; jsub < nsub; jsub++) {
-                        double dx, dy;
-                        /* Calculate sub-pixel position */
-                        SpImgTrac_InitSubPixel( &dx, &dy, ix, iy, isub, jsub, nsub, &glb.x, &glb.y);
-                        /* I_sub is the brightness for all channels at each sub-resolution */
-                        double *I_sub = Mem_CALLOC(nvelo, I_sub);
-                        double *Q_sub = Mem_CALLOC(nvelo, Q_sub);
-                        double *U_sub = Mem_CALLOC(nvelo, U_sub);
-                        double *sigma2_sub = Mem_CALLOC(nvelo, sigma2_sub);
-                        double *tau_sub = Mem_CALLOC(nvelo, tau_sub);
-                        /* Calculate radiative transfer for this sub-los */
-                        RadiativeXferCont(dx, dy, I_sub, Q_sub, U_sub, sigma2_sub, tau_sub);
-                        /* Add I_sub to I_nu */
-                        for(size_t iv = 0; iv < nvelo; iv++) {
-                            I_nu[iv] += I_sub[iv];
-                            Q_nu[iv] += Q_sub[iv];
-                            U_nu[iv] += U_sub[iv];
-                            sigma2[iv] += sigma2_sub[iv];
-                            tau_nu[iv] += tau_sub[iv];
-                        }
-                        /* Cleanup */
-                        free(I_sub);
-                        free(tau_sub);
-                        free(Q_sub);
-                        free(U_sub);
-                        free(sigma2_sub);
-                    }
-                }
-                /* Save averaged I_nu to map */
-                double DnsubSquare = 1. / (double)(nsub * nsub);
-                for(size_t iv = 0; iv < nvelo; iv++) {
-                    MirImg_PIXEL(*glb.image, iv, ix, iy) = ( I_nu[iv] - sigma2[iv] ) * DnsubSquare;
-                    MirImg_PIXEL(*glb.StokesQ, iv, ix, iy) = Q_nu[iv] * DnsubSquare;
-                    MirImg_PIXEL(*glb.StokesU, iv, ix, iy) = U_nu[iv] * DnsubSquare;
-                    MirImg_PIXEL(*glb.sigma2, iv, ix, iy) = sigma2[iv] * DnsubSquare;
-                    if(glb.tau_img)
-                        MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
-                }
-                /* Cleanup */
-                free(I_nu);
-                free(tau_nu);
-                free(Q_nu);
-                free(U_nu);
-                free(sigma2);
-                
-            }
-            /* Increment pix_id */
-            pix_id += 1;
-        }
-    }
-    
-    return NULL;
-}
-
-
 /*----------------------------------------------------------------------------*/
 
 static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu, size_t tid)
@@ -899,7 +670,7 @@ static void RadiativeXferLine(double dx, double dy, double *I_nu, double *tau_nu
         }
     }
     
-    SpImgtrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, VN, glb.I_in, glb.I_cmb, PARMS);
+    SpImgTrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, VN, glb.I_in, glb.I_cmb, PARMS);
     
     return;
 }
@@ -994,7 +765,7 @@ static void RadiativeXferOverlap(double dx, double dy, double *I_nu, double *tau
         }
     }
     
-    SpImgtrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, VN, glb.I_in, glb.I_cmb, PARMS);
+    SpImgTrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, VN, glb.I_in, glb.I_cmb, PARMS);
     
     return;
 }
@@ -1100,116 +871,3 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
     
     return;
 }
-
-/*----------------------------------------------------------------------------*/
-
-static void RadiativeXferCont(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu)
-{
-    GeRay ray;
-    double t;
-    Zone *root = glb.model.grid;
-    GeVec3_d z,n,e;        
-    
-    SpImgTrac_InitRay(root, &dx, &dy, &ray, &glb.tel_parms);
-    SpImgTrac_InitLOSCoord( &dx, &dy, &ray, &z, &n, &e, &glb.tel_parms);
-    
-    /* Reset tau for all channels */
-    Mem_BZERO2(tau_nu, glb.v.n);
-    
-    size_t side;
-    /* Shoot ray at model and see what happens! */
-    if(GeRay_IntersectVoxel(&ray, &root->voxel, &t, &side)) {
-        /* Calculate intersection */
-        ray = GeRay_Inc(&ray, t);
-        
-        /* Locate starting leaf zone according to intersection */
-        Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
-        
-        /* Keep going until there's no next zone to traverse to */
-        while(zp) {
-            /* Calculate path to next boundary */
-            GeRay_TraverseVoxel(&ray, &zp->voxel, &t, &side);
-            //                      Deb_PRINT("checkpoint: GeRay_TraverseVoxel\n");
-            /* Pointer to physical parameters associated with this zone */
-            SpPhys *pp = zp->data;
-            /* Do radiative transfer only if gas is present in this zone */
-            if(pp->non_empty_leaf) {
-                /* 
-                 *                                   Do calculations on all channels at this pixel. Try to minimize the
-                 *                                   amount of operations in this loop, since everything here is repeated
-                 *                                   for ALL channels, and can significantly increase computation time.
-                 */
-                
-                /* 
-                 *                                   Reference : ARTIST(DustPol) -- http://arxiv.org/pdf/1204.6668.pdf
-                 */
-                
-                GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
-                double nproduct = GeVec3_DotProd(&n,&B);
-                double eproduct = GeVec3_DotProd(&e,&B);
-                double zproduct = GeVec3_DotProd(&z,&B);
-                
-                // psi is the angle between the projected B-field on p.o.s. and the north of the image 
-                double B_Mag = GeVec3_Mag(&B);
-                double psi = atan2( -eproduct, nproduct); 
-                // gamma is the angle bettwen B-field an the plane of sky
-                double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B);
-                
-                double alpha = pp->alpha;
-                
-                for(size_t iv = 0; iv < glb.v.n; iv++) {
-                    /* Reset emission and absorption coeffs */
-                    double j_nu = 0;
-                    double k_nu = 0;
-                    
-                    /* Add continuum emission/absorption */
-                    j_nu += pp->cont[glb.line].j;
-                    k_nu += pp->cont[glb.line].k;
-                    
-                    /* Calculate source function and optical depth if
-                     * absorption is NOT zero */
-                    double dtau_nu = k_nu * t * Sp_LENFAC;
-                    double S_nu = (fabs(k_nu) > 0.0) ?
-                    j_nu / ( k_nu * glb.I_norm ) : 0.;
-                    
-                    /* Calculate intensity contributed by this step */
-                    //debug
-                    double contribution = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
-                    
-                    I_nu[iv] += contribution;
-                    if (B_Mag == 0.){
-                        // do nothing
-                        // preventing undefined psi
-                    }
-                    else{
-                        Q_nu[iv] += alpha * contribution * cos(2.0 * psi) * cosgammasquare;
-                        U_nu[iv] += alpha * contribution * sin(2.0 * psi) * cosgammasquare;
-                        static const double d23 = 2. / 3. ;
-                        sigma2[iv] += 0.5 * alpha * contribution * (cosgammasquare - d23);
-                    }
-                    
-                    
-                    /* Accumulate total optical depth for this channel (must be done
-                     * AFTER calculation of intensity!) */
-                    tau_nu[iv] += dtau_nu;
-                }
-            }
-            //                      Deb_PRINT("checkpoint: non_empty_leaf\n");
-            /* Calculate next position */
-            ray = GeRay_Inc(&ray, t);
-            //                      Deb_PRINT("checkpoint: GeRay_Inc\n");
-            /* Get next zone to traverse to */
-            zp = Zone_GetNext(zp, &side, &ray);
-        }
-    }
-    
-    SpImgtrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, VN, glb.I_in, glb.I_cmb, PARMS);
-    
-    
-    return;
-}
-
-
-
-
-

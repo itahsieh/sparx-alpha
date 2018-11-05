@@ -1230,11 +1230,11 @@ GeVec3_d SpPhys_GetBfac(const GeRay *ray, double dt, const Zone *zone, int debug
 	b_field = GeVec3_Scale(&b_field, 1./(n_avg*n_step));
 	//debug
 	#if 0
-		printf("zone=<%lu, %lu, %lu>, r=%g pc, dir=<%g, %g, %g>, v=%g km/s\n",
-			(unsigned long)GeVec3_X(zone->index, 0), (unsigned long)GeVec3_X(zone->index, 1), (unsigned long)GeVec3_X(zone->index, 2),
-			GeVec3_Mag2(&zone->parent->voxel.cen, &zone->voxel.cen),
-			GeRay_D(*ray, 0), GeRay_D(*ray, 1), GeRay_D(*ray, 2),
-			GeVec3_Mag(&pp->v_cen) / 1000.0);
+        printf("zone=<%lu, %lu, %lu>, r=%g pc, dir=<%g, %g, %g>, v=%g km/s\n",
+                (unsigned long)GeVec3_X(zone->index, 0), (unsigned long)GeVec3_X(zone->index, 1), (unsigned long)GeVec3_X(zone->index, 2),
+                GeVec3_Mag2(&zone->parent->voxel.cen, &zone->voxel.cen),
+                GeRay_D(*ray, 0), GeRay_D(*ray, 1), GeRay_D(*ray, 2),
+                GeVec3_Mag(&pp->v_cen) / 1000.0);
 	#endif
 
 	//Deb_PRINT("getvfac done\n");

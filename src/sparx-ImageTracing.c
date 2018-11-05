@@ -134,7 +134,7 @@ void SpImgTrac_InitSubPixel( double *dx, double *dy,
 
 
 /*---------------------------------------------------------------------------- */
-void SpImgtrac_IntensityBC( size_t side, double *I_nu, double *tau_nu, GeRay *ray,
+void SpImgTrac_IntensityBC( size_t side, double *I_nu, double *tau_nu, GeRay *ray,
                             int geom, size_t vn, double I_in, double I_cmb, SpPhysParm * parms){
         
     #define ADD_BC( INTENSITY ) \
@@ -205,7 +205,7 @@ void SpImgtrac_IntensityBC( size_t side, double *I_nu, double *tau_nu, GeRay *ra
 
 /*----------------------------------------------------------------------------*/
 /* initialize line-of-sight coordinate */
-void SpImgtrac_InitLOSCoord( double *dx, double *dy, GeRay *ray, GeVec3_d *z, GeVec3_d *n, GeVec3_d *e, SpTelsim * tel_parms)
+void SpImgTrac_InitLOSCoord( double *dx, double *dy, GeRay *ray, GeVec3_d *z, GeVec3_d *n, GeVec3_d *e, SpTelsim * tel_parms)
 {
     double phi = M_PI - *dx;   
     double theta = 0.5 * M_PI - *dy;
