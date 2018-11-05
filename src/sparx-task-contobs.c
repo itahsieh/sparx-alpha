@@ -175,10 +175,6 @@ int SpTask_ContObs(void)
             glb.tau_img = MirImg_Alloc(glb.x, glb.y, glb.v);
             glb.tau_img->restfreq = glb.freq;
         }
-        
-        if(stokes){
-            
-        }
 
         /* Calculate image */
         if (stokes){
@@ -206,7 +202,6 @@ int SpTask_ContObs(void)
         #endif
         
         if (stokes){
-            
             #if Sp_MIRSUPPORT
             char SQFName[64],SUFName[64];
             
