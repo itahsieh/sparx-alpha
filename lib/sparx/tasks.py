@@ -376,9 +376,6 @@ line_keys = [
 
 # for contobs, contctb
 cont_keys = [
-    Key("chan", Type.Custom([Type.PosInt, Type.Velo]), "[1, '0.1kms^-1']",
-        "Number of spectral channels and width of each channel (in velocity units)"
-        ),
     Key("wavelen", Type.Length, None, 
         "Wavelength of observation"
         )

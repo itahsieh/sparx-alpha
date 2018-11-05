@@ -19,7 +19,7 @@ static struct glb {
     
     SpTelsim tel_parms;
     
-    MirImg_Axis x, y, v;
+    MirImg_Axis x, y;
     MirFile *imgf, *StxQf, *StxUf, *tau_imgf;
     MirImg *image, *StokesQ, *StokesU, *StokesV, *sigma2, *tau_img;
 } glb;
@@ -34,7 +34,6 @@ static struct glb {
 
 
 #define GEOM    glb.model.grid->voxel.geom
-#define VN      glb.v.n
 #define PARMS   &glb.model.parms
 
 
@@ -46,7 +45,7 @@ static void *CalcImageThreadCont(void *tid_p);
 static void *CalcImageThreadContPolariz(void *tid_p);
 
 static void RadiativeXferCont(double dx, double dy, double *I_nu, double *tau_nu);
-static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu);
+static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *tau_nu);
 
 
 
@@ -75,17 +74,10 @@ int SpTask_ContObs(void)
         glb.y.delt = Sp_PYDBL(Sp_PYLST(o, 1));
         SpPy_XDECREF(o);
     }
-    /* chan */
-    if(!sts && !(sts = SpPy_GetInput_PyObj("chan", &o))) {
-        glb.v.n = Sp_PYSIZE(Sp_PYLST(o, 0));
-        glb.v.crpix = MirWr_CRPIX(glb.v.n);
-        glb.v.delt = Sp_PYDBL(Sp_PYLST(o, 1));
-        SpPy_XDECREF(o);
-    }
     
     /* out (mandatory) */
     if(!sts){
-        sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, glb.v.n, &glb.imgf);
+        sts = SpPy_GetInput_mirxy_new("out", glb.x.n, glb.y.n, 1, &glb.imgf);
     }
     
     /* dist */
@@ -133,7 +125,7 @@ int SpTask_ContObs(void)
 
         /* tau (optional) */
         if(!sts && SpPy_CheckOptionalInput("tau")) {
-            sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, glb.v.n, &glb.tau_imgf);
+            sts = SpPy_GetInput_mirxy_new("tau", glb.x.n, glb.y.n, 1, &glb.tau_imgf);
         }
         PyObject *o_wavelen;
         o_wavelen = PyObject_GetAttrString(o, "wavelen");
@@ -167,20 +159,21 @@ int SpTask_ContObs(void)
     
     /* 3. Synthesize image */
     if(!sts) {
+        MirImg_Axis v; v.n = 1;
         /* Allocate image */
-        glb.image = MirImg_Alloc(glb.x, glb.y, glb.v);
+        glb.image = MirImg_Alloc(glb.x, glb.y, v);
         glb.image->restfreq = glb.freq;
         
         if(glb.tau_imgf){
-            glb.tau_img = MirImg_Alloc(glb.x, glb.y, glb.v);
+            glb.tau_img = MirImg_Alloc(glb.x, glb.y, v);
             glb.tau_img->restfreq = glb.freq;
         }
 
         /* Calculate image */
         if (stokes){
-            glb.StokesQ = MirImg_Alloc(glb.x, glb.y, glb.v);
-            glb.StokesU = MirImg_Alloc(glb.x, glb.y, glb.v);
-            glb.sigma2 = MirImg_Alloc(glb.x, glb.y, glb.v);
+            glb.StokesQ = MirImg_Alloc(glb.x, glb.y, v);
+            glb.StokesU = MirImg_Alloc(glb.x, glb.y, v);
+            glb.sigma2 = MirImg_Alloc(glb.x, glb.y, v);
             glb.StokesQ->restfreq = glb.freq;
             glb.StokesU->restfreq = glb.freq;
             glb.sigma2->restfreq = glb.freq;
@@ -206,12 +199,12 @@ int SpTask_ContObs(void)
             char SQFName[64],SUFName[64];
             
             sprintf( SQFName, "stokesQ_%s", glb.imgf->name);
-            glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, glb.v.n);
+            glb.StxQf = MirXY_Open_new(SQFName, glb.x.n, glb.y.n, 1);
             MirImg_WriteXY(glb.StxQf, glb.StokesQ, glb.unit->name, scale_factor);
             Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxQf->name);
             
             sprintf( SUFName, "stokesU_%s", glb.imgf->name);
-            glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, glb.v.n);
+            glb.StxUf = MirXY_Open_new(SUFName, glb.x.n, glb.y.n, 1);
             MirImg_WriteXY(glb.StxUf, glb.StokesU, glb.unit->name, scale_factor);
             Sp_PRINT("Wrote Miriad image to `%s'\n", glb.StxUf->name);
             #endif
@@ -452,7 +445,7 @@ static void *InitModelThread(void *tid_p)
 static void *CalcImageThreadCont(void *tid_p)
 {
     size_t tid = *((size_t *)tid_p);
-    size_t nvelo = glb.v.n;
+    size_t nvelo = 1;
     
     /* pix_id is used for distributing work to threads */
     size_t pix_id = 0;
@@ -513,7 +506,7 @@ static void *CalcImageThreadCont(void *tid_p)
 static void *CalcImageThreadContPolariz(void *tid_p)
 {
     size_t tid = *((size_t *)tid_p);
-    size_t nvelo = glb.v.n;
+    size_t nvelo = 1;
     
     /* pix_id is used for distributing work to threads */
     size_t pix_id = 0;
@@ -529,7 +522,6 @@ static void *CalcImageThreadContPolariz(void *tid_p)
                 double *I_nu = Mem_CALLOC(nvelo, I_nu);
                 double *Q_nu = Mem_CALLOC(nvelo, Q_nu);
                 double *U_nu = Mem_CALLOC(nvelo, U_nu);
-                double *sigma2 = Mem_CALLOC(nvelo, sigma2);
                 /* tau_nu is the total optical depth for all channels at pixel (ix, iy) */
                 double *tau_nu = Mem_CALLOC(nvelo, tau_nu);
                 
@@ -543,16 +535,14 @@ static void *CalcImageThreadContPolariz(void *tid_p)
                         double *I_sub = Mem_CALLOC(nvelo, I_sub);
                         double *Q_sub = Mem_CALLOC(nvelo, Q_sub);
                         double *U_sub = Mem_CALLOC(nvelo, U_sub);
-                        double *sigma2_sub = Mem_CALLOC(nvelo, sigma2_sub);
                         double *tau_sub = Mem_CALLOC(nvelo, tau_sub);
                         /* Calculate radiative transfer for this sub-los */
-                        RadiativeXferContPolariz(dx, dy, I_sub, Q_sub, U_sub, sigma2_sub, tau_sub);
+                        RadiativeXferContPolariz(dx, dy, I_sub, Q_sub, U_sub, tau_sub);
                         /* Add I_sub to I_nu */
                         for(size_t iv = 0; iv < nvelo; iv++) {
                             I_nu[iv] += I_sub[iv];
                             Q_nu[iv] += Q_sub[iv];
                             U_nu[iv] += U_sub[iv];
-                            sigma2[iv] += sigma2_sub[iv];
                             tau_nu[iv] += tau_sub[iv];
                         }
                         /* Cleanup */
@@ -560,16 +550,14 @@ static void *CalcImageThreadContPolariz(void *tid_p)
                         free(tau_sub);
                         free(Q_sub);
                         free(U_sub);
-                        free(sigma2_sub);
                     }
                 }
                 /* Save averaged I_nu to map */
                 double DnsubSquare = 1. / (double)(nsub * nsub);
                 for(size_t iv = 0; iv < nvelo; iv++) {
-                    MirImg_PIXEL(*glb.image, iv, ix, iy) = ( I_nu[iv] - sigma2[iv] ) * DnsubSquare;
+                    MirImg_PIXEL(*glb.image, iv, ix, iy) = I_nu[iv] * DnsubSquare;
                     MirImg_PIXEL(*glb.StokesQ, iv, ix, iy) = Q_nu[iv] * DnsubSquare;
                     MirImg_PIXEL(*glb.StokesU, iv, ix, iy) = U_nu[iv] * DnsubSquare;
-                    MirImg_PIXEL(*glb.sigma2, iv, ix, iy) = sigma2[iv] * DnsubSquare;
                     if(glb.tau_img)
                         MirImg_PIXEL(*glb.tau_img, iv, ix, iy) = tau_nu[iv] * DnsubSquare;
                 }
@@ -577,9 +565,7 @@ static void *CalcImageThreadContPolariz(void *tid_p)
                 free(I_nu);
                 free(tau_nu);
                 free(Q_nu);
-                free(U_nu);
-                free(sigma2);
-                
+                free(U_nu);                
             }
             /* Increment pix_id */
             pix_id += 1;
@@ -602,7 +588,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *tau_nu
     SpImgTrac_InitLOSCoord( &dx, &dy, &ray, &z, &n, &e, &glb.tel_parms);
     
     /* Reset tau for all channels */
-    Mem_BZERO2(tau_nu, glb.v.n);
+    Mem_BZERO2(tau_nu, 1);
     
     size_t side;
     /* Shoot ray at model and see what happens! */
@@ -622,29 +608,26 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *tau_nu
             SpPhys *pp = zp->data;
             /* Do radiative transfer only if gas is present in this zone */
             if(pp->non_empty_leaf) {
+                /* Reset emission and absorption coeffs */
+                double j_nu = 0;
+                double k_nu = 0;
                 
-                for(size_t iv = 0; iv < glb.v.n; iv++) {
-                    /* Reset emission and absorption coeffs */
-                    double j_nu = 0;
-                    double k_nu = 0;
-                    
-                    /* Add continuum emission/absorption */
-                    j_nu += pp->cont[0].j;
-                    k_nu += pp->cont[0].k;
-                    
-                    /* Calculate source function and optical depth if
-                     * absorption is NOT zero */
-                    double dtau_nu = k_nu * t * Sp_LENFAC;
-                    double S_nu = (fabs(k_nu) > 0.0) ?
-                    j_nu / ( k_nu * glb.I_norm ) : 0.;
-                    
-                    /* Calculate intensity contributed by this step */                   
-                    I_nu[iv] += S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);                   
-                    
-                    /* Accumulate total optical depth for this channel (must be done
-                     * AFTER calculation of intensity!) */
-                    tau_nu[iv] += dtau_nu;
-                }
+                /* Add continuum emission/absorption */
+                j_nu += pp->cont[0].j;
+                k_nu += pp->cont[0].k;
+                
+                /* Calculate source function and optical depth if
+                    * absorption is NOT zero */
+                double dtau_nu = k_nu * t * Sp_LENFAC;
+                double S_nu = (fabs(k_nu) > 0.0) ?
+                j_nu / ( k_nu * glb.I_norm ) : 0.;
+                
+                /* Calculate intensity contributed by this step */                   
+                I_nu[0] += S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[0]);                   
+                
+                /* Accumulate total optical depth for this channel (must be done
+                    * AFTER calculation of intensity!) */
+                tau_nu[0] += dtau_nu;
             }
             //                      Deb_PRINT("checkpoint: non_empty_leaf\n");
             /* Calculate next position */
@@ -655,7 +638,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *tau_nu
         }
     }
     
-    SpImgTrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, VN, glb.I_in, glb.I_cmb, PARMS);
+    SpImgTrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, 1, glb.I_in, glb.I_cmb, PARMS);
     
     
     return;
@@ -664,7 +647,7 @@ static void RadiativeXferCont(double dx, double dy, double *I_nu, double *tau_nu
 
 /*----------------------------------------------------------------------------*/
 
-static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *sigma2, double *tau_nu)
+static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double *Q_nu, double *U_nu, double *tau_nu)
 {
     GeRay ray;
     double t;
@@ -675,7 +658,16 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
     SpImgTrac_InitLOSCoord( &dx, &dy, &ray, &z, &n, &e, &glb.tel_parms);
     
     /* Reset tau for all channels */
-    Mem_BZERO2(tau_nu, glb.v.n);
+    Mem_BZERO2(tau_nu, 1);
+    
+    
+    
+    double kappa[3], Stokes[3], tau[3], dtau[3], Source[3];
+    Mem_BZERO2(kappa , 3);
+    Mem_BZERO2(Stokes, 3);
+    Mem_BZERO2(tau   , 3);
+    Mem_BZERO2(dtau  , 3);
+    Mem_BZERO2(Source, 3);
     
     size_t side;
     /* Shoot ray at model and see what happens! */
@@ -716,41 +708,83 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 
                 double alpha = pp->alpha;
                 
-                for(size_t iv = 0; iv < glb.v.n; iv++) {
-                    /* Reset emission and absorption coeffs */
-                    double j_nu = 0;
-                    double k_nu = 0;
-                    
-                    /* Add continuum emission/absorption */
-                    j_nu += pp->cont[0].j;
-                    k_nu += pp->cont[0].k;
-                    
-                    /* Calculate source function and optical depth if
-                     * absorption is NOT zero */
-                    double dtau_nu = k_nu * t * Sp_LENFAC;
-                    double S_nu = (fabs(k_nu) > 0.0) ?
-                    j_nu / ( k_nu * glb.I_norm ) : 0.;
-                    
-                    /* Calculate intensity contributed by this step */
-                    //debug
-                    double contribution = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[iv]);
-                    
-                    I_nu[iv] += contribution;
-                    if (B_Mag == 0.){
-                        // do nothing
-                        // preventing undefined psi
-                    }
-                    else{
-                        Q_nu[iv] += alpha * contribution * cos(2.0 * psi) * cosgammasquare;
-                        U_nu[iv] += alpha * contribution * sin(2.0 * psi) * cosgammasquare;
-                        static const double d23 = 2. / 3. ;
-                        sigma2[iv] += 0.5 * alpha * contribution * (cosgammasquare - d23);
-                    }
-                    
-                    
-                    /* Accumulate total optical depth for this channel (must be done
-                     * AFTER calculation of intensity!) */
-                    tau_nu[iv] += dtau_nu;
+                /* Reset emission and absorption coeffs */
+                double j_nu = 0;
+                double k_nu = 0;
+                
+                /* Add continuum emission/absorption */
+                j_nu += pp->cont[0].j;
+                k_nu += pp->cont[0].k;
+                
+                
+#if 0
+                /* Calculate source function and optical depth if
+                    * absorption is NOT zero */
+                double dtau_nu = k_nu * t * Sp_LENFAC;
+                double S_nu = (fabs(k_nu) > 0.0) ? j_nu / ( k_nu * glb.I_norm ) : 0.;
+                
+                /* Calculate intensity contributed by this step */
+
+                double contribution = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[0]);
+                
+                I_nu[0] += contribution;
+                if (B_Mag == 0.){
+                    // do nothing
+                    // preventing undefined psi
+                }
+                else{
+                    static const double d23 = 2. / 3. ;
+                    I_nu[0] -= 0.5 * alpha * contribution * (cosgammasquare - d23);;
+                    Q_nu[0] += alpha * contribution * cos(2.0 * psi) * cosgammasquare;
+                    U_nu[0] += alpha * contribution * sin(2.0 * psi) * cosgammasquare;
+                }
+                
+                /* Accumulate total optical depth for this channel (must be done
+                 * AFTER calculation of intensity!) */
+                tau_nu[0] += dtau_nu;
+                */
+#endif
+                /*
+                 * d Stokes / d tau = - Stokes + Source
+                 *                  | I+Q |
+                 * Stokes   =       | I-Q |
+                 *                  |  U  |
+                 * 
+                 *                  | (1 + alpha/f [1/3 + (f-1/2) cos_square_gamma]) |
+                 * kappa    = <k>   |   alpha/f [1/3 - (f+1/2) cos_square_gamma]     |
+                 *                  | (1 + alpha/f [1/3     - 1/2 cos_square_gamma]) |
+                 *          
+                 *                                                      | (1+X_Q)/kappa_1 |
+                 * source = j (1 + alpha/f [1/3 - 1/2 cos_square_gamma])| (1-X_Q)/kappa_2 |
+                 *                                                      |   X_U  /kappa_3 |
+                 * 
+                 * X_Q = alpha cos(2 psi) cos_square_gamma
+                 * X_U = alpha sin(2 psi) cos_square_gamma
+                 */
+                
+                
+                /* Accumulate total optical depth for this channel (must be done
+                 * AFTER calculation of intensity!) */
+                static double f = 1.0; // for the oblate grain
+                static double D3 = 1./3.;
+                static double D2 = 1./2.;
+                
+                kappa[0] =  k_nu * (1.0 + alpha/f * (D3 + (f-D2) * cosgammasquare));
+                kappa[1] =  k_nu *  alpha/f * (D3 - (f+D2) * cosgammasquare);
+                kappa[2] =  k_nu * (1.0 + alpha/f * (D3 - D2 * cosgammasquare));
+                
+                double X_Q = alpha * cos(2.0 * psi) * cosgammasquare;
+                double X_U = alpha * sin(2.0 * psi) * cosgammasquare;
+
+                double S_nu = (fabs(k_nu) > 0.0) ? j_nu / ( k_nu * glb.I_norm ) : 0.;
+                Source[0] = (fabs(kappa[0]) > 0.0) ? S_nu * (1.0 + X_Q) * kappa[2]/kappa[0] : 0.0;
+                Source[1] = (fabs(kappa[1]) > 0.0) ? S_nu * (1.0 - X_Q) * kappa[2]/kappa[1] : 0.0;
+                Source[2] = S_nu *  X_U ;
+                
+                for(size_t i = 0; i < 3; i++){
+                    dtau[i] = kappa[i] * t * Sp_LENFAC;
+                    Stokes[i] = Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
+                    tau[i] += dtau[i];
                 }
             }
             //                      Deb_PRINT("checkpoint: non_empty_leaf\n");
@@ -762,7 +796,13 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
         }
     }
     
-    SpImgTrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, VN, glb.I_in, glb.I_cmb, PARMS);
+    
+    *I_nu = 0.5 * (Stokes[0]+Stokes[1]);
+    *Q_nu = 0.5 * (Stokes[0]-Stokes[1]);
+    *U_nu = Stokes[2];
+    *tau_nu = tau[2];
+    
+    SpImgTrac_IntensityBC( side, I_nu, tau_nu, &ray, GEOM, 1, glb.I_in, glb.I_cmb, PARMS);
     
     
     return;
