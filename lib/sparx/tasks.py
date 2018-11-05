@@ -417,7 +417,7 @@ class Task_ContObs(Task):
 		self.keys = postprocess_keys + observer_keys + telsim_keys + radiation_keys + cont_keys
 
 		# C function to call
-		self.cfunc = _sparx.task_telsim
+		self.cfunc = _sparx.task_contobs
 
 	##
 	## Task procedures

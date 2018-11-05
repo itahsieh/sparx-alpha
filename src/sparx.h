@@ -480,6 +480,9 @@ void SpImgTrac_InitSubPixel( double *dx,
                            size_t nsub,
                            MirImg_Axis *x, MirImg_Axis *y
 );
+void SpImgTrac_IntensityBC( size_t side, double *I_nu, double *tau_nu, GeRay *ray, 
+                                   int geom, size_t vn, double I_in, double I_cmb, SpPhysParm * parms);
+void SpImgTrac_InitLOSCoord( double *dx, double *dy, GeRay *ray, GeVec3_d *z, GeVec3_d *n, GeVec3_d *e, SpTelsim * tel_parms);
 
 
 
