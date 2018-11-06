@@ -757,9 +757,9 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 double averaged_dtau = k_nu * t * Sp_LENFAC;
                 double dtau[3];
                 for(size_t i = 0; i < 3; i++){
-                    dtau[i]         = kappa_factor[i] * averaged_dtau;
-                    Stokes[i]       += Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
-                    tau[i]          += dtau[i];
+                    dtau[i]   = kappa_factor[i] * averaged_dtau;
+                    Stokes[i] += Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
+                    tau[i]    += dtau[i];
                 }
             }
             /* Calculate next position */
