@@ -768,14 +768,26 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 static const double D2 = 1./2.;
                 
                 double kappa_factor[3], Source[3], contribution[3], kappa[3];
+                double X_Q, X_U;
                 
-                double X_Q = alpha * cos(2.0 * psi) * cosgammasquare;
-                double X_U = alpha * sin(2.0 * psi) * cosgammasquare;
+                if (B_Mag == 0.){
+                    X_Q = 0.0;
+                    X_U = 0.0;
+
+                    kappa_factor[0] = 1.0;
+                    kappa_factor[1] = 1.0;
+                    kappa_factor[2] = 1.0;
+                }
+                else{
+                    X_Q = alpha * cos(2.0 * psi) * cosgammasquare;
+                    X_U = alpha * sin(2.0 * psi) * cosgammasquare;
+                    
+                    kappa_factor[0] = (1.0 + (alpha/f) * (D3 + (f-D2) * cosgammasquare));
+                    kappa_factor[1] = (1.0 + (alpha/f) * (D3 - (f+D2) * cosgammasquare));
+                    kappa_factor[2] = (1.0 + (alpha/f) * (D3 - D2 * cosgammasquare));
+                }
+                
                 double S_nu = (fabs(k_nu) > 0.0) ? j_nu / ( k_nu * glb.I_norm ) : 0.0;
-                
-                kappa_factor[0] = (1.0 + (alpha/f) * (D3 + (f-D2) * cosgammasquare));
-                kappa_factor[1] = (alpha/f) * (D3 - (f+D2) * cosgammasquare);
-                kappa_factor[2] = (1.0 + (alpha/f) * (D3 - D2 * cosgammasquare));
                 
                 Source[0] = (fabs(kappa_factor[0]) > 0.0) ? 
                     S_nu * (1.0 + X_Q) * kappa_factor[2]/kappa_factor[0] : 0.0;
@@ -787,7 +799,7 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                     kappa[i] =  k_nu * kappa_factor[i];
                     dtau[i] = kappa[i] * t * Sp_LENFAC;
                     contribution[i] = Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
-                    Stokes[i] += contribution[i]
+                    Stokes[i] += contribution[i];
                     tau[i] += dtau[i];
                 }
                 /* NO NEED for the ASSERTION below (Q is probably negative) */
