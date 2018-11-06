@@ -693,8 +693,8 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                  *                  |  U  |
                  * 
                  *                  | (1 + alpha/f [1/3 + (f-1/2) cos_square_gamma]) |
-                 * kappa    = <k>   |   alpha/f [1/3 - (f+1/2) cos_square_gamma]     |
-                 *                  | (1 + alpha/f [1/3     - 1/2 cos_square_gamma]) |
+                 * kappa    = <k>   | (1 + alpha/f [1/3 - (f+1/2) cos_square_gamma]  |
+                 *                  | (1 + alpha/f [1/3 - 1/2     cos_square_gamma]) |
                  *          
                  *                                                      | (1+X_Q)/kappa_1 |
                  * source = j (1 + alpha/f [1/3 - 1/2 cos_square_gamma])| (1-X_Q)/kappa_2 |
