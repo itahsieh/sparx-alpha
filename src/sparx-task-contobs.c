@@ -660,14 +660,10 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
     /* Reset tau for all channels */
     Mem_BZERO2(tau_nu, 1);
     
-    
-    
-    double kappa[3], Stokes[3], tau[3], dtau[3], Source[3];
-    Mem_BZERO2(kappa , 3);
+    double Stokes[3], tau[3], dtau[3];
     Mem_BZERO2(Stokes, 3);
     Mem_BZERO2(tau   , 3);
     Mem_BZERO2(dtau  , 3);
-    Mem_BZERO2(Source, 3);
     
     size_t side;
     /* Shoot ray at model and see what happens! */
@@ -703,7 +699,7 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 // psi is the angle between the projected B-field on p.o.s. and the north of the image 
                 double B_Mag = GeVec3_Mag(&B);
                 double psi = atan2( -eproduct, nproduct); 
-                // gamma is the angle bettwen B-field an the plane of sky
+                // gamma is the angle bettwen B-field and the plane of sky
                 double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B);
                 
                 double alpha = pp->alpha;
@@ -765,27 +761,35 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 
                 /* Accumulate total optical depth for this channel (must be done
                  * AFTER calculation of intensity!) */
-                static double f = 1.0; // for the oblate grain
-                static double D3 = 1./3.;
-                static double D2 = 1./2.;
+                static const double f = 1.0; // for the oblate grain
+                static const double D3 = 1./3.;
+                static const double D2 = 1./2.;
                 
-                kappa[0] =  k_nu * (1.0 + alpha/f * (D3 + (f-D2) * cosgammasquare));
-                kappa[1] =  k_nu *  alpha/f * (D3 - (f+D2) * cosgammasquare);
-                kappa[2] =  k_nu * (1.0 + alpha/f * (D3 - D2 * cosgammasquare));
+                double kappa_factor[3], Source[3], contribution[3], kappa[3];
                 
                 double X_Q = alpha * cos(2.0 * psi) * cosgammasquare;
                 double X_U = alpha * sin(2.0 * psi) * cosgammasquare;
-
-                double S_nu = (fabs(k_nu) > 0.0) ? j_nu / ( k_nu * glb.I_norm ) : 0.;
-                Source[0] = (fabs(kappa[0]) > 0.0) ? S_nu * (1.0 + X_Q) * kappa[2]/kappa[0] : 0.0;
-                Source[1] = (fabs(kappa[1]) > 0.0) ? S_nu * (1.0 - X_Q) * kappa[2]/kappa[1] : 0.0;
+                double S_nu = (fabs(k_nu) > 0.0) ? j_nu / ( k_nu * glb.I_norm ) : 0.0;
+                
+                kappa_factor[0] = (1.0 + (alpha/f) * (D3 + (f-D2) * cosgammasquare));
+                kappa_factor[1] = (alpha/f) * (D3 - (f+D2) * cosgammasquare);
+                kappa_factor[2] = (1.0 + (alpha/f) * (D3 - D2 * cosgammasquare));
+                
+                Source[0] = (fabs(kappa_factor[0]) > 0.0) ? 
+                    S_nu * (1.0 + X_Q) * kappa_factor[2]/kappa_factor[0] : 0.0;
+                Source[1] = (fabs(kappa_factor[1]) > 0.0) ? 
+                    S_nu * (1.0 - X_Q) * kappa_factor[2]/kappa_factor[1] : 0.0;
                 Source[2] = S_nu *  X_U ;
                 
                 for(size_t i = 0; i < 3; i++){
+                    kappa[i] =  k_nu * kappa_factor[i];
                     dtau[i] = kappa[i] * t * Sp_LENFAC;
-                    Stokes[i] += Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
+                    contribution[i] = Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
+                    Stokes[i] += contribution[i]
                     tau[i] += dtau[i];
                 }
+                // Assure I+Q is greater or equal than I-Q
+                Deb_ASSERT(contribution[0] >= contribution[1]);
             }
             /* Calculate next position */
             ray = GeRay_Inc(&ray, t);
