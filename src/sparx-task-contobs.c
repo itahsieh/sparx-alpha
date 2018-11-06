@@ -692,9 +692,9 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                  * Stokes   =       | I-Q |
                  *                  |  U  |
                  * 
-                 *                  | (1 + alpha/f [1/3 + (f-1/2) cos_square_gamma]) |
-                 * kappa    = <k>   | (1 + alpha/f [1/3 - (f+1/2) cos_square_gamma]  |
-                 *                  | (1 + alpha/f [1/3 - 1/2     cos_square_gamma]) |
+                 *                  | (1 + alpha/f [1/3 - (1/2-f) cos_square_gamma]) |
+                 * kappa    = <k>   | (1 + alpha/f [1/3 - (1/2+f) cos_square_gamma]  |
+                 *                  | (1 + alpha/f [1/3 -   1/2   cos_square_gamma]) |
                  *          
                  *                                                      | (1+X_Q)/kappa_1 |
                  * source = j (1 + alpha/f [1/3 - 1/2 cos_square_gamma])| (1-X_Q)/kappa_2 |
@@ -740,9 +740,9 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                     
                     X_Q = alpha * cos(2.0 * psi) * cosgammasquare;
                     X_U = alpha * sin(2.0 * psi) * cosgammasquare;
-                    kappa_factor[0] = (1.0 + (alpha/f) * (D3 + (f-D2) * cosgammasquare));
-                    kappa_factor[1] = (1.0 + (alpha/f) * (D3 - (f+D2) * cosgammasquare));
-                    kappa_factor[2] = (1.0 + (alpha/f) * (D3 - D2 * cosgammasquare));
+                    kappa_factor[0] = (1.0 + (alpha/f) * (D3 - (D2-f) * cosgammasquare));
+                    kappa_factor[1] = (1.0 + (alpha/f) * (D3 - (D2+f) * cosgammasquare));
+                    kappa_factor[2] = (1.0 + (alpha/f) * (D3 -     D2 * cosgammasquare));
                 }
                 
                 /* Reset emission and absorption coeffs */
