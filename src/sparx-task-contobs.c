@@ -652,13 +652,8 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
     GeRay ray;
     double t;
     Zone *root = glb.model.grid;
-    GeVec3_d z,n,e;        
     
     SpImgTrac_InitRay(root, &dx, &dy, &ray, &glb.tel_parms);
-    SpImgTrac_InitLOSCoord( &dx, &dy, &ray, &z, &n, &e, &glb.tel_parms);
-    
-    /* Reset tau for all channels */
-    Mem_BZERO2(tau_nu, 1);
     
     double Stokes[3], tau[3];
     Mem_BZERO2(Stokes, 3);
@@ -673,6 +668,9 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
         /* Locate starting leaf zone according to intersection */
         Zone *zp = Zone_GetLeaf(root, side, &ray.e, &ray);
         
+        GeVec3_d z,n,e; 
+        SpImgTrac_InitLOSCoord( &dx, &dy, &ray, &z, &n, &e, &glb.tel_parms);
+        
         /* Keep going until there's no next zone to traverse to */
         while(zp) {
             /* Calculate path to next boundary */
@@ -686,59 +684,8 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                  *  Do calculations on all channels at this pixel. Try to minimize the
                  *  amount of operations in this loop, since everything here is repeated
                  *  for ALL channels, and can significantly increase computation time.
-
-                 *  Reference : ARTIST(DustPol) -- http://arxiv.org/pdf/1204.6668.pdf
                  */
-                
-                GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
-                double nproduct = GeVec3_DotProd(&n,&B);
-                double eproduct = GeVec3_DotProd(&e,&B);
-                double zproduct = GeVec3_DotProd(&z,&B);
-                
-                // psi is the angle between the projected B-field on p.o.s. and the north of the image 
-                double B_Mag = GeVec3_Mag(&B);
-                double psi = atan2( -eproduct, nproduct); 
-                // gamma is the angle bettwen B-field and the plane of sky
-                double cosgammasquare = 1.0 - zproduct * zproduct / GeVec3_Mag(&B);
-                
-                double alpha = pp->alpha;
-                
-                /* Reset emission and absorption coeffs */
-                double j_nu = 0;
-                double k_nu = 0;
-                
-                /* Add continuum emission/absorption */
-                j_nu += pp->cont[0].j;
-                k_nu += pp->cont[0].k;
-                
-                
-#if 0
-                /* Calculate source function and optical depth if
-                    * absorption is NOT zero */
-                double dtau_nu = k_nu * t * Sp_LENFAC;
-                double S_nu = (fabs(k_nu) > 0.0) ? j_nu / ( k_nu * glb.I_norm ) : 0.;
-                
-                /* Calculate intensity contributed by this step */
 
-                double contribution = S_nu * (1.0 - exp(-dtau_nu)) * exp(-tau_nu[0]);
-                
-                I_nu[0] += contribution;
-                if (B_Mag == 0.){
-                    // do nothing
-                    // preventing undefined psi
-                }
-                else{
-                    static const double d23 = 2. / 3. ;
-                    I_nu[0] -= 0.5 * alpha * contribution * (cosgammasquare - d23);;
-                    Q_nu[0] += alpha * contribution * cos(2.0 * psi) * cosgammasquare;
-                    U_nu[0] += alpha * contribution * sin(2.0 * psi) * cosgammasquare;
-                }
-                
-                /* Accumulate total optical depth for this channel (must be done
-                 * AFTER calculation of intensity!) */
-                tau_nu[0] += dtau_nu;
-                */
-#endif
                 /*
                  * d Stokes / d tau = - Stokes + Source
                  *                  | I+Q |
@@ -760,14 +707,12 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 
                 /* Accumulate total optical depth for this channel (must be done
                  * AFTER calculation of intensity!) */
-                /* f is the geometrical factor
-                 * 1.0 for the oblate grain; -0.5 for the prolate grain. */
-                static const double f = 1.0; 
-                static const double D3 = 1./3.;
-                static const double D2 = 1./2.;
                 
-                double kappa_factor[3], Source[3], contribution[3], dtau[3], X_Q, X_U;
+                GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
+                double B_Mag = GeVec3_Mag(&B);
                 
+                // kappa cross-section factors and Q U emission fraction
+                double kappa_factor[3], X_Q, X_U;
                 if (B_Mag == 0.){
                     X_Q = 0.0;
                     X_U = 0.0;
@@ -776,6 +721,23 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                     kappa_factor[2] = 1.0;
                 }
                 else{
+                    /* f is the geometrical factor
+                     * 1.0 for the oblate grain; -0.5 for the prolate grain. */
+                    static const double f = 1.0; 
+                    static const double D3 = 1./3.;
+                    static const double D2 = 1./2.;
+
+                    double nproduct = GeVec3_DotProd(&n,&B);
+                    double eproduct = GeVec3_DotProd(&e,&B);
+                    double zproduct = GeVec3_DotProd(&z,&B);
+                
+                    // psi is the angle between the projected B-field on p.o.s. and the north of the image 
+                    double psi = atan2( -eproduct, nproduct); 
+                    // gamma is the angle bettwen B-field and the plane of sky
+                    double cosgammasquare = 1.0 - zproduct * zproduct / B_Mag;
+                    
+                    double alpha = pp->alpha;
+                    
                     X_Q = alpha * cos(2.0 * psi) * cosgammasquare;
                     X_U = alpha * sin(2.0 * psi) * cosgammasquare;
                     kappa_factor[0] = (1.0 + (alpha/f) * (D3 + (f-D2) * cosgammasquare));
@@ -783,17 +745,21 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                     kappa_factor[2] = (1.0 + (alpha/f) * (D3 - D2 * cosgammasquare));
                 }
                 
+                /* Reset emission and absorption coeffs */
+                double j_nu = pp->cont[0].j;
+                double k_nu = pp->cont[0].k; 
                 double S_nu = (fabs(k_nu) > 0.0) ? j_nu / ( k_nu * glb.I_norm ) : 0.0;
-                
+                double Source[3];
                 Source[0] = S_nu * (1.0 + X_Q) * kappa_factor[2]/kappa_factor[0];
                 Source[1] = S_nu * (1.0 - X_Q) * kappa_factor[2]/kappa_factor[1];
                 Source[2] = S_nu *  X_U ;
                 
+                double averaged_dtau = k_nu * t * Sp_LENFAC;
+                double dtau[3];
                 for(size_t i = 0; i < 3; i++){
-                    dtau[i] = k_nu * kappa_factor[i] * t * Sp_LENFAC;
-                    contribution[i] = Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
-                    Stokes[i] += contribution[i];
-                    tau[i] += dtau[i];
+                    dtau[i]         = kappa_factor[i] * averaged_dtau;
+                    Stokes[i]       += Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
+                    tau[i]          += dtau[i];
                 }
             }
             /* Calculate next position */
