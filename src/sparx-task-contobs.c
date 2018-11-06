@@ -761,7 +761,9 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 
                 /* Accumulate total optical depth for this channel (must be done
                  * AFTER calculation of intensity!) */
-                static const double f = 1.0; // for the oblate grain
+                /* f is the geometrical factor
+                 * 1.0 for the oblate grain; -0.5 for the prolate grain. */
+                static const double f = 1.0; 
                 static const double D3 = 1./3.;
                 static const double D2 = 1./2.;
                 
@@ -788,8 +790,9 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                     Stokes[i] += contribution[i]
                     tau[i] += dtau[i];
                 }
+                /* NO NEED for the ASSERTION below (Q is probably negative) */
                 // Assure I+Q is greater or equal than I-Q
-                Deb_ASSERT(contribution[0] >= contribution[1]);
+                //Deb_ASSERT(contribution[0] >= contribution[1]);
             }
             /* Calculate next position */
             ray = GeRay_Inc(&ray, t);
@@ -797,7 +800,6 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
             zp = Zone_GetNext(zp, &side, &ray);
         }
     }
-    
     
     *I_nu = 0.5 * (Stokes[0]+Stokes[1]);
     *Q_nu = 0.5 * (Stokes[0]-Stokes[1]);
