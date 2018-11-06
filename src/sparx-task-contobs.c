@@ -783,14 +783,12 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                 
                 for(size_t i = 0; i < 3; i++){
                     dtau[i] = kappa[i] * t * Sp_LENFAC;
-                    Stokes[i] = Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
+                    Stokes[i] += Source[i] * (1.0 - exp(-dtau[i])) * exp(-tau[i]);
                     tau[i] += dtau[i];
                 }
             }
-            //                      Deb_PRINT("checkpoint: non_empty_leaf\n");
             /* Calculate next position */
             ray = GeRay_Inc(&ray, t);
-            //                      Deb_PRINT("checkpoint: GeRay_Inc\n");
             /* Get next zone to traverse to */
             zp = Zone_GetNext(zp, &side, &ray);
         }
