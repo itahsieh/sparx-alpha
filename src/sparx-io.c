@@ -314,11 +314,12 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
             /* Load molecule if present */
             if(strlen(mol_name) > 0) {
                 if(!(model->parms.mol = SpIO_FreadMolec(mol_name)))
+                    PyWrErr_SetString(PyExc_Exception, "Molecular file name not found '%s'", mol_name);
                     status = 1;
             }
             free(mol_name);
         }
-        
+
         /* Read coordinate name */
         if(!status){
                 char *coordinate = NULL; 
@@ -349,7 +350,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                         status = 1;
         }
 	
-        
+     
 
         /* Read number of outer source */
         if(!status) {
@@ -400,7 +401,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 if(hstatus < 0)
                         status = 1;
         }
-        
+
 
 #if 0 
 	/* Set velocity field: the "velfield" attribute is expected
@@ -471,11 +472,11 @@ int SpIO_OpenModel(const char *sourcefname, const char *popsfname, SpModel *mode
                 if( !popsfp )
                         status = 1;
         }
-        
+
         if(!status)
 		status = SpIO_FreadModel(sfp, popsfp, model, read_pops);
         
-        
+
         /* clean-up file */
         if(sfp)
                 SpIO_CloseFile(sfp);
