@@ -313,9 +313,10 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
 
             /* Load molecule if present */
             if(strlen(mol_name) > 0) {
-                if(!(model->parms.mol = SpIO_FreadMolec(mol_name)))
+                if(!(model->parms.mol = SpIO_FreadMolec(mol_name))){
                     PyWrErr_SetString(PyExc_Exception, "Molecular file name not found '%s'", mol_name);
                     status = 1;
+                }
             }
             free(mol_name);
         }
@@ -349,8 +350,6 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
                 if(hstatus < 0)
                         status = 1;
         }
-	
-     
 
         /* Read number of outer source */
         if(!status) {
@@ -376,7 +375,7 @@ int SpIO_FreadModel(const SpFile *sfp, const SpFile *popsfp, SpModel *model, int
             }
             
         }
-        
+
         /* Read pops-switch */
         if(!status) {
                 hstatus = H5LTget_attribute_int(sfp->h5f_id, "/", "pops", &model->parms.pops);

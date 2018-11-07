@@ -768,7 +768,7 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
             zp = Zone_GetNext(zp, &side, &ray);
         }
     }
-    
+        
     *I_nu = 0.5 * (Stokes[0]+Stokes[1]);
     *Q_nu = 0.5 * (Stokes[0]-Stokes[1]);
     *U_nu = Stokes[2];
