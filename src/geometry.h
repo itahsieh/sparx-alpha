@@ -152,6 +152,7 @@ GeVec3_d GeVec3_d_Init(double x, double y, double z);
 GeVec3_s GeVec3_s_Init(size_t x, size_t y, size_t z);
 double GeVec3_Mag(const GeVec3_d *a);
 double GeVec3_Mag2(const GeVec3_d *a, const GeVec3_d *b);
+double GeVec3_MagSquare(const GeVec3_d *a);
 GeVec3_d GeVec3_Add(const GeVec3_d *a, const GeVec3_d *b);
 GeVec3_d GeVec3_Sub(const GeVec3_d *a, const GeVec3_d *b);
 GeVec3_d GeVec3_Normalize(const GeVec3_d *a);

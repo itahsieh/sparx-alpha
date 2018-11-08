@@ -709,11 +709,11 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                  * AFTER calculation of intensity!) */
                 
                 GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
-                double B_Mag = GeVec3_Mag(&B);
+                double B_MagSquare = GeVec3_Mag(&B);
                 
                 // kappa cross-section factors and Q U emission fraction
                 double kappa_factor[3], X_Q, X_U;
-                if (B_Mag == 0.){
+                if (B_MagSquare == 0.){
                     X_Q = 0.0;
                     X_U = 0.0;
                     kappa_factor[0] = 1.0;
@@ -734,7 +734,7 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                     // psi is the angle between the projected B-field on p.o.s. and the north of the image 
                     double psi = atan2( -eproduct, nproduct); 
                     // gamma is the angle bettwen B-field and the plane of sky
-                    double cosgammasquare = 1.0 - zproduct * zproduct / B_Mag;
+                    double cosgammasquare = 1.0 - (zproduct * zproduct) / B_MagSquare;
                     
                     double alpha = pp->alpha;
                     

@@ -145,6 +145,19 @@ double GeVec3_Mag2(const GeVec3_d *a, const GeVec3_d *b)
 
 /*----------------------------------------------------------------------------*/
 
+double GeVec3_MagSquare(const GeVec3_d *a)
+/* Calculate the magnitude of <a> = |<a>| */
+{
+	double mag = 0;
+	for(size_t i = 0; i < 3; i++) {
+		mag += pow(GeVec3_X(*a, i), 2.0);
+	}
+	return mag;
+}
+
+/*----------------------------------------------------------------------------*/
+
+
 GeVec3_d GeVec3_Add(const GeVec3_d *a, const GeVec3_d *b)
 /* Calculate the result of <c> = <a> + <b> */
 {
