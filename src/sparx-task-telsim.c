@@ -807,7 +807,7 @@ static void RadiativeXferZeeman(double dx, double dy, double *V_nu, double *tau_
                 
                 GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
                 double zproduct = GeVec3_DotProd(&z,&B);
-                double B_Mag = GeVec3_Mag(&B);
+                double B_Mag = GeVec3_MagSquare(&B);
                 double costheta; 
                 
                 if (B_Mag == 0.)
