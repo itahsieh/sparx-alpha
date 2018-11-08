@@ -709,7 +709,7 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                  * AFTER calculation of intensity!) */
                 
                 GeVec3_d B = SpPhys_GetBfac(&ray, t, zp, 0);
-                double B_MagSquare = GeVec3_Mag(&B);
+                double B_MagSquare = GeVec3_MagSquare(&B);
                 
                 // kappa cross-section factors and Q U emission fraction
                 double kappa_factor[3], X_Q, X_U;
