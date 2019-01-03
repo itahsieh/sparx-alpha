@@ -1,4 +1,7 @@
-from tables import * 
+from tables import __version__ as TablesVersion
+from tables import *
+from distutils.version import LooseVersion
+TablesVersionGreaterThan3 = LooseVersion(TablesVersion) >= LooseVersion('3')
 
 
 # Define a user record to characterize some kind of particles
@@ -101,59 +104,70 @@ def DelAttrs_polariz(table):
 
 class export:
     def __init__(self,mesh,phys,FileName):
-        h5file = openFile(FileName, mode = "w", title = "SPARX MODEL FILE")
+        TablesOpenFile = open_file if TablesVersionGreaterThan3 else openFile
+        h5file = TablesOpenFile(FileName, mode = "w", title = "SPARX MODEL FILE")
+        
+        global H5fileCreateTable
+        if TablesVersionGreaterThan3:
+            H5fileDelNodeAttr = h5file.del_node_attr
+            H5fileSetNodeAttr = h5file.set_node_attr
+            H5fileCreateTable = h5file.create_table
+        else:
+            H5fileDelNodeAttr = h5file.delNodeAttr
+            H5fileSetNodeAttr = h5file.setNodeAttr
+            H5fileCreateTable = h5file.createTable
         
         # delete attributes
-        h5file.delNodeAttr("/", "TITLE", name=None)
-        h5file.delNodeAttr("/", "CLASS", name=None)
-        h5file.delNodeAttr("/", "VERSION", name=None)
-        h5file.delNodeAttr("/", "PYTABLES_FORMAT_VERSION", name=None)
+        H5fileDelNodeAttr("/", "TITLE", name=None)
+        H5fileDelNodeAttr("/", "CLASS", name=None)
+        H5fileDelNodeAttr("/", "VERSION", name=None)
+        H5fileDelNodeAttr("/", "PYTABLES_FORMAT_VERSION", name=None)
         
         # create attributes
-        h5file.setNodeAttr("/", "format", "SPARX format v3", name=None)
+        H5fileSetNodeAttr("/", "format", "SPARX format v3", name=None)
         
-        h5file.setNodeAttr("/", "molec", 
+        H5fileSetNodeAttr("/", "molec", 
                             phys.molec if hasattr(phys, 'molec') else 0,
                             name=None)
-        h5file.setNodeAttr("/", "pops", 0, name=None)
-        h5file.setNodeAttr("/", "T_cmb", 
+        H5fileSetNodeAttr("/", "pops", 0, name=None)
+        H5fileSetNodeAttr("/", "T_cmb", 
                             phys.T_cmb if hasattr(phys, 'T_cmb') else 0,
                             name=None)
-        h5file.setNodeAttr("/", "T_in", 
+        H5fileSetNodeAttr("/", "T_in", 
                             phys.T_in if hasattr(phys, 'T_in') else 0,
                             name=None)
-        h5file.setNodeAttr("/", "dust", 
+        H5fileSetNodeAttr("/", "dust", 
                             phys.dust if hasattr(phys, 'dust') else 0, 
                             name=None)
-        h5file.setNodeAttr("/", "polariz", 
+        H5fileSetNodeAttr("/", "polariz", 
                             phys.polariz if hasattr(phys, 'polariz') else 0,
                             name=None)
-        h5file.setNodeAttr("/", "z", 
+        H5fileSetNodeAttr("/", "z", 
                             phys.z if hasattr(phys, 'z') else 0.,
                             name=None)
         
         GridType = mesh.grid.GridType
         if   GridType == 'SPH1D':
-                h5file.setNodeAttr("/", "geom", "sph1d", name=None)
-                self._export_sph1d(mesh,phys,h5file)
+                H5fileSetNodeAttr("/", "geom", "sph1d", name=None)
+                self._export_sph1d(mesh,phys)
         elif GridType == 'SPH2D':
-                h5file.setNodeAttr("/", "geom", "sph3d", name=None)
-                self._export_sph2d(mesh,phys,h5file)
+                H5fileSetNodeAttr("/", "geom", "sph3d", name=None)
+                self._export_sph2d(mesh,phys)
         elif GridType == 'SPH3D':
-                h5file.setNodeAttr("/", "geom", "sph3d", name=None)
-                self._export_sph3d(mesh,phys,h5file)
+                H5fileSetNodeAttr("/", "geom", "sph3d", name=None)
+                self._export_sph3d(mesh,phys)
         elif GridType == 'CYL2D':
-                h5file.setNodeAttr("/", "geom", "cyl3d", name=None)
-                self._export_cyl2d(mesh,phys,h5file)
+                H5fileSetNodeAttr("/", "geom", "cyl3d", name=None)
+                self._export_cyl2d(mesh,phys)
         else:
                 pass
         
         # Create Source table
-        h5file.setNodeAttr("/", "Outer_Source", len(phys.OuterSource) if hasattr(phys, 'OuterSource') else 0, name=None)
+        H5fileSetNodeAttr("/", "Outer_Source", len(phys.OuterSource) if hasattr(phys, 'OuterSource') else 0, name=None)
         
         if hasattr(phys, 'OuterSource'):
-            h5file.setNodeAttr("/", "Outer_Source", len(phys.OuterSource), name=None)
-            table = h5file.createTable("/", 'SOURCE', ParticleSource, "outer source table")
+            H5fileSetNodeAttr("/", "Outer_Source", len(phys.OuterSource), name=None)
+            table = H5fileCreateTable("/", 'SOURCE', ParticleSource, "outer source table")
             particle = table.row
             for i in range(len(phys.OuterSource)):
                 particle['Temperature'] = phys.OuterSource[i][0]
@@ -168,13 +182,13 @@ class export:
         
         h5file.close()        
     
-    def _export_sph1d(self,mesh,phys,h5file):
+    def _export_sph1d(self,mesh,phys):
             nr = mesh.grid.nr
             nt = 1
             np = 1
             
             # Create ZONE table
-            table = h5file.createTable("/", 'ZONE', ParticleZone, "Grid table")
+            table = H5fileCreateTable("/", 'ZONE', ParticleZone, "Grid table")
             particle = table.row
             particle['LEVEL']       = -1
             particle['X_max']       = [ mesh.R_p[nr], mesh.theta_p[nt], mesh.phi_p[np] ]
@@ -188,7 +202,7 @@ class export:
             DelAttrsZone(table)
             
             # Create GRID table
-            table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
+            table = H5fileCreateTable("/", 'GRID', ParticleGrid, "Grid table")
             particle = table.row
             for i in range(nr):
                     particle['LEVEL']       = 0
@@ -218,7 +232,7 @@ class export:
             
             if phys.molec:
                     # Create MOLEC table
-                    table = h5file.createTable("/", 'MOLEC', Particle_molec, "molecular table")
+                    table = H5fileCreateTable("/", 'MOLEC', Particle_molec, "molecular table")
                     particle = table.row
                     for i in range(nr):
                             particle['X_mol']       = phys.X_mol[i]
@@ -228,7 +242,7 @@ class export:
             
             if hasattr(phys, 'T_d'):
                     # Create DUST table
-                    table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
+                    table = H5fileCreateTable("/", 'DUST', Particle_dust, "dust table")
                     particle = table.row
                     for i in range(nr):
                             particle['T_d']         = phys.T_d[i]
@@ -239,13 +253,13 @@ class export:
                     DelAttrs_dust(table)
             
 
-    def _export_sph2d(self,mesh,phys,h5file):
+    def _export_sph2d(self,mesh,phys):
             nr = mesh.grid.nr
             nt = mesh.grid.nt
             np = 1
             
             # Create ZONE table
-            table = h5file.createTable("/", 'ZONE', ParticleZone, "Grid table")
+            table = H5fileCreateTable("/", 'ZONE', ParticleZone, "Grid table")
             particle = table.row
             particle['LEVEL']       = -1
             particle['X_max']       = [ mesh.R_p[nr], mesh.theta_p[nt], mesh.phi_p[np] ]
@@ -259,7 +273,7 @@ class export:
             DelAttrsZone(table)
             
             # Create GRID table
-            table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
+            table = H5fileCreateTable("/", 'GRID', ParticleGrid, "Grid table")
             particle = table.row
             for i in range(nr):
                 for j in range(nt):
@@ -290,7 +304,7 @@ class export:
             
             if phys.molec:
                     # Create MOLEC table
-                    table = h5file.createTable("/", 'MOLEC', Particle_molec, "molecular table")
+                    table = H5fileCreateTable("/", 'MOLEC', Particle_molec, "molecular table")
                     particle = table.row
                     for i in range(nr):
                         for j in range(nt):
@@ -301,7 +315,7 @@ class export:
             
             if hasattr(phys, 'T_d'):
                     # Create DUST table
-                    table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
+                    table = H5fileCreateTable("/", 'DUST', Particle_dust, "dust table")
                     particle = table.row
                     for i in range(nr):
                         for j in range(nt):
@@ -314,7 +328,7 @@ class export:
                     
             if hasattr(phys, 'B_field'):
                     # Create POLARIZ table
-                    table = h5file.createTable("/", 'POLARIZ', Particle_polariz, "polarization table")
+                    table = H5fileCreateTable("/", 'POLARIZ', Particle_polariz, "polarization table")
                     particle = table.row
                     for i in range(nr):
                         for j in range(nt):
@@ -324,13 +338,13 @@ class export:
                     table.flush()
                     DelAttrs_polariz(table)
     
-    def _export_sph3d(self,mesh,phys,h5file):
+    def _export_sph3d(self,mesh,phys):
             nr = mesh.grid.nr
             nt = mesh.grid.nt
             np = mesh.grid.np
             
             # Create ZONE table
-            table = h5file.createTable("/", 'ZONE', ParticleZone, "Grid table")
+            table = H5fileCreateTable("/", 'ZONE', ParticleZone, "Grid table")
             particle = table.row
             particle['LEVEL']       = -1
             particle['X_max']       = [ mesh.R_p[nr], mesh.theta_p[nt], mesh.phi_p[np] ]
@@ -344,7 +358,7 @@ class export:
             DelAttrsZone(table)
             
             # Create GRID table
-            table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
+            table = H5fileCreateTable("/", 'GRID', ParticleGrid, "Grid table")
             particle = table.row
             for i in range(nr):
                 for j in range(nt):
@@ -376,7 +390,7 @@ class export:
             
             if phys.molec:
                     # Create MOLEC table
-                    table = h5file.createTable("/", 'MOLEC', Particle_molec, "molecular table")
+                    table = H5fileCreateTable("/", 'MOLEC', Particle_molec, "molecular table")
                     particle = table.row
                     for i in range(nr):
                         for j in range(nt):
@@ -388,7 +402,7 @@ class export:
             
             if hasattr(phys, 'T_d'):
                     # Create DUST table
-                    table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
+                    table = H5fileCreateTable("/", 'DUST', Particle_dust, "dust table")
                     particle = table.row
                     for i in range(nr):
                         for j in range(nt):
@@ -402,7 +416,7 @@ class export:
                     
             if hasattr(phys, 'B_field'):
                     # Create POLARIZ table
-                    table = h5file.createTable("/", 'POLARIZ', Particle_polariz, "polarization table")
+                    table = H5fileCreateTable("/", 'POLARIZ', Particle_polariz, "polarization table")
                     particle = table.row
                     for i in range(nr):
                         for j in range(nt):
@@ -414,13 +428,13 @@ class export:
                     DelAttrs_polariz(table)
 
 
-    def _export_cyl2d(self,mesh,phys,h5file):
+    def _export_cyl2d(self,mesh,phys):
             nrc = mesh.grid.nrc
             nz = mesh.grid.nz
             np = 1
             
             # Create ZONE table
-            table = h5file.createTable("/", 'ZONE', ParticleZone, "Grid table")
+            table = H5fileCreateTable("/", 'ZONE', ParticleZone, "Grid table")
             particle = table.row
             particle['LEVEL']       = -1
             particle['X_max']       = [ mesh.Rc_p[nrc], mesh.phi_p[np], mesh.z_p[nz] ]
@@ -434,7 +448,7 @@ class export:
             DelAttrsZone(table)
             
             # Create GRID table
-            table = h5file.createTable("/", 'GRID', ParticleGrid, "Grid table")
+            table = H5fileCreateTable("/", 'GRID', ParticleGrid, "Grid table")
             particle = table.row
             for i in range(nrc):
                 for j in range(nz):
@@ -465,7 +479,7 @@ class export:
             
             if phys.molec:
                     # Create MOLEC table
-                    table = h5file.createTable("/", 'MOLEC', Particle_molec, "molecular table")
+                    table = H5fileCreateTable("/", 'MOLEC', Particle_molec, "molecular table")
                     particle = table.row
                     for i in range(nrc):
                         for j in range(nz):
@@ -476,7 +490,7 @@ class export:
             
             if hasattr(phys, 'T_d'):
                     # Create DUST table
-                    table = h5file.createTable("/", 'DUST', Particle_dust, "dust table")
+                    table = H5fileCreateTable("/", 'DUST', Particle_dust, "dust table")
                     particle = table.row
                     for i in range(nrc):
                         for j in range(nz):
@@ -489,7 +503,7 @@ class export:
                     
             if hasattr(phys, 'B_field'):
                     # Create POLARIZ table
-                    table = h5file.createTable("/", 'POLARIZ', Particle_polariz, "polarization table")
+                    table = H5fileCreateTable("/", 'POLARIZ', Particle_polariz, "polarization table")
                     particle = table.row
                     for i in range(nrc):
                         for j in range(nz):
