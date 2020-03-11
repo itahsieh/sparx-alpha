@@ -122,15 +122,15 @@ def FetchZeusPhys(filename):
     return ReverseIndex(data)
 
 def CheckAbdSetAtrr(attr):
-    if hasattr(ZeusPar,attr):
-        return getattr(ZeusPar,attr)
+    if hasattr(ZeusPar, attr):
+        return getattr(ZeusPar, attr)
     else:
         print("{0} has no {1} data".format(ZeusPar.__name__,attr) )
         return None
 
 def CheckAndSetArray(attr):
-    if hasattr(ZeusPar,attr):
-        return getattr(ZeusPar,attr) * np.ones(naxes)
+    if hasattr(ZeusPar, attr):
+        return getattr(ZeusPar, attr) * np.ones(naxes)
     else:
         print("{0} has no {1} data".format(ZeusPar.__name__,attr) )
         return None
@@ -374,7 +374,18 @@ dust_to_gas =   CheckAndSetArray('DustToGas')
 
 # model attribute: molecular name
 molec =         CheckAbdSetAtrr('MolecularSpecie')
-X_mol =         CheckAndSetArray('MolecularAbundance')
+
+if hasattr(ZeusPar, MolecularDensityFileLabel):
+    if not hasattr(ZeusPar, MolecularWeight):
+        print('missing ZEUS parameter: Molecular Weight')
+        exit(1)
+    molecular_density = FetchZeusPhys( \
+            'o_'+ZeusPar.MolecularDensityFileLabel+'_'+time_stamp)
+    n_mol = molecular_density / (ZeusPar.MolecularWeight * mH) * 1e6
+    X_mol = n_mol / n_H2
+else:
+    X_mol =         CheckAndSetArray('MolecularAbundance')
+
 # model attribute: CMB temperature
 T_cmb =         CheckAbdSetAtrr('T_cmb')
 
