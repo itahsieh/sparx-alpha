@@ -735,7 +735,7 @@ static void RadiativeXferContPolariz(double dx, double dy, double *I_nu, double 
                     double psi = atan2( -eproduct, nproduct); 
                     // gamma is the angle bettwen B-field and the plane of sky
                     double cosgammasquare = 1.0 - (zproduct * zproduct) / B_MagSquare;
-                    Deb_ASSERT(cosgammasquare<=1.0 && cosgammasquare>=0.0);
+                    Deb_ASSERT((cosgammasquare <= 1.0) && (cosgammasquare >= 0.0));
                     
                     double alpha = pp->alpha;
                     
