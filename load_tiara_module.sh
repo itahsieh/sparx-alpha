@@ -20,7 +20,7 @@ module add hdf5/1.10.5_openmpi_3.1.4
 
 # The image output format library
 module add cfitsio
-module add miriad/2011
+#module add miriad/2011
 
 # redirect sparx to cluster version
 HOSTNAME=`hostname`
