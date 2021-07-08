@@ -18,5 +18,5 @@ trace=2
 
 
 # restore the population 
-#mkdir -p ../storage/1Dpops/
-#cp pops ../storage/1Dpops/pops
+mkdir -p ../storage/1Dpops/
+cp pops ../storage/1Dpops/pops
