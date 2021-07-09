@@ -18,6 +18,8 @@ if [ ! -e $LOAD_MODULE_FILE ];then
   echo 'PATH=$PATH:'$destination'/bin' | tee -a $LOAD_MODULE_FILE
   echo 'export PYTHONPATH=$PYTHONPATH:'$destination'/lib/python2.7/site-packages' | tee -a $LOAD_MODULE_FILE
   printf "${LIGHTBLUE}COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
+else
+  printf "${LIGHTBLUE}PLEASE manually COPY load_tiara_module.sh TO $LOAD_MODULE_FILE ${NC}\n"
 fi
 
 # LOAD MODULE AND DEFINE SPARXVERSION
@@ -26,13 +28,25 @@ printf "${YELLOW}LOAD MODULE${NC}\n"
 
 # check bashrc to source SPARX's module
 if ! grep -q "# SPARX ENVIROMENT" ~/.bashrc ; then
+  echo '###### SPARX START ######' >> ~/.bashrc
   echo '# SPARX PATH' >> ~/.bashrc
-  echo 'if [ "$HOSTNAME" != "gate" ]' >> ~/.bashrc
+  echo 'if [ ! -z "$CLUSTERNAME" ]' >> ~/.bashrc
   echo 'then' >> ~/.bashrc
-  echo "  # SPARX ENVIROMENT" >> ~/.bashrc
-  echo "  source $LOAD_MODULE_FILE" >> ~/.bashrc
+  echo '  # SPARX ENVIROMENT' >> ~/.bashrc
+  echo '  source $LOAD_MODULE_FILE' >> ~/.bashrc
   echo 'fi' >> ~/.bashrc
+  echo '###### SPARX END ######' >> ~/.bashrc
   printf "${RED}UPDATE ~/.bashrc${NC}\n"
+else
+  echo '###### SPARX START ######'
+  echo '# SPARX PATH'
+  echo 'if [ ! -z "$CLUSTERNAME" ]'
+  echo 'then'
+  echo '  # SPARX ENVIROMENT'
+  echo '  source $LOAD_MODULE_FILE'
+  echo 'fi'
+  echo '###### SPARX END ######'
+  printf "${BLUE}manually UPDATE above script into ~/.bashrc, if needed${NC}\n"
 fi
 
 

@@ -23,8 +23,11 @@ module add cfitsio
 #module add miriad/2011
 
 # redirect sparx to cluster version
-HOSTNAME=`hostname`
-CLUSTERNAME=${HOSTNAME:0:2}
+if [ ! -z "$CLUSTERNAME" ]
+then
+  HOSTNAME=`hostname`
+  CLUSTERNAME=${HOSTNAME:0:2}
+fi
 SPARXVERSION='sparx-'$CLUSTERNAME
 SPARX_VERSION='sparx_'$CLUSTERNAME
 PRESPARX='presparx-'$CLUSTERNAME
