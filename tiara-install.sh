@@ -43,10 +43,10 @@ else
   echo 'if [ ! -z "$CLUSTERNAME" ]'
   echo 'then'
   echo '  # SPARX ENVIROMENT'
-  echo '  source $LOAD_MODULE_FILE'
+  echo '  source ~/.load_sparx_module'
   echo 'fi'
   echo '###### SPARX END ######'
-  printf "${BLUE}manually UPDATE above script into ~/.bashrc, if needed${NC}\n"
+  printf "${LIGHTBLUE}manually UPDATE above script into ~/.bashrc, if needed${NC}\n"
 fi
 
 
