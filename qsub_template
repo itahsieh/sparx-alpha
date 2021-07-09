@@ -7,27 +7,29 @@
 ###### Queue name #######
 #PBS -q small
 ###### Number of nodes and cores ######
-#PBS -l select=2:ncpus=16:mpiprocs=1:ompthreads=16
+#PBS -l select=1:ncpus=16:mpiprocs=1:ompthreads=16
 ###### Sends mail to yourself when the job begins and ends ######
 #PBS -M ACCOUNT@asiaa.sinica.edu.tw
 #PBS -m be
 ###### Specific the shell types ######
 #PBS -S /bin/bash
 
-PBS_O_WORKDIR=/tiara/home/ithsieh/sparx/unit_tests/tmp
-mkdir -p $PBS_O_WORKDIR
-
-###### Enter this job's working directory ######
-cd $PBS_O_WORKDIR
-
 ###### Load modules to setup environment ######
 source ~/.load_sparx_module
 
+###### pre-Run SHU1D ######
+#source test.sh SHU1D
+#source test.sh DISK_SPH2D
+
+###### Enter this job's working directory ######
+PBS_O_WORKDIR=$PBS_O_WORKDIR/unit_tests/tmp
+mkdir -p $PBS_O_WORKDIR
+cd $PBS_O_WORKDIR
 
 ###### Run your jobs with parameters ######
 if [ -n "$PBS_NODEFILE" ]; then
   if [ -f $PBS_NODEFILE ]; then
-    NPROCS=wc -l < $PBS_NODEFILE
+    NPROCS=`wc -l < $PBS_NODEFILE`
   fi
 fi
 
@@ -35,15 +37,16 @@ rm -rf pops* history.log
 
 sparx_version=`which sparx-$CLUSTERNAME`
 
-$OPENMPI_HOME/bin/mpirun -v -machinefile $PBS_NODEFILE -np $NPROCS \
-$sparx_version --parallel run task_amc \
-source=../storage/sph2d_model/model_env_disk \
-out=pops \
-molec='co_21lev' \
-trace='True' \
-lte='True' \
-tolerance=5e-3 \
-snr=20 \
-raniter=2 \
-fixiter=2 \
-| tee history.log
+#$OPENMPI_HOME/bin/mpirun -v -machinefile $PBS_NODEFILE -np $NPROCS \
+#$sparx_version -d --parallel run task_amc \
+$sparx_version run task_amc \
+source=model \
+out=pops 
+#molec='co_21lev' \
+#trace='True' \
+#lte='True' \
+#tolerance=5e-3 \
+#snr=20 \
+#raniter=2 \
+#fixiter=2 \
+#| tee history.log
