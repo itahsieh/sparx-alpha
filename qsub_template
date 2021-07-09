@@ -5,11 +5,11 @@
 #PBS -e SPARX.err
 #PBS -o SPARX.log
 ###### Queue name #######
-#PBS -q medium
+#PBS -q small
 ###### Number of nodes and cores ######
-#PBS -l nodes=8:ppn=12
+#PBS -l select=2:ncpus=16:mpiprocs=1:ompthreads=16
 ###### Sends mail to yourself when the job begins and ends ######
-#PBS -M ithsieh@asiaa.sinica.edu.tw
+#PBS -M ACCOUNT@asiaa.sinica.edu.tw
 #PBS -m be
 ###### Specific the shell types ######
 #PBS -S /bin/bash
@@ -24,22 +24,18 @@ cd $PBS_O_WORKDIR
 source ~/.load_sparx_module
 
 
-###### Run parallel jobs ######
- 
+###### Run your jobs with parameters ######
 if [ -n "$PBS_NODEFILE" ]; then
   if [ -f $PBS_NODEFILE ]; then
-    awk '!x[$0]++' $PBS_NODEFILE > MPIHOST
-    sed -e 's/$/ slots=1/' -i MPIHOST
-    NPROCS=`wc -l < MPIHOST`
+    NPROCS=wc -l < $PBS_NODEFILE
   fi
 fi
 
 rm -rf pops* history.log
 
-CLUSTERNAME=${HOSTNAME:0:2}
 sparx_version=`which sparx-$CLUSTERNAME`
 
-$OPENMPI_HOME/bin/mpirun -v -machinefile MPIHOST -np $NPROCS \
+$OPENMPI_HOME/bin/mpirun -v -machinefile $PBS_NODEFILE -np $NPROCS \
 $sparx_version --parallel run task_amc \
 source=../storage/sph2d_model/model_env_disk \
 out=pops \
@@ -51,5 +47,3 @@ snr=20 \
 raniter=2 \
 fixiter=2 \
 | tee history.log
-
-rm -rf MPIHOST
