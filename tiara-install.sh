@@ -33,7 +33,7 @@ if ! grep -q "# SPARX ENVIROMENT" ~/.bashrc ; then
   echo 'if [ ! -z "$CLUSTERNAME" ]' >> ~/.bashrc
   echo 'then' >> ~/.bashrc
   echo '  # SPARX ENVIROMENT' >> ~/.bashrc
-  echo '  source $LOAD_MODULE_FILE' >> ~/.bashrc
+  echo "  source $LOAD_MODULE_FILE" >> ~/.bashrc
   echo 'fi' >> ~/.bashrc
   echo '###### SPARX END ######' >> ~/.bashrc
   printf "${RED}UPDATE ~/.bashrc${NC}\n"
